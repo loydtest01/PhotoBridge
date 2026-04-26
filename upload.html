@@ -388,6 +388,95 @@
       border-radius: var(--radius); padding: 14px;
       display: flex; flex-direction: column; gap: 10px;
     }
+
+    /* ═══ JOB HEADER BANNER ═══ */
+    .job-banner {
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(135deg, rgba(61,127,255,0.15) 0%, rgba(155,114,255,0.10) 100%);
+      border: 1.5px solid rgba(61,127,255,0.35);
+      border-radius: var(--radius);
+      padding: 14px 16px 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .job-banner::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--purple), var(--accent2));
+      opacity: 0.8;
+    }
+    .job-banner-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted2);
+      margin-bottom: 5px;
+    }
+    .job-banner-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .job-banner-icon {
+      font-size: 22px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .job-banner-number {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #fff;
+      line-height: 1;
+      flex: 1;
+    }
+    .job-banner-number.no-job {
+      font-size: 14px;
+      color: var(--muted);
+      font-family: var(--font);
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+    .job-banner-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(54,217,102,0.15);
+      color: var(--green);
+      border: 1px solid rgba(54,217,102,0.3);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      display: none;
+    }
+    .job-banner-badge.visible { display: block; }
+    .job-banner-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+      display: none;
+    }
+    .job-banner-hint.visible { display: block; }
+    .job-banner-scan-btn {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      background: rgba(61,127,255,0.15);
+      border: 1.5px solid rgba(61,127,255,0.3);
+      color: var(--accent2);
+      transition: all 0.15s;
+      display: none;
+    }
+    .job-banner-scan-btn.visible { display: block; }
+    .job-banner-scan-btn:active { transform: scale(0.98); }
   </style>
 </head>
 <body>
@@ -480,6 +569,18 @@
 
     <!-- Upload Screen -->
     <div class="screen" id="screenUpload">
+
+      <!-- Job Header Banner -->
+      <div class="job-banner" id="uploadJobBanner">
+        <div class="job-banner-label">📁 Nahrání do zakázky</div>
+        <div class="job-banner-main">
+          <div class="job-banner-icon" id="uploadBannerIcon">📋</div>
+          <div class="job-banner-number no-job" id="uploadBannerNumber">Žádná zakázka – naskenuj QR</div>
+          <div class="job-banner-badge" id="uploadBannerBadge">● AKTIVNÍ</div>
+        </div>
+        <div class="job-banner-hint" id="uploadBannerHint"></div>
+        <button class="job-banner-scan-btn" id="uploadBannerScanBtn" onclick="showTab('qr')">🔲 Naskenovat QR kód</button>
+      </div>
 
       <div class="upload-panel">
         <div class="section-label">Typ dokumentu</div>
@@ -928,9 +1029,21 @@ function updateJobUI() {
   const jobEl = document.getElementById('hdrJob');
   const cardEl = document.getElementById('qrJobCard');
   const settJobEl = document.getElementById('settingsJob');
+
+  // Upload banner elements
+  const bannerNum   = document.getElementById('uploadBannerNumber');
+  const bannerIcon  = document.getElementById('uploadBannerIcon');
+  const bannerBadge = document.getElementById('uploadBannerBadge');
+  const bannerHint  = document.getElementById('uploadBannerHint');
+  const bannerScan  = document.getElementById('uploadBannerScanBtn');
+  const banner      = document.getElementById('uploadJobBanner');
+
   if (pbJob) {
+    // Top header badge
     jobEl.style.display = '';
     jobEl.textContent = pbJob;
+
+    // QR screen card
     cardEl.style.display = '';
     document.getElementById('qrJobVal').textContent = pbJob;
     document.getElementById('qrJobSub').textContent = 'Zakázka aktivní – přejdi na Upload';
@@ -939,10 +1052,34 @@ function updateJobUI() {
       <div class="qr-status-icon">✅</div>
       <div class="qr-status-title">Zakázka aktivní</div>
       <div class="qr-status-sub">Naskenuj nový QR pro změnu zakázky</div>`;
+
+    // Upload banner – active state
+    bannerNum.textContent = pbJob;
+    bannerNum.classList.remove('no-job');
+    bannerIcon.textContent = '📂';
+    bannerBadge.classList.add('visible');
+    bannerHint.textContent = 'Vyber typ dokumentu a nahrávej soubory níže.';
+    bannerHint.classList.add('visible');
+    bannerScan.classList.remove('visible');
+    banner.style.borderColor = 'rgba(54,217,102,0.4)';
+    banner.style.background = 'linear-gradient(135deg, rgba(54,217,102,0.08) 0%, rgba(61,127,255,0.10) 100%)';
   } else {
+    // Top header badge
     jobEl.style.display = 'none';
+
+    // QR screen card
     cardEl.style.display = 'none';
     settJobEl.textContent = 'Žádná – naskenuj QR';
+
+    // Upload banner – no job state
+    bannerNum.textContent = 'Žádná zakázka – naskenuj QR';
+    bannerNum.classList.add('no-job');
+    bannerIcon.textContent = '📋';
+    bannerBadge.classList.remove('visible');
+    bannerHint.classList.remove('visible');
+    bannerScan.classList.add('visible');
+    banner.style.borderColor = 'rgba(61,127,255,0.35)';
+    banner.style.background = 'linear-gradient(135deg, rgba(61,127,255,0.15) 0%, rgba(155,114,255,0.10) 100%)';
   }
 }
 
