@@ -1067,6 +1067,18 @@ async function uploadFiles(fileList) {
 
       done++;
       fill.style.width = `${Math.round((done / total) * 100)}%`;
+
+      // ── Notifikuj PC přes pb_queue (fire & forget) ──────────────────
+      fetch(`${SB_URL}/rest/v1/pb_queue`, {
+        method: 'POST',
+        headers: {
+          'apikey':        SB_ANON,
+          'Authorization': `Bearer ${pbToken}`,
+          'Content-Type':  'application/json',
+          'Prefer':        'return=minimal'
+        },
+        body: JSON.stringify({ job: pbJob, file_path: path })
+      }).catch(() => {});  // Chyba notifikace není kritická – upload proběhl
     }
 
     // Reset paint checkbox after success
