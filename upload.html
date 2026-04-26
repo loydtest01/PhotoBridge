@@ -532,6 +532,13 @@
     <div class="hdr-logo"><span class="logo-icon"><img src="icon_192.png" alt="" style="width:24px;height:24px;object-fit:contain;border-radius:5px;vertical-align:middle"></span>Photo<span class="logo-bridge">Bridge</span></div>
     <div class="hdr-job" id="hdrJob">—</div>
     <div class="hdr-user" id="hdrUser">—</div>
+    <button id="hdrLogoutBtn" onclick="doLogout()" title="Odhlásit se" style="
+      background: none; border: none; color: var(--muted); font-size: 18px;
+      padding: 4px 6px; cursor: pointer; line-height: 1; border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+      display: none;
+    " onmouseenter="this.style.color='var(--red)';this.style.background='rgba(240,90,90,0.1)'"
+       onmouseleave="this.style.color='var(--muted)';this.style.background='none'">🚪</button>
   </div>
 
   <!-- Content -->
@@ -829,6 +836,7 @@ function loadSession() {
 function showLogin() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  document.getElementById('hdrLogoutBtn').style.display = 'none';
   setTimeout(() => document.getElementById('loginUser').focus(), 300);
 }
 
@@ -839,6 +847,8 @@ function showApp() {
   document.getElementById('hdrUser').textContent = username;
   document.getElementById('settingsUser').textContent = username;
   document.getElementById('settingsEmail').textContent = pbUser?.email || '—';
+  // Zobraz logout tlačítko v headeru
+  document.getElementById('hdrLogoutBtn').style.display = 'block';
   updateJobUI();
   checkSBStatus();
   readURLParams();  // přečti job z URL (když přišlo z QR)
