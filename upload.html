@@ -894,12 +894,6 @@ function clearJob() {
   updateJobUI();
   toast('🗑️ Zakázka vymazána');
 }
-  pbJob = pbJobToken = null;
-  localStorage.removeItem('pb_job');
-  localStorage.removeItem('pb_job_token');
-  updateJobUI();
-  toast('🗑️ Zakázka vymazána');
-}
 
 function updateJobUI() {
   const jobEl = document.getElementById('hdrJob');
