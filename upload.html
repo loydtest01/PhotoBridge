@@ -417,6 +417,22 @@
       <span id="loginBtnLoad" style="display:none"><span class="spin">⏳</span> Přihlašuji…</span>
     </button>
   </div>
+
+  <!-- PWA install – dostupné BEZ přihlášení -->
+  <div id="loginPwaSection" style="margin-top:16px;text-align:center;display:none">
+    <button onclick="triggerPwaInstall()" style="
+      background:rgba(61,127,255,0.12);border:1px solid rgba(61,127,255,0.3);
+      color:var(--accent2);border-radius:10px;padding:10px 22px;
+      font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer">
+      📲 Přidat na plochu
+    </button>
+  </div>
+  <div id="loginIosCard" style="margin-top:12px;max-width:360px;display:none;
+    background:rgba(61,127,255,0.07);border:1px solid rgba(61,127,255,0.2);
+    border-radius:12px;padding:12px 16px;font-size:12px;color:var(--muted2);line-height:1.7">
+    📲 <strong style="color:var(--text)">Přidat na plochu (iOS):</strong><br>
+    Klepni na <strong>⎋ Sdílet</strong> v Safari → <strong>Přidat na plochu</strong>
+  </div>
 </div>
 
 <!-- ═══ MAIN APP ═══ -->
@@ -671,6 +687,8 @@ let qrInterval = null;
 
 // ── On load ──
 window.addEventListener('DOMContentLoaded', () => {
+  // Krátká prodleva – beforeinstallprompt přijde po load eventu
+  setTimeout(showPwaInstall, 800);
   loadSession();
   restoreTypeSelection();
   updatePaintOption();
@@ -1142,8 +1160,7 @@ let pwaInstallEvent = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   pwaInstallEvent = e;
-  // Show install section when app is ready and user is logged in
-  if (pbToken) showPwaInstall();
+  showPwaInstall(); // zobraz vždy – i na login obrazovce
 });
 
 window.addEventListener('appinstalled', () => {
@@ -1156,10 +1173,14 @@ function showPwaInstall() {
   const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent);
   const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   if (isInStandalone) return; // Already installed
+  const isLoggedIn = !!(pbToken);
   if (isIOS) {
-    document.getElementById('iosInstallCard').style.display = '';
+    // Show on login screen always; in-app only if logged in
+    document.getElementById('loginIosCard').style.display = '';
+    if (isLoggedIn) document.getElementById('iosInstallCard').style.display = '';
   } else if (pwaInstallEvent) {
-    document.getElementById('pwaInstallSection').style.display = '';
+    document.getElementById('loginPwaSection').style.display = '';
+    if (isLoggedIn) document.getElementById('pwaInstallSection').style.display = '';
   }
 }
 
