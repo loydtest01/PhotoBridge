@@ -476,15 +476,6 @@
         <button class="btn-full" id="btnStopScan" onclick="stopQRScan()" style="display:none; background:rgba(240,90,90,0.1);border:1.5px solid rgba(240,90,90,0.3);color:var(--red);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">✖ Zastavit kameru</button>
       </div>
 
-      <div class="upload-panel">
-        <div class="section-label">Nebo zadat ručně</div>
-        <div class="manual-input-row">
-          <div class="manual-input-wrap">
-            <input class="pb-input" type="text" id="manualJob" placeholder="Číslo zakázky, např. 2025-001" autocapitalize="characters">
-          </div>
-          <button style="padding:11px 16px;border-radius:9px;background:var(--accent);color:#fff;font-size:14px;font-weight:700;flex-shrink:0" onclick="setManualJob()">OK</button>
-        </div>
-      </div>
     </div>
 
     <!-- Upload Screen -->
@@ -981,7 +972,7 @@ function triggerVideo() { if (!checkReady()) return; document.getElementById('in
 function triggerPick()  { if (!checkReady()) return; document.getElementById('inPick').click(); }
 
 function checkReady() {
-  if (!pbJob) { toast('⚠️ Nejdřív naskenuj QR nebo zadej zakázku', 'err'); showTab('qr'); return false; }
+  if (!pbJob) { toast('⚠️ Nejdřív naskenuj QR kód', 'err'); showTab('qr'); return false; }
   if (!getType()) { toast('⚠️ Vyber typ dokumentu', 'err'); return false; }
   return true;
 }
@@ -1145,7 +1136,7 @@ async function doChangePassword() {
 // ── Supabase status ──
 async function checkSBStatus() {
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/`, { headers: { 'apikey': SB_ANON } });
+    const res = await fetch(`${SB_URL}/rest/v1/`, { headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${pbToken}` } });
     document.getElementById('sbStatus').textContent = res.ok ? 'Připojeno ✓' : 'Chyba ' + res.status;
     document.getElementById('sbStatus').style.color = res.ok ? 'var(--green)' : 'var(--red)';
   } catch(_) {
