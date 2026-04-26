@@ -667,6 +667,19 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 });
 
+// ── Read job from URL params (when opened via QR scan) ──
+function readURLParams() {
+  const params = new URLSearchParams(window.location.search);
+  const j = params.get('j') || params.get('job');
+  const t = params.get('t') || params.get('token');
+  if (j) {
+    setJob(j.toUpperCase(), t || null);
+    // Clean URL without reload
+    const clean = window.location.pathname;
+    window.history.replaceState({}, '', clean);
+  }
+}
+
 // ── Load session from localStorage ──
 function loadSession() {
   try {
@@ -699,6 +712,13 @@ function showApp() {
   document.getElementById('settingsEmail').textContent = pbUser?.email || '—';
   updateJobUI();
   checkSBStatus();
+  readURLParams();  // přečti job z URL (když přišlo z QR)
+  // Pokud přišlo z plochy (žádné URL params) → rovnou spustit QR scanner
+  const hasURLJob = new URLSearchParams(window.location.search).get('j');
+  if (!hasURLJob) {
+    // Krátká prodleva aby se UI stihlo vykreslit
+    setTimeout(() => startQRScan(), 400);
+  }
 }
 
 // ── Login ──
@@ -846,6 +866,8 @@ function parseQRCode(raw) {
 
   setJob(job, token);
   toast('✅ Zakázka: ' + job, 'ok');
+  // Rovnou na Upload — žádné další klikání
+  showTab('upload');
 }
 
 function setManualJob() {
@@ -866,6 +888,12 @@ function setJob(job, token) {
 }
 
 function clearJob() {
+  pbJob = pbJobToken = null;
+  localStorage.removeItem('pb_job');
+  localStorage.removeItem('pb_job_token');
+  updateJobUI();
+  toast('🗑️ Zakázka vymazána');
+}
   pbJob = pbJobToken = null;
   localStorage.removeItem('pb_job');
   localStorage.removeItem('pb_job_token');
