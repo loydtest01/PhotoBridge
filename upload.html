@@ -1,0 +1,1125 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>PhotoBridge</title>
+  <link rel="manifest" href="mobile-manifest.json">
+  <meta name="theme-color" content="#0b0d14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PhotoBridge">
+  <link rel="apple-touch-icon" href="icon_180.png">
+  <link rel="icon" type="image/png" href="icon_192.png">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ═══ TOKENS ═══ */
+    :root {
+      --bg:       #0b0d14;
+      --surface:  #12151f;
+      --card:     #1a1e2d;
+      --border:   #252a3a;
+      --border2:  #2e3550;
+      --accent:   #3d7fff;
+      --accent2:  #5a9bff;
+      --green:    #36d966;
+      --red:      #f05a5a;
+      --yellow:   #f5c842;
+      --purple:   #9b72ff;
+      --text:     #e8eaf0;
+      --muted:    #5a6280;
+      --muted2:   #7a87a8;
+      --radius:   14px;
+      --font:     'Space Grotesk', system-ui, sans-serif;
+      --mono:     'JetBrains Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; }
+    button { font-family: var(--font); cursor: pointer; border: none; }
+    input  { font-family: var(--font); }
+
+    /* ═══ LOGIN SCREEN ═══ */
+    #loginScreen {
+      position: fixed; inset: 0; z-index: 9000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px;
+      background: var(--bg);
+    }
+    #loginScreen::before {
+      content: '';
+      position: fixed; inset: 0; z-index: -1;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,127,255,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 0% 100%, rgba(155,114,255,0.07) 0%, transparent 60%);
+    }
+    .login-logo {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      margin-bottom: 36px;
+    }
+    .login-logo-icon {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, #1a2540 0%, #0d1220 100%);
+      border-radius: 22px;
+      border: 1.5px solid rgba(61,127,255,0.35);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      box-shadow: 0 0 40px rgba(61,127,255,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .login-logo-name {
+      font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
+      color: #fff;
+    }
+    .login-logo-name span { color: var(--accent2); }
+    .login-logo-sub { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500; }
+    .login-card {
+      width: 100%; max-width: 360px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    }
+    .login-label {
+      font-size: 11px; font-weight: 600; color: var(--muted2);
+      letter-spacing: 0.07em; text-transform: uppercase;
+      margin-bottom: 8px; display: block;
+    }
+    .login-input {
+      width: 100%; background: var(--bg);
+      border: 1.5px solid var(--border2);
+      border-radius: 10px; color: var(--text);
+      font-size: 15px; padding: 12px 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .login-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(61,127,255,0.12); }
+    .login-input::placeholder { color: var(--muted); }
+    .pw-wrap { position: relative; }
+    .pw-wrap .login-input { padding-right: 44px; }
+    .eye-btn {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; color: var(--muted); font-size: 16px; padding: 4px;
+      line-height: 1; transition: color 0.15s;
+    }
+    .eye-btn:hover { color: var(--accent2); }
+    .login-fg { margin-top: 6px; text-align: right; }
+    .login-fg-link { font-size: 12px; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .login-fg-link:hover { color: var(--accent2); }
+    .login-btn {
+      width: 100%; margin-top: 20px;
+      padding: 14px; border-radius: 11px;
+      background: var(--accent);
+      color: #fff; font-size: 15px; font-weight: 700; letter-spacing: 0.01em;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      box-shadow: 0 6px 20px rgba(61,127,255,0.35);
+    }
+    .login-btn:hover { background: var(--accent2); }
+    .login-btn:active { transform: scale(0.98); }
+    .login-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .login-error {
+      margin-top: 14px; padding: 10px 14px;
+      background: rgba(240,90,90,0.1); border: 1px solid rgba(240,90,90,0.3);
+      border-radius: 9px; color: #f08080; font-size: 13px; display: none;
+    }
+    .login-field { margin-bottom: 16px; }
+    .login-field:last-of-type { margin-bottom: 0; }
+
+    /* ═══ MAIN APP ═══ */
+    #app { height: 100%; display: flex; flex-direction: column; }
+
+    /* Header */
+    .hdr {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+    .hdr-logo {
+      font-size: 17px; font-weight: 700; letter-spacing: -0.01em;
+      color: #fff; display: flex; align-items: center; gap: 8px; flex: 1;
+    }
+    .hdr-logo .logo-icon { font-size: 20px; }
+    .hdr-logo .logo-bridge { color: var(--accent2); }
+    .hdr-user {
+      font-size: 11px; color: var(--muted2); font-weight: 500;
+      background: var(--card); border-radius: 20px; padding: 4px 10px;
+      border: 1px solid var(--border); font-family: var(--mono);
+    }
+    .hdr-job {
+      font-size: 11px; color: var(--yellow); font-weight: 600;
+      background: rgba(245,200,66,0.08); border-radius: 20px; padding: 4px 10px;
+      border: 1px solid rgba(245,200,66,0.25); font-family: var(--mono);
+      display: none;
+    }
+
+    /* Tab bar */
+    .tabbar {
+      background: var(--surface); border-top: 1px solid var(--border);
+      display: flex; flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 6px 8px; background: none; color: var(--muted);
+      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      text-transform: uppercase; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      transition: color 0.15s, background 0.15s; border-radius: 0;
+    }
+    .tab-btn .tab-icon { font-size: 20px; }
+    .tab-btn.active { color: var(--accent2); background: rgba(61,127,255,0.06); }
+    .tab-btn.active .tab-icon { filter: drop-shadow(0 0 6px rgba(90,155,255,0.5)); }
+
+    /* Screen */
+    .content { flex: 1; overflow-y: auto; overflow-x: hidden; }
+    .screen { display: none; padding: 16px; flex-direction: column; gap: 14px; }
+    .screen.active { display: flex; }
+
+    /* ═══ QR SCREEN ═══ */
+    .qr-status {
+      text-align: center; padding: 20px 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .qr-status-icon { font-size: 42px; margin-bottom: 10px; }
+    .qr-status-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .qr-status-sub { font-size: 13px; color: var(--muted2); line-height: 1.5; }
+    .qr-job-card {
+      background: linear-gradient(135deg, rgba(61,127,255,0.12) 0%, rgba(155,114,255,0.08) 100%);
+      border: 1.5px solid rgba(61,127,255,0.3); border-radius: var(--radius);
+      padding: 16px; display: none;
+    }
+    .qr-job-label { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+    .qr-job-value { font-size: 22px; font-weight: 700; font-family: var(--mono); color: var(--accent2); }
+    .qr-job-sub { font-size: 12px; color: var(--muted2); margin-top: 4px; }
+    .qr-scan-area {
+      position: relative; background: #000; border-radius: var(--radius);
+      overflow: hidden; aspect-ratio: 1 / 1; display: none;
+    }
+    #qrVideo { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .qr-scan-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .qr-frame {
+      width: 60%; height: 60%;
+      border: 2px solid var(--accent2);
+      border-radius: 12px;
+      box-shadow:
+        0 0 0 9999px rgba(0,0,0,0.45),
+        0 0 20px rgba(61,127,255,0.3);
+      animation: scanPulse 2s ease-in-out infinite;
+    }
+    @keyframes scanPulse {
+      0%,100% { border-color: var(--accent2); box-shadow: 0 0 0 9999px rgba(0,0,0,0.45), 0 0 20px rgba(61,127,255,0.3); }
+      50%      { border-color: #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45), 0 0 30px rgba(255,255,255,0.4); }
+    }
+    .qr-scan-line {
+      position: absolute; left: 20%; right: 20%; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+      animation: scanLine 2s linear infinite;
+      top: 20%;
+    }
+    @keyframes scanLine {
+      0%   { top: 20%; opacity: 1; }
+      100% { top: 80%; opacity: 0.3; }
+    }
+    .manual-input-row {
+      display: flex; gap: 10px; align-items: flex-end;
+    }
+    .manual-input-wrap { flex: 1; }
+
+    /* ═══ UPLOAD SCREEN ═══ */
+    .section-label {
+      font-size: 10px; font-weight: 700; color: var(--muted);
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .types { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .type-label {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 13px; border-radius: 11px;
+      border: 1.5px solid var(--border2); background: var(--surface);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .type-label input[type=radio] { display: none; }
+    .type-label .code {
+      font-family: var(--mono); font-size: 15px; font-weight: 700;
+      color: var(--muted2); white-space: nowrap;
+    }
+    .type-label .desc { font-size: 11px; color: var(--muted); line-height: 1.3; margin-top: 1px; }
+    .type-label input:checked ~ .type-text .code { color: var(--accent2); }
+    .type-label:has(input:checked) {
+      border-color: var(--accent); background: rgba(61,127,255,0.1);
+      box-shadow: 0 0 0 1px rgba(61,127,255,0.15);
+    }
+    .type-label.sp-type:has(input:checked) {
+      border-color: var(--yellow); background: rgba(245,200,66,0.08);
+      box-shadow: 0 0 0 1px rgba(245,200,66,0.15);
+    }
+    .type-label.sp-type:has(input:checked) .code { color: var(--yellow); }
+
+    .paint-opt {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 13px; border-radius: 11px;
+      border: 1.5px solid var(--border2); background: var(--surface);
+      display: none;
+    }
+    .paint-opt label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
+    .paint-opt input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+
+    .btn-row { display: flex; gap: 10px; }
+    .btn-pb {
+      flex: 1; padding: 13px 10px; border-radius: 11px;
+      font-size: 14px; font-weight: 700;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      transition: all 0.15s;
+    }
+    .btn-pb .btn-icon { font-size: 22px; }
+    .btn-pb.btn-photo { background: rgba(54,217,102,0.12); border: 1.5px solid rgba(54,217,102,0.3); color: var(--green); }
+    .btn-pb.btn-video { background: rgba(61,127,255,0.1); border: 1.5px solid rgba(61,127,255,0.3); color: var(--accent2); }
+    .btn-pb.btn-pick  { background: rgba(155,114,255,0.1); border: 1.5px solid rgba(155,114,255,0.3); color: var(--purple); }
+    .btn-pb:active { transform: scale(0.96); opacity: 0.85; }
+    .btn-pb:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .progress-wrap { display: none; }
+    .progress-bar {
+      height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--purple));
+      border-radius: 3px; transition: width 0.3s;
+    }
+    .progress-text {
+      font-size: 12px; color: var(--muted2); font-weight: 600;
+      margin-top: 6px; text-align: center;
+    }
+
+    /* ═══ SETTINGS SCREEN ═══ */
+    .settings-section { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+    .settings-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-icon { font-size: 20px; width: 32px; text-align: center; flex-shrink: 0; }
+    .settings-info { flex: 1; }
+    .settings-title { font-size: 14px; font-weight: 600; }
+    .settings-sub { font-size: 12px; color: var(--muted2); margin-top: 2px; }
+    .settings-value { font-family: var(--mono); font-size: 12px; color: var(--muted2); }
+    .settings-btn {
+      padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+      background: rgba(61,127,255,0.12); color: var(--accent2);
+      border: 1px solid rgba(61,127,255,0.25); transition: all 0.15s;
+    }
+    .settings-btn:hover { background: rgba(61,127,255,0.2); }
+    .settings-btn.danger { background: rgba(240,90,90,0.1); color: var(--red); border-color: rgba(240,90,90,0.25); }
+    .settings-btn.danger:hover { background: rgba(240,90,90,0.2); }
+
+    /* Generic card */
+    .pb-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px;
+    }
+    .pb-card-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+
+    /* Input styled */
+    .pb-input {
+      width: 100%; background: var(--bg); border: 1.5px solid var(--border2);
+      border-radius: 9px; color: var(--text); font-size: 14px; padding: 11px 13px;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s; font-family: var(--font);
+    }
+    .pb-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(61,127,255,0.1); }
+    .pb-input::placeholder { color: var(--muted); }
+
+    /* Action buttons */
+    .btn-full {
+      width: 100%; padding: 13px; border-radius: 10px;
+      font-size: 14px; font-weight: 700; transition: all 0.15s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 16px rgba(61,127,255,0.3); }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-green-full { background: var(--green); color: #0b1a0f; box-shadow: 0 4px 16px rgba(54,217,102,0.25); }
+    .btn-danger-full { background: transparent; border: 1.5px solid rgba(240,90,90,0.4); color: var(--red); }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--card); border: 1px solid var(--border2); border-radius: 12px;
+      padding: 10px 18px; font-size: 13px; font-weight: 600; z-index: 9999;
+      transition: transform 0.25s ease, opacity 0.25s ease; opacity: 0;
+      white-space: nowrap; max-width: 90vw; text-align: center;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.ok { border-color: rgba(54,217,102,0.4); color: var(--green); }
+    #toast.err { border-color: rgba(240,90,90,0.4); color: var(--red); }
+
+    /* Modal */
+    .pb-modal {
+      display: none; position: fixed; inset: 0; z-index: 8000;
+      background: rgba(0,0,0,0.7); align-items: center; justify-content: center; padding: 20px;
+    }
+    .pb-modal.open { display: flex; }
+    .pb-modal-box {
+      background: var(--card); border: 1px solid var(--border2);
+      border-radius: 18px; padding: 24px; width: 100%; max-width: 360px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    }
+    .pb-modal-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .pb-modal-sub { font-size: 13px; color: var(--muted2); margin-bottom: 18px; line-height: 1.5; }
+    .field-gap { display: flex; flex-direction: column; gap: 10px; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 18px; }
+    .btn-cancel {
+      flex: 1; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      background: transparent; border: 1.5px solid var(--border2); color: var(--muted2);
+      transition: all 0.15s;
+    }
+    .btn-cancel:hover { border-color: var(--border); color: var(--text); }
+
+    /* Hourglass */
+    .spin { display: inline-block; animation: spin360 1s linear infinite; }
+    @keyframes spin360 { to { transform: rotate(360deg); } }
+
+    /* Upload section panels */
+    .upload-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="loginScreen">
+  <div class="login-logo">
+    <div class="login-logo-icon"><img src="icon_192.png" alt="PhotoBridge" style="width:44px;height:44px;object-fit:contain;border-radius:10px"></div>
+    <div class="login-logo-name">Photo<span>Bridge</span></div>
+    <div class="login-logo-sub">Firemní foto přenos</div>
+  </div>
+  <div class="login-card">
+    <div class="login-field">
+      <label class="login-label">Uživatelské jméno</label>
+      <input class="login-input" type="text" id="loginUser" placeholder="jfort" autocomplete="username" autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="login-field">
+      <label class="login-label">Heslo</label>
+      <div class="pw-wrap">
+        <input class="login-input" type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+        <button class="eye-btn" type="button" onclick="toggleEye('loginPass',this)">👁️</button>
+      </div>
+    </div>
+    <div class="login-error" id="loginErr"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">
+      <span id="loginBtnTxt">Přihlásit se</span>
+      <span id="loginBtnLoad" style="display:none"><span class="spin">⏳</span> Přihlašuji…</span>
+    </button>
+  </div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div id="app" style="display:none">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-logo"><span class="logo-icon"><img src="icon_192.png" alt="" style="width:24px;height:24px;object-fit:contain;border-radius:5px;vertical-align:middle"></span>Photo<span class="logo-bridge">Bridge</span></div>
+    <div class="hdr-job" id="hdrJob">—</div>
+    <div class="hdr-user" id="hdrUser">—</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- QR Screen -->
+    <div class="screen active" id="screenQR">
+      <div class="qr-status" id="qrStatus">
+        <div class="qr-status-icon">📱</div>
+        <div class="qr-status-title">Naskenuj QR kód z PC</div>
+        <div class="qr-status-sub">Otevři kameru na zakázku zobrazenou na PC obrazovce</div>
+      </div>
+
+      <div class="qr-job-card" id="qrJobCard">
+        <div class="qr-job-label">Aktivní zakázka</div>
+        <div class="qr-job-value" id="qrJobVal">—</div>
+        <div class="qr-job-sub" id="qrJobSub">Přejdi na kartu Upload</div>
+      </div>
+
+      <div class="qr-scan-area" id="qrScanArea">
+        <video id="qrVideo" playsinline autoplay muted></video>
+        <div class="qr-scan-overlay">
+          <div class="qr-frame"></div>
+          <div class="qr-scan-line"></div>
+        </div>
+      </div>
+
+      <div class="upload-panel">
+        <div class="section-label">Naskenovat QR kód</div>
+        <button class="btn-full btn-primary" id="btnStartScan" onclick="startQRScan()">📷 Spustit kameru</button>
+        <button class="btn-full" id="btnStopScan" onclick="stopQRScan()" style="display:none; background:rgba(240,90,90,0.1);border:1.5px solid rgba(240,90,90,0.3);color:var(--red);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">✖ Zastavit kameru</button>
+      </div>
+
+      <div class="upload-panel">
+        <div class="section-label">Nebo zadat ručně</div>
+        <div class="manual-input-row">
+          <div class="manual-input-wrap">
+            <input class="pb-input" type="text" id="manualJob" placeholder="Číslo zakázky, např. 2025-001" autocapitalize="characters">
+          </div>
+          <button style="padding:11px 16px;border-radius:9px;background:var(--accent);color:#fff;font-size:14px;font-weight:700;flex-shrink:0" onclick="setManualJob()">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Screen -->
+    <div class="screen" id="screenUpload">
+
+      <div class="upload-panel">
+        <div class="section-label">Typ dokumentu</div>
+        <div class="types" id="types">
+          <label class="type-label sp-type">
+            <input type="radio" name="typ" value="SP">
+            <div class="type-text"><div class="code">SP_</div><div class="desc">Scan poškození</div></div>
+          </label>
+          <label class="type-label">
+            <input type="radio" name="typ" value="SD">
+            <div class="type-text"><div class="code">SD_</div><div class="desc">Scan dokumentace</div></div>
+          </label>
+          <label class="type-label">
+            <input type="radio" name="typ" value="SDX">
+            <div class="type-text"><div class="code">SD_X</div><div class="desc">Scan baterie</div></div>
+          </label>
+          <label class="type-label">
+            <input type="radio" name="typ" value="VT">
+            <div class="type-text"><div class="code">VT_</div><div class="desc">Výsledek testu</div></div>
+          </label>
+          <label class="type-label">
+            <input type="radio" name="typ" value="SN">
+            <div class="type-text"><div class="code">SN_</div><div class="desc">Scan S/N</div></div>
+          </label>
+        </div>
+      </div>
+
+      <div class="upload-panel" id="paintOpt" style="display:none">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="openInPaint" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
+          <span>🎨</span>
+          <span>Otevřít v malování</span>
+        </label>
+      </div>
+
+      <div class="upload-panel">
+        <div class="section-label">Nahrát soubor</div>
+        <div class="btn-row">
+          <button class="btn-pb btn-photo" id="btnPhoto" onclick="triggerPhoto()">
+            <span class="btn-icon">📷</span><span>Foto</span>
+          </button>
+          <button class="btn-pb btn-video" id="btnVideo" onclick="triggerVideo()">
+            <span class="btn-icon">🎥</span><span>Video</span>
+          </button>
+          <button class="btn-pb btn-pick" id="btnPick" onclick="triggerPick()">
+            <span class="btn-icon">📤</span><span>Nahrát</span>
+          </button>
+        </div>
+        <input type="file" id="inPhoto" accept="image/*" capture="environment" style="display:none" multiple>
+        <input type="file" id="inVideo" accept="video/*" capture="environment" style="display:none">
+        <input type="file" id="inPick"  accept="image/*,video/*,application/pdf" style="display:none" multiple>
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-text" id="progressText"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Settings Screen -->
+    <div class="screen" id="screenSettings">
+
+      <div class="pb-card">
+        <div class="pb-card-title">👤 Přihlášen jako</div>
+        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent2)" id="settingsUser">—</div>
+        <div style="font-size:12px;color:var(--muted2);margin-top:4px" id="settingsEmail">—</div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-row">
+          <div class="settings-icon">🔑</div>
+          <div class="settings-info">
+            <div class="settings-title">Změnit heslo</div>
+            <div class="settings-sub">Nastavit nové přihlašovací heslo</div>
+          </div>
+          <button class="settings-btn" onclick="openModal('modalPass')">Změnit</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-icon">📋</div>
+          <div class="settings-info">
+            <div class="settings-title">Aktivní zakázka</div>
+            <div class="settings-sub" id="settingsJob">Žádná – naskenuj QR</div>
+          </div>
+          <button class="settings-btn" onclick="showTab('qr')">Scan QR</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-icon">🗑️</div>
+          <div class="settings-info">
+            <div class="settings-title">Vymazat zakázku</div>
+            <div class="settings-sub">Reset aktivní zakázky</div>
+          </div>
+          <button class="settings-btn" onclick="clearJob()">Reset</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-row">
+          <div class="settings-icon">🚪</div>
+          <div class="settings-info">
+            <div class="settings-title">Odhlásit se</div>
+            <div class="settings-sub">Smazat přihlášení z tohoto zařízení</div>
+          </div>
+          <button class="settings-btn danger" onclick="doLogout()">Odhlásit</button>
+        </div>
+      </div>
+
+      <div class="pb-card" style="margin-top:4px">
+        <div style="font-size:11px;color:var(--muted);line-height:1.7">
+          <div>📡 Supabase: <span style="color:var(--green);font-family:var(--mono);font-size:10px" id="sbStatus">—</span></div>
+          <div style="margin-top:4px">🗂️ Bucket: <span style="font-family:var(--mono);color:var(--muted2)">pb-uploads</span></div>
+          <div style="margin-top:4px">⏱️ Auto-smazání: <span style="font-family:var(--mono);color:var(--muted2)">1 den</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabbar">
+    <button class="tab-btn active" id="tabQR"     onclick="showTab('qr')">
+      <span class="tab-icon">🔲</span><span>QR</span>
+    </button>
+    <button class="tab-btn" id="tabUpload" onclick="showTab('upload')">
+      <span class="tab-icon">📤</span><span>Upload</span>
+    </button>
+    <button class="tab-btn" id="tabSettings" onclick="showTab('settings')">
+      <span class="tab-icon">⚙️</span><span>Nastavení</span>
+    </button>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div id="toast"></div>
+
+<!-- ═══ MODAL: Změna hesla ═══ -->
+<div class="pb-modal" id="modalPass">
+  <div class="pb-modal-box">
+    <div class="pb-modal-title">🔑 Změnit heslo</div>
+    <div class="pb-modal-sub">Zadej nové heslo pro svůj účet PhotoBridge.</div>
+    <div class="field-gap">
+      <div class="pw-wrap">
+        <input class="pb-input" type="password" id="newPass1" placeholder="Nové heslo (min. 6 znaků)">
+        <button class="eye-btn" type="button" onclick="toggleEye('newPass1',this)">👁️</button>
+      </div>
+      <div class="pw-wrap">
+        <input class="pb-input" type="password" id="newPass2" placeholder="Zopakovat heslo">
+        <button class="eye-btn" type="button" onclick="toggleEye('newPass2',this)">👁️</button>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modalPass')">Zrušit</button>
+      <button class="btn-full btn-primary" style="flex:1" id="savePassBtn" onclick="doChangePassword()">Uložit</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// KONFIGURACE — vyplňte vaše Supabase údaje
+// ═══════════════════════════════════════════════════════
+const SB_URL    = 'https://fplegasiabuqfxwdggct.supabase.co';
+const SB_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwbGVnYXNpYWJ1cWZ4d2RnZ2N0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxOTY3MzIsImV4cCI6MjA5Mjc3MjczMn0.BHTkCK3vzJKJYU_F8bnYS5scDRCnfGWbfSaSKUH65yw';
+const SB_BUCKET = 'pb-uploads';
+const SB_DOMAIN = '@photobridge.local';
+const TYPE_KEY  = 'pb_doc_type';
+// ═══════════════════════════════════════════════════════
+
+// ── Session state ──
+let pbToken    = null;
+let pbRefresh  = null;
+let pbUser     = null;
+let pbJob      = null;
+let pbJobToken = null;
+let qrStream   = null;
+let qrInterval = null;
+
+// ── On load ──
+window.addEventListener('DOMContentLoaded', () => {
+  loadSession();
+  restoreTypeSelection();
+  updatePaintOption();
+  document.getElementById('types').addEventListener('change', () => {
+    const t = getType();
+    if (t) localStorage.setItem(TYPE_KEY, t);
+    updatePaintOption();
+  });
+  document.getElementById('inPhoto').addEventListener('change', e => handleFiles(e.target.files, () => e.target.value = ''));
+  document.getElementById('inVideo').addEventListener('change', e => handleFiles(e.target.files, () => e.target.value = ''));
+  document.getElementById('inPick' ).addEventListener('change', e => handleFiles(e.target.files, () => e.target.value = ''));
+  document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPass').focus(); });
+  document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+});
+
+// ── Load session from localStorage ──
+function loadSession() {
+  try {
+    pbToken   = localStorage.getItem('pb_token') || null;
+    pbRefresh = localStorage.getItem('pb_refresh') || null;
+    pbUser    = JSON.parse(localStorage.getItem('pb_user') || 'null');
+    pbJob     = localStorage.getItem('pb_job') || null;
+    pbJobToken = localStorage.getItem('pb_job_token') || null;
+  } catch(e) { pbUser = null; }
+
+  if (pbToken && pbUser) {
+    showApp();
+  } else {
+    showLogin();
+  }
+}
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  setTimeout(() => document.getElementById('loginUser').focus(), 300);
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  const username = pbUser?.user_metadata?.username || pbUser?.email?.split('@')[0] || '—';
+  document.getElementById('hdrUser').textContent = username;
+  document.getElementById('settingsUser').textContent = username;
+  document.getElementById('settingsEmail').textContent = pbUser?.email || '—';
+  updateJobUI();
+  checkSBStatus();
+}
+
+// ── Login ──
+async function doLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+
+  if (!user) { showLoginErr('Zadej uživatelské jméno'); return; }
+  if (!pass) { showLoginErr('Zadej heslo'); return; }
+
+  setLoginLoading(true);
+
+  try {
+    const email = user + SB_DOMAIN;
+    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error || data.error_description) {
+      const msg = data.error_description || data.error?.message || data.error || 'Špatné jméno nebo heslo';
+      throw new Error(typeof msg === 'string' ? msg : 'Přihlášení selhalo');
+    }
+    if (!data.access_token) throw new Error('Nepodařilo se přihlásit');
+
+    pbToken   = data.access_token;
+    pbRefresh = data.refresh_token || null;
+    pbUser    = data.user;
+
+    localStorage.setItem('pb_token',   pbToken);
+    localStorage.setItem('pb_refresh', pbRefresh || '');
+    localStorage.setItem('pb_user',    JSON.stringify(pbUser));
+
+    showApp();
+  } catch(err) {
+    showLoginErr(translateLoginError(err.message));
+  }
+  setLoginLoading(false);
+}
+
+function showLoginErr(msg) {
+  const el = document.getElementById('loginErr');
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+}
+function setLoginLoading(on) {
+  document.getElementById('loginBtnTxt').style.display  = on ? 'none' : '';
+  document.getElementById('loginBtnLoad').style.display = on ? '' : 'none';
+  document.getElementById('loginBtn').disabled = on;
+}
+function translateLoginError(msg) {
+  if (!msg) return 'Přihlášení selhalo';
+  if (msg.includes('Invalid login')) return 'Špatné jméno nebo heslo';
+  if (msg.includes('Email not confirmed')) return 'Účet není aktivní';
+  if (msg.includes('Too many')) return 'Příliš mnoho pokusů – zkus za chvíli';
+  return msg;
+}
+
+// ── Logout ──
+function doLogout() {
+  if (!confirm('Odhlásit se z PhotoBridge?')) return;
+  ['pb_token','pb_refresh','pb_user','pb_job','pb_job_token'].forEach(k => localStorage.removeItem(k));
+  pbToken = pbRefresh = pbUser = pbJob = pbJobToken = null;
+  stopQRScan();
+  showLogin();
+}
+
+// ── Tab navigation ──
+function showTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (tab === 'qr')       { document.getElementById('screenQR').classList.add('active');       document.getElementById('tabQR').classList.add('active'); }
+  if (tab === 'upload')   { document.getElementById('screenUpload').classList.add('active');   document.getElementById('tabUpload').classList.add('active'); }
+  if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); }
+  if (tab !== 'qr') stopQRScan();
+}
+
+// ── QR Scanner ──
+async function startQRScan() {
+  document.getElementById('qrScanArea').style.display = 'block';
+  document.getElementById('btnStartScan').style.display = 'none';
+  document.getElementById('btnStopScan').style.display = '';
+  document.getElementById('qrStatus').innerHTML = `
+    <div class="qr-status-icon">🔍</div>
+    <div class="qr-status-title">Hledám QR kód…</div>
+    <div class="qr-status-sub">Namiř kameru na QR kód zobrazený na PC</div>`;
+
+  try {
+    qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.getElementById('qrVideo');
+    video.srcObject = qrStream;
+    await video.play();
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    qrInterval = setInterval(() => {
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      if (code) parseQRCode(code.data);
+    }, 200);
+  } catch(err) {
+    toast('⚠️ Kamera nedostupná: ' + err.message, 'err');
+    stopQRScan();
+  }
+}
+
+function stopQRScan() {
+  if (qrInterval) { clearInterval(qrInterval); qrInterval = null; }
+  if (qrStream)   { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
+  document.getElementById('qrScanArea').style.display = 'none';
+  document.getElementById('btnStartScan').style.display = '';
+  document.getElementById('btnStopScan').style.display  = 'none';
+}
+
+function parseQRCode(raw) {
+  stopQRScan();
+  let job = null, token = null;
+
+  // Try JSON format: {"job":"12345","token":"abc"}
+  try {
+    const data = JSON.parse(raw);
+    job   = data.job   || data.j || null;
+    token = data.token || data.t || null;
+  } catch(_) {}
+
+  // Try URL format: http://host/upload?t=TOKEN&j=JOB
+  if (!job) {
+    try {
+      const url = new URL(raw);
+      job   = url.searchParams.get('j') || url.searchParams.get('job') || null;
+      token = url.searchParams.get('t') || url.searchParams.get('token') || null;
+    } catch(_) {}
+  }
+
+  // Fallback: use raw as job
+  if (!job) { job = raw.trim().toUpperCase(); }
+
+  setJob(job, token);
+  toast('✅ Zakázka: ' + job, 'ok');
+}
+
+function setManualJob() {
+  const val = document.getElementById('manualJob').value.trim().toUpperCase();
+  if (!val) { toast('⚠️ Zadej číslo zakázky', 'err'); return; }
+  setJob(val, null);
+  document.getElementById('manualJob').value = '';
+  toast('✅ Zakázka: ' + val, 'ok');
+}
+
+function setJob(job, token) {
+  pbJob      = job;
+  pbJobToken = token;
+  localStorage.setItem('pb_job', job);
+  if (token) localStorage.setItem('pb_job_token', token);
+  updateJobUI();
+  showTab('upload');
+}
+
+function clearJob() {
+  pbJob = pbJobToken = null;
+  localStorage.removeItem('pb_job');
+  localStorage.removeItem('pb_job_token');
+  updateJobUI();
+  toast('🗑️ Zakázka vymazána');
+}
+
+function updateJobUI() {
+  const jobEl = document.getElementById('hdrJob');
+  const cardEl = document.getElementById('qrJobCard');
+  const settJobEl = document.getElementById('settingsJob');
+  if (pbJob) {
+    jobEl.style.display = '';
+    jobEl.textContent = pbJob;
+    cardEl.style.display = '';
+    document.getElementById('qrJobVal').textContent = pbJob;
+    document.getElementById('qrJobSub').textContent = 'Zakázka aktivní – přejdi na Upload';
+    settJobEl.textContent = pbJob;
+    document.getElementById('qrStatus').innerHTML = `
+      <div class="qr-status-icon">✅</div>
+      <div class="qr-status-title">Zakázka aktivní</div>
+      <div class="qr-status-sub">Naskenuj nový QR pro změnu zakázky</div>`;
+  } else {
+    jobEl.style.display = 'none';
+    cardEl.style.display = 'none';
+    settJobEl.textContent = 'Žádná – naskenuj QR';
+  }
+}
+
+// ── Type selection ──
+function getType() {
+  const sel = document.querySelector('input[name=typ]:checked');
+  return sel ? sel.value : null;
+}
+function restoreTypeSelection() {
+  const saved = localStorage.getItem(TYPE_KEY);
+  if (saved) {
+    const inp = document.querySelector(`input[name=typ][value="${saved}"]`);
+    if (inp) inp.checked = true;
+  }
+  updatePaintOption();
+}
+function updatePaintOption() {
+  const t = getType();
+  const opt = document.getElementById('paintOpt');
+  opt.style.display = (t && t !== 'SP') ? 'flex' : 'none';
+  if (t === 'SP' || !t) document.getElementById('openInPaint').checked = false;
+}
+
+// ── Upload triggers ──
+function triggerPhoto() { if (!checkReady()) return; document.getElementById('inPhoto').click(); }
+function triggerVideo() { if (!checkReady()) return; document.getElementById('inVideo').click(); }
+function triggerPick()  { if (!checkReady()) return; document.getElementById('inPick').click(); }
+
+function checkReady() {
+  if (!pbJob) { toast('⚠️ Nejdřív naskenuj QR nebo zadej zakázku', 'err'); showTab('qr'); return false; }
+  if (!getType()) { toast('⚠️ Vyber typ dokumentu', 'err'); return false; }
+  return true;
+}
+
+// ── File handling ──
+async function handleFiles(fileList, reset) {
+  if (!fileList || !fileList.length) return;
+  const files = Array.from(fileList);
+  reset();
+  await uploadFiles(files);
+}
+
+// ── Image optimization ──
+async function optimizeImage(file) {
+  if (file.type === 'application/pdf' || file.type.startsWith('video/')) return file;
+  if (!file.type.startsWith('image/')) return file;
+  if (file.size < 1_500_000) return file;
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        const maxSize = 2400;
+        if (w > h && w > maxSize) { h = (h * maxSize) / w; w = maxSize; }
+        else if (h > maxSize)     { w = (w * maxSize) / h; h = maxSize; }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(blob => resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })), 'image/jpeg', 0.92);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Supabase upload ──
+async function uploadFiles(fileList) {
+  const t = getType();
+  if (!t || !pbJob) return;
+
+  const wrap  = document.getElementById('progressWrap');
+  const fill  = document.getElementById('progressFill');
+  const text  = document.getElementById('progressText');
+  const btns  = ['btnPhoto','btnVideo','btnPick'];
+
+  btns.forEach(id => document.getElementById(id).disabled = true);
+  wrap.style.display = '';
+  fill.style.width = '0%';
+  text.textContent = '⏳ Připravuji…';
+
+  const total = fileList.length;
+  let done = 0;
+
+  try {
+    for (const rawFile of fileList) {
+      const file = await optimizeImage(rawFile);
+      const ext  = file.name.split('.').pop().toLowerCase();
+      const ts   = Date.now();
+      const openPaint = (t !== 'SP' && document.getElementById('openInPaint').checked) ? '_PAINT' : '';
+      const filename  = `${t}_${pbJob}_${ts}${openPaint}.${ext}`;
+      const path      = `${pbJob}/${filename}`;
+
+      fill.style.width = `${Math.round((done / total) * 80)}%`;
+      text.textContent = `⏳ Nahrávám ${done + 1}/${total}…`;
+
+      // Upload to Supabase Storage via REST API
+      const uploadRes = await fetch(`${SB_URL}/storage/v1/object/${SB_BUCKET}/${encodeURIComponent(path)}`, {
+        method: 'POST',
+        headers: {
+          'apikey':        SB_ANON,
+          'Authorization': `Bearer ${pbToken}`,
+          'Content-Type':  file.type || 'application/octet-stream',
+          'x-upsert':      'true'
+        },
+        body: file
+      });
+
+      if (!uploadRes.ok) {
+        const errBody = await uploadRes.text().catch(() => '');
+        // Try token refresh once
+        if (uploadRes.status === 401) {
+          const refreshed = await tryRefreshToken();
+          if (refreshed) { fileList = fileList; /* retry not implemented, user will retry */ }
+        }
+        throw new Error(`Upload selhalo (${uploadRes.status}): ${errBody}`);
+      }
+
+      done++;
+      fill.style.width = `${Math.round((done / total) * 100)}%`;
+    }
+
+    // Reset paint checkbox after success
+    if (t !== 'SP') document.getElementById('openInPaint').checked = false;
+
+    text.textContent = `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'} → ${pbJob}`;
+    toast(`✅ ${done} soubor${done === 1 ? '' : 's'} nahrán`, 'ok');
+
+    setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 3000);
+
+  } catch(err) {
+    text.textContent = '❌ ' + err.message;
+    toast('❌ ' + err.message, 'err');
+    setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 5000);
+  }
+
+  btns.forEach(id => document.getElementById(id).disabled = false);
+}
+
+// ── Token refresh ──
+async function tryRefreshToken() {
+  if (!pbRefresh) return false;
+  try {
+    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
+      body: JSON.stringify({ refresh_token: pbRefresh })
+    });
+    const data = await res.json();
+    if (!data.access_token) return false;
+    pbToken   = data.access_token;
+    pbRefresh = data.refresh_token || pbRefresh;
+    pbUser    = data.user || pbUser;
+    localStorage.setItem('pb_token',   pbToken);
+    localStorage.setItem('pb_refresh', pbRefresh);
+    localStorage.setItem('pb_user',    JSON.stringify(pbUser));
+    return true;
+  } catch(_) { return false; }
+}
+
+// ── Change password ──
+async function doChangePassword() {
+  const p1 = document.getElementById('newPass1').value;
+  const p2 = document.getElementById('newPass2').value;
+  if (!p1)        { toast('⚠️ Zadej heslo', 'err'); return; }
+  if (p1.length < 6) { toast('⚠️ Min. 6 znaků', 'err'); return; }
+  if (p1 !== p2)  { toast('⚠️ Hesla se neshodují', 'err'); return; }
+
+  const btn = document.getElementById('savePassBtn');
+  btn.disabled = true; btn.textContent = '⏳ Ukládám…';
+  try {
+    const res  = await fetch(`${SB_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON, 'Authorization': `Bearer ${pbToken}` },
+      body: JSON.stringify({ password: p1 })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error?.message || data.error_description || 'Chyba');
+    closeModal('modalPass');
+    toast('✅ Heslo změněno', 'ok');
+  } catch(err) {
+    toast('❌ ' + err.message, 'err');
+  }
+  btn.disabled = false; btn.textContent = 'Uložit';
+}
+
+// ── Supabase status ──
+async function checkSBStatus() {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/`, { headers: { 'apikey': SB_ANON } });
+    document.getElementById('sbStatus').textContent = res.ok ? 'Připojeno ✓' : 'Chyba ' + res.status;
+    document.getElementById('sbStatus').style.color = res.ok ? 'var(--green)' : 'var(--red)';
+  } catch(_) {
+    document.getElementById('sbStatus').textContent = 'Nedostupné';
+    document.getElementById('sbStatus').style.color = 'var(--red)';
+  }
+}
+
+// ── UI Helpers ──
+function toggleEye(id, btn) {
+  const inp  = document.getElementById(id);
+  const show = inp.type === 'password';
+  inp.type     = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁️';
+}
+
+let toastTimer = null;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 2800);
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  // Clear password fields on close
+  ['newPass1','newPass2'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
+}
+document.querySelectorAll('.pb-modal').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+</script>
+</body>
+</html>
