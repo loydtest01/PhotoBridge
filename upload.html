@@ -580,8 +580,33 @@
         <button class="eye-btn" type="button" onclick="toggleEye('loginPass',this)">👁️</button>
       </div>
     </div>
+    <!-- Pole pro registraci – skrytá dokud uživatel nepřepne -->
+    <div id="regFields" style="display:none">
+      <div class="login-field">
+        <label class="login-label">Heslo znovu</label>
+        <div class="pw-wrap">
+          <input class="login-input" type="password" id="loginPass2" placeholder="••••••••" autocomplete="new-password">
+          <button class="eye-btn" type="button" onclick="toggleEye('loginPass2',this)">👁️</button>
+        </div>
+      </div>
+    </div>
     <div class="login-error" id="loginErr"></div>
-    <button class="login-btn" id="loginBtn" onclick="doLogin()">
+    <!-- Přepínač přihlášení / registrace – textové záložky -->
+    <div style="display:flex;gap:0;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1)">
+      <button id="loginTabBtn" onclick="setLoginMode('login')" style="
+        flex:1;padding:7px 4px;border:none;cursor:pointer;font-family:var(--font);
+        font-size:13px;font-weight:700;background:transparent;
+        color:#fff;border-bottom:2px solid var(--accent);margin-bottom:-1px;transition:all 0.2s">
+        Přihlásit se
+      </button>
+      <button id="regTabBtn" onclick="setLoginMode('register')" style="
+        flex:1;padding:7px 4px;border:none;cursor:pointer;font-family:var(--font);
+        font-size:13px;font-weight:700;background:transparent;
+        color:var(--muted2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.2s">
+        Registrovat se
+      </button>
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="doLoginOrRegister()">
       <span id="loginBtnTxt">Přihlásit se</span>
       <span id="loginBtnLoad" style="display:none"><span class="spin">⏳</span> Přihlašuji…</span>
     </button>
@@ -612,13 +637,26 @@
     <div class="hdr-logo"><span class="logo-icon"><img src="icon_192.png" alt="" style="width:24px;height:24px;object-fit:contain;border-radius:5px;vertical-align:middle"></span>Photo<span class="logo-bridge">Bridge</span></div>
     <div class="hdr-job" id="hdrJob">—</div>
     <div id="hdrProfileArea" style="display:none;align-items:center;gap:6px">
-      <div class="hdr-user" id="hdrUser">—</div>
+      <!-- Aktivní profil – zelený -->
+      <div id="hdrActiveProfile" style="
+        background:rgba(54,217,102,0.15); border:1px solid rgba(54,217,102,0.4);
+        color:#36d966; border-radius:20px; padding:3px 10px; font-size:12px;
+        font-weight:700; font-family:var(--mono); line-height:1.4;
+        display:flex; align-items:center; gap:5px;
+      ">
+        <span style="width:7px;height:7px;border-radius:50%;background:#36d966;display:inline-block;flex-shrink:0"></span>
+        <span id="hdrUser">—</span>
+      </div>
+      <!-- Neaktivní profil – červený, klikací přepínač -->
       <button id="hdrSwitchBtn" onclick="quickSwitchProfile()" title="Přepnout profil" style="
-        display:none; background:rgba(61,127,255,0.12); border:1px solid rgba(61,127,255,0.3);
-        color:var(--accent2); border-radius:20px; padding:3px 9px; font-size:12px;
+        display:none; background:rgba(240,90,90,0.12); border:1px solid rgba(240,90,90,0.35);
+        color:#f05a5a; border-radius:20px; padding:3px 10px; font-size:12px;
         font-weight:700; cursor:pointer; transition:all 0.15s; font-family:var(--mono);
-        line-height:1.4;
-      ">⇄ <span id="hdrSwitchName"></span></button>
+        line-height:1.4; display:flex; align-items:center; gap:5px;
+      ">
+        <span style="width:7px;height:7px;border-radius:50%;background:#f05a5a;display:inline-block;flex-shrink:0"></span>
+        <span id="hdrSwitchName"></span>
+      </button>
     </div>
   </div>
 
@@ -878,12 +916,29 @@
 <div class="pb-modal" id="modalAddProfile">
   <div class="pb-modal-box">
     <div class="pb-modal-title">➕ Nový profil</div>
-    <div class="pb-modal-sub">Přihlas se pod jiným účtem — přidá se jako druhý profil.</div>
+    <!-- Přepínač přihlášení / registrace -->
+    <div style="display:flex;gap:6px;margin:8px 0 12px">
+      <button id="addProfLoginTab" onclick="setAddProfMode('login')" style="
+        flex:1;padding:7px;border-radius:8px;border:none;cursor:pointer;
+        font-family:var(--font);font-size:12px;font-weight:700;
+        background:var(--accent);color:#fff;transition:all 0.2s">Přihlásit</button>
+      <button id="addProfRegTab" onclick="setAddProfMode('register')" style="
+        flex:1;padding:7px;border-radius:8px;border:1px solid var(--border2);cursor:pointer;
+        font-family:var(--font);font-size:12px;font-weight:700;
+        background:transparent;color:var(--muted2);transition:all 0.2s">Registrovat</button>
+    </div>
+    <div id="addProfSub" class="pb-modal-sub">Přihlas se pod jiným účtem — přidá se jako druhý profil.</div>
     <div class="field-gap">
       <input class="pb-input" type="text" id="addProfUser" placeholder="Uživatelské jméno" autocomplete="off" autocapitalize="none" spellcheck="false">
       <div class="pw-wrap">
         <input class="pb-input" type="password" id="addProfPass" placeholder="Heslo" autocomplete="off">
         <button class="eye-btn" type="button" onclick="toggleEye('addProfPass',this)">👁️</button>
+      </div>
+      <div id="addProfPass2Wrap" style="display:none">
+        <div class="pw-wrap" style="margin-top:8px">
+          <input class="pb-input" type="password" id="addProfPass2" placeholder="Heslo znovu" autocomplete="off">
+          <button class="eye-btn" type="button" onclick="toggleEye('addProfPass2',this)">👁️</button>
+        </div>
       </div>
       <div class="login-error" id="addProfErr" style="margin-top:0"></div>
     </div>
@@ -1026,8 +1081,45 @@ async function doAddProfile() {
   }
 
   const btn = document.getElementById('addProfBtn');
-  btn.disabled = true; btn.textContent = '⏳ Přihlašuji…';
 
+  // ── Registrace nového účtu ──
+  if (_addProfMode === 'register') {
+    const pass2 = document.getElementById('addProfPass2').value;
+    if (pass.length < 6) { errEl.textContent = '⚠️ Heslo musí mít alespoň 6 znaků'; errEl.style.display = 'block'; return; }
+    if (pass !== pass2)  { errEl.textContent = '⚠️ Hesla se neshodují'; errEl.style.display = 'block'; return; }
+    btn.disabled = true; btn.textContent = '⏳ Registruji…';
+    try {
+      const email = user + SB_DOMAIN;
+      const res = await fetch(`${SB_URL}/auth/v1/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
+        body: JSON.stringify({ email, password: pass, data: { username: user, email_verified: true } })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.message || data.error_description || 'Registrace selhala');
+      if (!data.access_token) throw new Error('Registrace proběhla ale přihlášení selhalo – zkontroluj Email Confirmations v Supabase.');
+      syncCurrentToProfile();
+      const ok = upsertProfile(data.access_token, data.refresh_token, data.user);
+      if (!ok) throw new Error('Limit profilů byl dosažen');
+      pbToken = data.access_token; pbRefresh = data.refresh_token; pbUser = data.user;
+      pbJob = null; pbJobToken = null;
+      document.getElementById('addProfUser').value = '';
+      document.getElementById('addProfPass').value = '';
+      document.getElementById('addProfPass2').value = '';
+      closeModal('modalAddProfile');
+      setAddProfMode('login');
+      showApp();
+      const newProf = pbProfiles.find(p => p.id === pbActiveId);
+      toast('✅ Nový účet: ' + (newProf?.username || user), 'ok');
+    } catch(err) {
+      errEl.textContent = '⚠️ ' + err.message; errEl.style.display = 'block';
+    }
+    btn.disabled = false; btn.textContent = 'Zaregistrovat';
+    return;
+  }
+
+  // ── Přihlášení existujícího účtu ──
+  btn.disabled = true; btn.textContent = '⏳ Přihlašuji…';
   try {
     syncCurrentToProfile();
     const res  = await fetch(SB_URL + '/auth/v1/token?grant_type=password', {
@@ -1060,6 +1152,7 @@ async function doAddProfile() {
   btn.disabled = false; btn.textContent = 'Přidat';
 }
 
+
 // openModal
 function openModal(id) {
   document.getElementById(id).classList.add('open');
@@ -1090,7 +1183,8 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('inVideo').addEventListener('change', e => handleFiles(e.target.files, () => e.target.value = ''));
   document.getElementById('inPick' ).addEventListener('change', e => handleFiles(e.target.files, () => e.target.value = ''));
   document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPass').focus(); });
-  document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') { if (_loginMode === 'register') document.getElementById('loginPass2').focus(); else doLoginOrRegister(); } });
+  document.getElementById('loginPass2')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLoginOrRegister(); });
   // Aktualizuj tapetu každou minutu (pro přechod v 8:00 a 18:00)
   setInterval(applyTimeWallpaper, 60_000);
   document.getElementById('addProfUser').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('addProfPass').focus(); });
@@ -1175,6 +1269,81 @@ function showApp() {
 }
 
 // ── Login ──
+// ── Login / Register mode toggle ──
+let _loginMode = 'login';  // 'login' nebo 'register'
+
+function setLoginMode(mode) {
+  _loginMode = mode;
+  document.getElementById('loginErr').style.display = 'none';
+  const regFields = document.getElementById('regFields');
+  const loginTab  = document.getElementById('loginTabBtn');
+  const regTab    = document.getElementById('regTabBtn');
+  const btnTxt    = document.getElementById('loginBtnTxt');
+  if (mode === 'register') {
+    regFields.style.display = '';
+    loginTab.style.color = 'var(--muted2)';
+    loginTab.style.borderBottom = '2px solid transparent';
+    regTab.style.color = '#fff';
+    regTab.style.borderBottom = '2px solid var(--accent)';
+    btnTxt.textContent = 'Zaregistrovat se';
+  } else {
+    regFields.style.display = 'none';
+    loginTab.style.color = '#fff';
+    loginTab.style.borderBottom = '2px solid var(--accent)';
+    regTab.style.color = 'var(--muted2)';
+    regTab.style.borderBottom = '2px solid transparent';
+    btnTxt.textContent = 'Přihlásit se';
+  }
+}
+
+async function doLoginOrRegister() {
+  if (_loginMode === 'register') {
+    await doRegister();
+  } else {
+    await doLogin();
+  }
+}
+
+async function doRegister() {
+  const user  = document.getElementById('loginUser').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const pass2 = document.getElementById('loginPass2').value;
+  document.getElementById('loginErr').style.display = 'none';
+
+  if (!user)  { showLoginErr('Zadej uživatelské jméno'); return; }
+  if (!pass)  { showLoginErr('Zadej heslo'); return; }
+  if (pass.length < 6) { showLoginErr('Heslo musí mít alespoň 6 znaků'); return; }
+  if (pass !== pass2) { showLoginErr('Hesla se neshodují'); return; }
+
+  setLoginLoading(true);
+  try {
+    const email = user + SB_DOMAIN;
+    const res = await fetch(`${SB_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
+      body: JSON.stringify({ email, password: pass, data: { username: user, email_verified: true } })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const msg = data.msg || data.message || data.error_description || 'Registrace selhala';
+      throw new Error(typeof msg === 'string' ? msg : 'Registrace selhala');
+    }
+    if (!data.access_token) throw new Error('Registrace proběhla, ale přihlášení selhalo. Zkontroluj Supabase nastavení (Email Confirmations musí být vypnuté).');
+
+    pbToken   = data.access_token;
+    pbRefresh = data.refresh_token || null;
+    pbUser    = data.user;
+    upsertProfile(pbToken, pbRefresh, pbUser);
+    const _prof = pbProfiles.find(p => p.id === pbActiveId);
+    if (_prof) { pbJob = _prof.job || null; pbJobToken = _prof.jobToken || null; }
+    showApp();
+    toast('✅ Účet vytvořen: ' + user, 'ok');
+  } catch(err) {
+    showLoginErr(err.message);
+  }
+  setLoginLoading(false);
+}
+
 async function doLogin() {
   const user = document.getElementById('loginUser').value.trim();
   const pass = document.getElementById('loginPass').value;
@@ -1233,6 +1402,42 @@ function translateLoginError(msg) {
   if (msg.includes('Too many')) return 'Příliš mnoho pokusů – zkus za chvíli';
   return msg;
 }
+
+// ── Add profile mode toggle ──
+let _addProfMode = 'login';
+
+function setAddProfMode(mode) {
+  _addProfMode = mode;
+  document.getElementById('addProfErr').style.display = 'none';
+  const wrap     = document.getElementById('addProfPass2Wrap');
+  const loginTab = document.getElementById('addProfLoginTab');
+  const regTab   = document.getElementById('addProfRegTab');
+  const sub      = document.getElementById('addProfSub');
+  const btn      = document.getElementById('addProfBtn');
+  if (mode === 'register') {
+    wrap.style.display = '';
+    loginTab.style.background = 'transparent';
+    loginTab.style.color = 'var(--muted2)';
+    loginTab.style.border = '1px solid var(--border2)';
+    regTab.style.background = 'var(--accent)';
+    regTab.style.color = '#fff';
+    regTab.style.border = 'none';
+    sub.textContent = 'Vytvoř nový účet – přidá se jako druhý profil.';
+    btn.textContent = 'Zaregistrovat';
+  } else {
+    wrap.style.display = 'none';
+    loginTab.style.background = 'var(--accent)';
+    loginTab.style.color = '#fff';
+    loginTab.style.border = 'none';
+    regTab.style.background = 'transparent';
+    regTab.style.color = 'var(--muted2)';
+    regTab.style.border = '1px solid var(--border2)';
+    sub.textContent = 'Přihlas se pod jiným účtem — přidá se jako druhý profil.';
+    btn.textContent = 'Přidat';
+  }
+}
+
+
 
 // ── Logout ──
 function doLogout() {
