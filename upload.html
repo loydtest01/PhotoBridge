@@ -1200,24 +1200,34 @@ async function uploadFiles(fileList) {
       text.textContent = `⏳ Nahrávám ${done + 1}/${total}…`;
 
       // Upload to Supabase Storage via REST API
-      const uploadRes = await fetch(`${SB_URL}/storage/v1/object/${SB_BUCKET}/${encodeURIComponent(path)}`, {
-        method: 'POST',
-        headers: {
-          'apikey':        SB_ANON,
-          'Authorization': `Bearer ${pbToken}`,
-          'Content-Type':  file.type || 'application/octet-stream',
-          'x-upsert':      'true'
-        },
-        body: file
-      });
+      // FIX: encodeURIComponent(path) kódovalo '/' jako '%2F' → 400/403.
+      // Správně: každý segment zvlášť, lomítko zachováme.
+      const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+
+      const doUpload = async (token) => fetch(
+        `${SB_URL}/storage/v1/object/${SB_BUCKET}/${encodedPath}`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey':        SB_ANON,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type':  file.type || 'application/octet-stream',
+            'x-upsert':      'true'
+          },
+          body: file
+        }
+      );
+
+      let uploadRes = await doUpload(pbToken);
+
+      // 401/403 → refresh tokenu + jeden retry
+      if (!uploadRes.ok && (uploadRes.status === 401 || uploadRes.status === 403)) {
+        const refreshed = await tryRefreshToken();
+        if (refreshed) uploadRes = await doUpload(pbToken);
+      }
 
       if (!uploadRes.ok) {
         const errBody = await uploadRes.text().catch(() => '');
-        // Try token refresh once
-        if (uploadRes.status === 401) {
-          const refreshed = await tryRefreshToken();
-          if (refreshed) { fileList = fileList; /* retry not implemented, user will retry */ }
-        }
         throw new Error(`Upload selhalo (${uploadRes.status}): ${errBody}`);
       }
 
