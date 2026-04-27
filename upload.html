@@ -1142,10 +1142,20 @@ async function handleFiles(fileList, reset) {
 }
 
 // ── Image optimization ──
-async function optimizeImage(file) {
+// SP (poškození):  max 2400 px, kvalita 0.92 → iterativně snižuje dokud je ≤ 3 MB (IT nařízení)
+// Ostatní typy:    max 1920 px, kvalita 0.82, práh komprese 300 KB
+async function optimizeImage(file, type) {
   if (file.type === 'application/pdf' || file.type.startsWith('video/')) return file;
   if (!file.type.startsWith('image/')) return file;
-  if (file.size < 1_500_000) return file;
+
+  const isSP = (type === 'SP');
+  const maxSize    = isSP ? 2400 : 1920;
+  const threshold  = isSP ? 3_000_000 : 300_000;   // SP: 3 MB limit (IT), ostatní: 300 KB
+  const baseQuality = isSP ? 0.92 : 0.82;
+
+  // Pokud je soubor dostatečně malý, nekomprimuj
+  if (!isSP && file.size < threshold) return file;
+
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = e => {
@@ -1153,15 +1163,35 @@ async function optimizeImage(file) {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let w = img.width, h = img.height;
-        const maxSize = 2400;
-        if (w > h && w > maxSize) { h = (h * maxSize) / w; w = maxSize; }
-        else if (h > maxSize)     { w = (w * maxSize) / h; h = maxSize; }
+        if (w > h && w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else if (h > maxSize)     { w = Math.round(w * maxSize / h); h = maxSize; }
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, w, h);
-        canvas.toBlob(blob => resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })), 'image/jpeg', 0.92);
+
+        if (isSP) {
+          // Iterativní komprese: zaručí ≤ 3 MB (IT nařízení)
+          const tryCompress = (quality) => {
+            canvas.toBlob(blob => {
+              if (blob.size <= threshold || quality <= 0.60) {
+                // Hotovo — nepřekračuje limit (nebo jsme na minimu kvality)
+                resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+              } else {
+                // Stále příliš velký, snižujeme kvalitu o 0.05
+                tryCompress(Math.round((quality - 0.05) * 100) / 100);
+              }
+            }, 'image/jpeg', quality);
+          };
+          tryCompress(baseQuality);
+        } else {
+          // Jednorázová komprese pro SD/VT/SN
+          canvas.toBlob(
+            blob => resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })),
+            'image/jpeg', baseQuality
+          );
+        }
       };
       img.src = e.target.result;
     };
@@ -1189,7 +1219,7 @@ async function uploadFiles(fileList) {
 
   try {
     for (const rawFile of fileList) {
-      const file = await optimizeImage(rawFile);
+      const file = await optimizeImage(rawFile, t);
       const ext  = file.name.split('.').pop().toLowerCase();
       const ts   = Date.now();
       const openPaint = (t !== 'SP' && document.getElementById('openInPaint').checked) ? '_PAINT' : '';
