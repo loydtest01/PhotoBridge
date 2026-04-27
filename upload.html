@@ -1329,7 +1329,12 @@ async function doChangePassword() {
 // ── Supabase status ──
 async function checkSBStatus() {
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/`, { headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${pbToken}` } });
+    // Ping pomocí anon klíče – nevyžaduje přihlášení, jen ověří dostupnost API.
+    // User token záměrně nepoužíváme – mohl by být expirovaný a vrátit 401
+    // i když je Supabase OK a upload funguje.
+    const res = await fetch(`${SB_URL}/rest/v1/`, {
+      headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` }
+    });
     document.getElementById('sbStatus').textContent = res.ok ? 'Připojeno ✓' : 'Chyba ' + res.status;
     document.getElementById('sbStatus').style.color = res.ok ? 'var(--green)' : 'var(--red)';
   } catch(_) {
