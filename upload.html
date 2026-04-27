@@ -1243,17 +1243,23 @@ async function uploadFiles(fileList) {
       done++;
       fill.style.width = `${Math.round((done / total) * 100)}%`;
 
-      // ── Notifikuj PC přes pb_queue (fire & forget) ──────────────────
-      fetch(`${SB_URL}/rest/v1/pb_queue`, {
+      // ── Notifikuj PC přes pb_queue ──────────────────────────────────
+      // Používáme stejný activeToken jako upload (ne pbToken který může být null)
+      const queueRes = await fetch(`${SB_URL}/rest/v1/pb_queue`, {
         method: 'POST',
         headers: {
           'apikey':        SB_ANON,
-          'Authorization': `Bearer ${pbToken}`,
+          'Authorization': `Bearer ${activeToken}`,
           'Content-Type':  'application/json',
           'Prefer':        'return=minimal'
         },
         body: JSON.stringify({ job: pbJob, file_path: path })
-      }).catch(() => {});  // Chyba notifikace není kritická – upload proběhl
+      }).catch(e => ({ ok: false, _err: e.message }));
+      if (queueRes && !queueRes.ok) {
+        const qBody = await queueRes.text?.().catch(() => '') || queueRes._err || '';
+        console.warn('pb_queue insert selhal:', queueRes.status, qBody);
+        // Nezastavujeme – soubor je v storage, PC si ho najde při příštím scanu
+      }
     }
 
     // Reset paint checkbox after success
