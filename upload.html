@@ -1218,12 +1218,21 @@ async function uploadFiles(fileList) {
         }
       );
 
-      let uploadRes = await doUpload(pbToken);
+      // Na telefonu přes QR kód pbToken může být null (nepřihlášen).
+      // Fallback: anon klíč jako Bearer — funguje pokud bucket policy povoluje anon upload.
+      const activeToken = pbToken || SB_ANON;
+      let uploadRes = await doUpload(activeToken);
 
-      // 401/403 → refresh tokenu + jeden retry
+      // 401/403 → pokus o refresh (jen pokud máme refresh token), pak retry
       if (!uploadRes.ok && (uploadRes.status === 401 || uploadRes.status === 403)) {
-        const refreshed = await tryRefreshToken();
-        if (refreshed) uploadRes = await doUpload(pbToken);
+        if (pbRefresh) {
+          const refreshed = await tryRefreshToken();
+          if (refreshed) uploadRes = await doUpload(pbToken);
+        }
+        // Pokud refresh selhal nebo nebyl k dispozici, zkus anon
+        if (!uploadRes.ok && activeToken !== SB_ANON) {
+          uploadRes = await doUpload(SB_ANON);
+        }
       }
 
       if (!uploadRes.ok) {
