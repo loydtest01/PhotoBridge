@@ -38,40 +38,41 @@
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html { height: 100%; background: var(--bg); }
-    body { height: 100%; background: transparent; color: var(--text); font-family: var(--font); overflow: hidden; }
+    body {
+      height: 100%; color: var(--text); font-family: var(--font); overflow: hidden;
+      background-color: var(--bg);
+      background-size: cover; background-position: center; background-attachment: fixed;
+    }
 
     /* ═══ WALLPAPERS (přepínání podle času: 18:00–8:00 = dark, jinak light) ═══ */
-    /* Tapeta + gradient v ::before, tmavý overlay v ::after (::after je nad ::before v DOM) */
-    body.pb-night #loginScreen::before {
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,127,255,0.12) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 40% at 0% 100%, rgba(155,114,255,0.07) 0%, transparent 60%),
-        url(dark.png) center/cover no-repeat;
-    }
-    body.pb-day #loginScreen::before {
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,127,255,0.12) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 40% at 0% 100%, rgba(155,114,255,0.07) 0%, transparent 60%),
-        url(light.png) center/cover no-repeat;
+    body.pb-night { background-image: url(dark.png); }
+    body.pb-day   { background-image: url(light.png); }
+
+    /* Login overlay – ztmaví tapetu pod formulářem */
+    #loginScreen::after {
+      content: ''; position: absolute; inset: 0; z-index: 0;
+      pointer-events: none;
     }
     body.pb-night #loginScreen::after { background: rgba(11,13,20,0.72); }
-    body.pb-day #loginScreen::after   { background: rgba(11,13,20,0.40); }
-    /* Login overlay – ztmaví pozadí aby byl formulář čitelný */
-    #loginScreen::after {
-      content: ''; position: fixed; inset: 0; z-index: -1;
-    }
+    body.pb-day   #loginScreen::after { background: rgba(11,13,20,0.40); }
 
     /* ═══ LOGIN SCREEN ═══ */
     #loginScreen {
       position: fixed; inset: 0; z-index: 9000;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       padding: 24px;
+      isolation: isolate;
     }
     #loginScreen::before {
       content: '';
-      position: fixed; inset: 0; z-index: -2;
-      /* background doplněn výše přes body.pb-* selektor */
+      position: absolute; inset: 0; z-index: 1;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,127,255,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 0% 100%, rgba(155,114,255,0.07) 0%, transparent 60%);
     }
+    /* obsah formuláře musí být nad overlayem */
+    #loginScreen > * { position: relative; z-index: 2; }
     .login-logo {
       display: flex; flex-direction: column; align-items: center; gap: 8px;
       margin-bottom: 28px;
