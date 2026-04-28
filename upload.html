@@ -1847,6 +1847,7 @@ async function tryRefreshToken() {
     localStorage.setItem('pb_token',   pbToken);
     localStorage.setItem('pb_refresh', pbRefresh);
     localStorage.setItem('pb_user',    JSON.stringify(pbUser));
+    syncCurrentToProfile();   // ← aktualizuj i pb_profiles, aby token přežil reload
     return true;
   } catch(_) { return false; }
 }
@@ -1880,11 +1881,10 @@ async function doChangePassword() {
 // ── Supabase status ──
 async function checkSBStatus() {
   try {
-    // Ping pomocí anon klíče – nevyžaduje přihlášení, jen ověří dostupnost API.
-    // User token záměrně nepoužíváme – mohl by být expirovaný a vrátit 401
-    // i když je Supabase OK a upload funguje.
-    const res = await fetch(`${SB_URL}/rest/v1/`, {
-      headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` }
+    // Ping přes auth/v1/settings – veřejný endpoint, nevyžaduje přihlášení,
+    // spolehlivě vrátí 200 pokud je Supabase dostupné.
+    const res = await fetch(`${SB_URL}/auth/v1/settings`, {
+      headers: { 'apikey': SB_ANON }
     });
     document.getElementById('sbStatus').textContent = res.ok ? 'Připojeno ✓' : 'Chyba ' + res.status;
     document.getElementById('sbStatus').style.color = res.ok ? 'var(--green)' : 'var(--red)';
