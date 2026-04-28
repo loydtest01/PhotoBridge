@@ -181,16 +181,25 @@
       backdrop-filter: blur(6px);
       border-top: 1px solid var(--border);
       display: flex; flex-shrink: 0;
+      padding: 6px 8px 10px; gap: 6px;
     }
     .tab-btn {
-      flex: 1; padding: 8px 6px 6px; background: none; color: var(--muted);
-      font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
-      text-transform: uppercase; display: flex; flex-direction: column; align-items: center; gap: 2px;
-      transition: color 0.15s, background 0.15s; border-radius: 0;
+      flex: 1; padding: 6px 4px; background: rgba(255,255,255,0.04);
+      border: 1.5px solid var(--border2); border-radius: 12px;
+      color: var(--muted);
+      font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      transition: all 0.15s;
       cursor: pointer;
     }
-    .tab-btn .tab-icon { font-size: 18px; }
-    .tab-btn.active { color: var(--accent2); background: rgba(61,127,255,0.06); }
+    .tab-btn .tab-icon { font-size: 18px; line-height: 1; }
+    .tab-btn .tab-icon svg { display: block; }
+    .tab-btn.active {
+      color: var(--accent2);
+      background: rgba(61,127,255,0.12);
+      border-color: rgba(61,127,255,0.4);
+    }
+    .tab-btn:active { transform: scale(0.95); }
 
     /* Screen */
     .content { flex: 1; overflow-y: auto; overflow-x: hidden; }
@@ -576,8 +585,8 @@
       background: rgba(238,242,252,0.96);
       border-top-color: var(--border);
     }
-    body.pb-day .tab-btn { color: var(--muted); }
-    body.pb-day .tab-btn.active { color: var(--accent); }
+    body.pb-day .tab-btn { color: var(--muted); background: rgba(0,0,0,0.03); border-color: var(--border2); }
+    body.pb-day .tab-btn.active { color: var(--accent); background: rgba(61,127,255,0.10); border-color: rgba(61,127,255,0.35); }
 
     /* QR status bublina */
     body.pb-day .qr-status { background: rgba(255,255,255,0.92); }
@@ -617,6 +626,38 @@
 
     /* hdr-user badge */
     body.pb-day .hdr-user { background: #ffffff; border-color: var(--border); color: var(--muted2); }
+
+    /* ═══ LOGIN – světlý motiv ═══ */
+    body.pb-day .login-card {
+      background: rgba(255,255,255,0.93);
+      border-color: var(--border2);
+      box-shadow: 0 20px 50px rgba(61,127,255,0.10);
+    }
+    body.pb-day .login-logo-icon {
+      background: linear-gradient(135deg, #d8e8ff 0%, #eef4ff 100%);
+      border-color: rgba(61,127,255,0.45);
+      box-shadow: 0 0 24px rgba(61,127,255,0.12), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    body.pb-day .login-logo-name { color: #1a1e2d; }
+    body.pb-day .login-logo-sub  { color: var(--muted2); }
+    body.pb-day .login-label     { color: var(--muted2); }
+    body.pb-day .login-input {
+      background: #f4f7ff;
+      border-color: var(--border2);
+      color: var(--text);
+    }
+    body.pb-day .login-input::placeholder { color: var(--muted); }
+    body.pb-day .eye-btn   { color: var(--muted); }
+    body.pb-day .login-fg-link { color: var(--muted); }
+    body.pb-day #loginTabBtn,
+    body.pb-day #regTabBtn  { color: var(--text) !important; }
+    body.pb-day #loginTabBtn { border-bottom-color: var(--accent) !important; }
+    body.pb-day #loginScreen::before {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,127,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 0% 100%, rgba(155,114,255,0.04) 0%, transparent 60%);
+    }
+    body.pb-day #loginScreen::after { background: rgba(200,215,255,0.25); }
   </style>
 </head>
 <body>
@@ -949,7 +990,28 @@
   <!-- Tab bar -->
   <div class="tabbar">
     <button class="tab-btn active" id="tabQR"     onclick="showTab('qr')">
-      <span class="tab-icon">🔲</span><span>QR</span>
+      <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- top-left finder -->
+        <rect x="1" y="1" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.15"/>
+        <rect x="2" y="2" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/>
+        <rect x="3.5" y="3.5" width="3" height="3" rx="0.5" fill="currentColor"/>
+        <!-- top-right finder -->
+        <rect x="13" y="1" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.15"/>
+        <rect x="14" y="2" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/>
+        <rect x="15.5" y="3.5" width="3" height="3" rx="0.5" fill="currentColor"/>
+        <!-- bottom-left finder -->
+        <rect x="1" y="13" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.15"/>
+        <rect x="2" y="14" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/>
+        <rect x="3.5" y="15.5" width="3" height="3" rx="0.5" fill="currentColor"/>
+        <!-- data dots -->
+        <rect x="13" y="13" width="2" height="2" rx="0.4" fill="currentColor"/>
+        <rect x="16" y="13" width="2" height="2" rx="0.4" fill="currentColor"/>
+        <rect x="19" y="13" width="2" height="2" rx="0.4" fill="currentColor"/>
+        <rect x="13" y="16" width="2" height="2" rx="0.4" fill="currentColor"/>
+        <rect x="17" y="16" width="4" height="2" rx="0.4" fill="currentColor"/>
+        <rect x="13" y="19" width="4" height="2" rx="0.4" fill="currentColor"/>
+        <rect x="19" y="19" width="2" height="2" rx="0.4" fill="currentColor"/>
+      </svg></span><span>QR</span>
     </button>
     <button class="tab-btn" id="tabUpload" onclick="showTab('upload')">
       <span class="tab-icon">📤</span><span>Upload</span>
@@ -1337,6 +1399,7 @@ function showApp() {
   readURLParams();
   showPwaInstall();
   scheduleTokenRefresh(); // ← spusť obnovu tokenu na pozadí
+  maybeAutoSetDomaJob();  // ← doma profil: auto-zakázka datum+čas
   const hasURLJob = new URLSearchParams(window.location.search).get('j');
   if (!hasURLJob) {
     setTimeout(() => startQRScan(), 400);
@@ -1551,6 +1614,7 @@ function showTab(tab) {
   if (tab === 'upload')   { document.getElementById('screenUpload').classList.add('active');   document.getElementById('tabUpload').classList.add('active'); }
   if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); }
   if (tab !== 'qr') stopQRScan();
+  if (tab === 'upload') maybeAutoSetDomaJob();
 }
 
 
@@ -1661,6 +1725,36 @@ function setJob(job, token) {
   syncCurrentToProfile();
   updateJobUI();
   showTab('upload');
+}
+
+// ── Auto-zakázka pro „doma" profily ──
+// Funguje pro libovolné jméno končící na _doma (novak_doma, pse_doma…)
+// i pro samotné „doma". Prefix složky = část PŘED _doma, nebo „DOMA".
+function getActiveUsername() {
+  const prof = pbProfiles.find(p => p.id === pbActiveId);
+  return (prof?.username || pbUser?.user_metadata?.username || pbUser?.email?.split('@')[0] || '').toLowerCase();
+}
+function isDomaProfile(name) {
+  return name === 'doma' || name.endsWith('_doma');
+}
+function domaJobPrefix(name) {
+  // novak_doma → NOVAK | pse_doma → PSE | doma → DOMA
+  const base = name.endsWith('_doma') ? name.slice(0, -5) : 'doma';
+  return base.toUpperCase();
+}
+function maybeAutoSetDomaJob() {
+  const name = getActiveUsername();
+  if (!isDomaProfile(name)) return;
+  if (pbJob) return;
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const prefix = domaJobPrefix(name);
+  const jobId = `${prefix}${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  pbJob = jobId;
+  pbJobToken = null;
+  syncCurrentToProfile();
+  updateJobUI();
+  toast('🏠 Doma – zakázka: ' + jobId, 'ok');
 }
 
 function clearJob() {
