@@ -41,18 +41,21 @@
     body { height: 100%; background: transparent; color: var(--text); font-family: var(--font); overflow: hidden; }
 
     /* ═══ WALLPAPERS (přepínání podle času: 18:00–8:00 = dark, jinak light) ═══ */
-    body.pb-night #loginScreen {
-      background-image: url(dark.png);
-      background-size: cover;
-      background-position: center;
+    /* Tapeta + gradient v ::before, tmavý overlay v ::after (::after je nad ::before v DOM) */
+    body.pb-night #loginScreen::before {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,127,255,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 0% 100%, rgba(155,114,255,0.07) 0%, transparent 60%),
+        url(dark.png) center/cover no-repeat;
     }
-    body.pb-day #loginScreen {
-      background-image: url(light.png);
-      background-size: cover;
-      background-position: center;
+    body.pb-day #loginScreen::before {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,127,255,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 0% 100%, rgba(155,114,255,0.07) 0%, transparent 60%),
+        url(light.png) center/cover no-repeat;
     }
-    body.pb-night #loginScreen::after { background: rgba(11,13,20,0.75); }
-    body.pb-day #loginScreen::after { background: rgba(11,13,20,0.45); }
+    body.pb-night #loginScreen::after { background: rgba(11,13,20,0.72); }
+    body.pb-day #loginScreen::after   { background: rgba(11,13,20,0.40); }
     /* Login overlay – ztmaví pozadí aby byl formulář čitelný */
     #loginScreen::after {
       content: ''; position: fixed; inset: 0; z-index: -1;
@@ -66,10 +69,8 @@
     }
     #loginScreen::before {
       content: '';
-      position: fixed; inset: 0; z-index: -1;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,127,255,0.12) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 40% at 0% 100%, rgba(155,114,255,0.07) 0%, transparent 60%);
+      position: fixed; inset: 0; z-index: -2;
+      /* background doplněn výše přes body.pb-* selektor */
     }
     .login-logo {
       display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -272,6 +273,7 @@
     .type-label .code {
       font-family: var(--mono); font-size: 14px; font-weight: 700;
       color: var(--text); white-space: nowrap;
+      min-width: 4ch; /* SD_X = 4 znaky → všechny popisy začínají na stejném místě */
     }
     .type-label .desc { font-size: 11px; color: var(--muted2); line-height: 1.3; }
     .type-label .type-text {
