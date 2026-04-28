@@ -553,6 +553,70 @@
     }
     .job-banner-scan-btn.visible { display: block; }
     .job-banner-scan-btn:active { transform: scale(0.98); }
+
+    /* ═══ SVĚTLÝ MOTIV (pb-day) ═══ */
+    body.pb-day {
+      --bg:      #eef2fc;
+      --surface: #ffffff;
+      --card:    #f4f7ff;
+      --border:  #d4daf0;
+      --border2: #bec8e8;
+      --text:    #1a1e2d;
+      --muted:   #6b7899;
+      --muted2:  #4e5a7a;
+    }
+
+    /* Header a tabbar – mají hardcoded tmavé rgba */
+    body.pb-day .hdr {
+      background: rgba(238,242,252,0.96);
+      border-bottom-color: var(--border);
+    }
+    body.pb-day .hdr-logo { color: #1a1e2d; }
+    body.pb-day .tabbar {
+      background: rgba(238,242,252,0.96);
+      border-top-color: var(--border);
+    }
+    body.pb-day .tab-btn { color: var(--muted); }
+    body.pb-day .tab-btn.active { color: var(--accent); }
+
+    /* QR status bublina */
+    body.pb-day .qr-status { background: rgba(255,255,255,0.92); }
+
+    /* Job banner číslo zakázky */
+    body.pb-day .job-banner-number { color: #1a1e2d; }
+
+    /* Toast */
+    body.pb-day #toast { background: #ffffff; border-color: var(--border2); color: var(--text); }
+
+    /* Scan tlačítko */
+    body.pb-day .btn-primary { color: #fff; }
+    body.pb-day .btn-green-full { color: #0b1a0f; }
+
+    /* Modální okno */
+    body.pb-day .pb-modal-box { background: #ffffff; border-color: var(--border2); }
+
+    /* Settings sekce */
+    body.pb-day .settings-section { background: #ffffff; border-color: var(--border); }
+    body.pb-day .settings-row { border-bottom-color: var(--border); }
+
+    /* Upload panel */
+    body.pb-day .upload-panel { background: #ffffff; border-color: var(--border); }
+    body.pb-day .type-label { background: #ffffff; border-color: var(--border2); }
+    body.pb-day .paint-row { background: #ffffff; border-color: var(--border2); }
+
+    /* Generic karta */
+    body.pb-day .pb-card { background: #ffffff; border-color: var(--border); }
+
+    /* Input */
+    body.pb-day .pb-input { background: #f8faff; border-color: var(--border2); color: var(--text); }
+    body.pb-day .pb-input::placeholder { color: var(--muted); }
+
+    /* Profile chip */
+    body.pb-day .profile-chip { background: #ffffff; border-color: var(--border); }
+    body.pb-day .profile-item { background: #ffffff; border-color: var(--border2); }
+
+    /* hdr-user badge */
+    body.pb-day .hdr-user { background: #ffffff; border-color: var(--border); color: var(--muted2); }
   </style>
 </head>
 <body>
@@ -1272,6 +1336,7 @@ function showApp() {
   checkSBStatus();
   readURLParams();
   showPwaInstall();
+  scheduleTokenRefresh(); // ← spusť obnovu tokenu na pozadí
   const hasURLJob = new URLSearchParams(window.location.search).get('j');
   if (!hasURLJob) {
     setTimeout(() => startQRScan(), 400);
@@ -1779,30 +1844,47 @@ async function uploadFiles(fileList) {
 
       const activeToken = pbToken || SB_ANON;
       let uploadRes = await doUpload(activeToken);
+      let errBody = '';
 
-      if (!uploadRes.ok && (uploadRes.status === 401 || uploadRes.status === 403)) {
-        if (pbRefresh) {
+      if (!uploadRes.ok) {
+        errBody = await uploadRes.text().catch(() => '');
+        const isAuthErr =
+          uploadRes.status === 401 ||
+          uploadRes.status === 403 ||
+          (uploadRes.status === 400 && (
+            errBody.includes('"statusCode":"403"') ||
+            errBody.includes('"statusCode":"401"') ||
+            errBody.includes('Unauthorized') ||
+            errBody.includes('JWT')
+          ));
+
+        if (isAuthErr && pbRefresh) {
           const refreshed = await tryRefreshToken();
-          if (refreshed) uploadRes = await doUpload(pbToken);
+          if (refreshed) {
+            uploadRes = await doUpload(pbToken);
+            errBody = '';
+          }
         }
         if (!uploadRes.ok && activeToken !== SB_ANON) {
           uploadRes = await doUpload(SB_ANON);
+          errBody = '';
         }
       }
 
       if (!uploadRes.ok) {
-        const errBody = await uploadRes.text().catch(() => '');
+        if (!errBody) errBody = await uploadRes.text().catch(() => '');
         throw new Error(`Upload selhalo (${uploadRes.status}): ${errBody}`);
       }
 
       done++;
       fill.style.width = `${Math.round((done / total) * 100)}%`;
 
+      const currentToken = pbToken || SB_ANON;
       const queueRes = await fetch(`${SB_URL}/rest/v1/pb_queue`, {
         method: 'POST',
         headers: {
           'apikey':        SB_ANON,
-          'Authorization': `Bearer ${activeToken}`,
+          'Authorization': `Bearer ${currentToken}`,
           'Content-Type':  'application/json',
           'Prefer':        'return=minimal'
         },
@@ -1848,8 +1930,27 @@ async function tryRefreshToken() {
     localStorage.setItem('pb_refresh', pbRefresh);
     localStorage.setItem('pb_user',    JSON.stringify(pbUser));
     syncCurrentToProfile();
+    scheduleTokenRefresh();
     return true;
   } catch(_) { return false; }
+}
+
+// ── Proaktivní obnova tokenu na pozadí ──
+let _refreshTimer = null;
+function scheduleTokenRefresh() {
+  clearTimeout(_refreshTimer);
+  if (!pbRefresh || !pbToken) return;
+  let refreshIn = 50 * 60_000; // výchozí: za 50 minut
+  try {
+    const payload = JSON.parse(atob(pbToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (payload.exp) {
+      const msLeft = payload.exp * 1000 - Date.now();
+      refreshIn = Math.min(Math.max(msLeft - 120_000, 0), 55 * 60_000);
+    }
+  } catch(_) {}
+  _refreshTimer = setTimeout(async () => {
+    await tryRefreshToken();
+  }, refreshIn);
 }
 
 // ── Change password ──
