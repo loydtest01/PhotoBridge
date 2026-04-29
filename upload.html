@@ -570,8 +570,8 @@
   </div>
   <div class="login-card">
     <div class="login-field">
-      <label class="login-label">Uživatelské jméno</label>
-      <input class="login-input" type="text" id="loginUser" placeholder="jnovak" autocomplete="username" autocapitalize="none" spellcheck="false">
+      <label class="login-label">E-mail</label>
+      <input class="login-input" type="email" id="loginUser" placeholder="jmeno@firma.cz" autocomplete="email" autocapitalize="none" spellcheck="false">
     </div>
     <div class="login-field">
       <label class="login-label">Heslo</label>
@@ -945,7 +945,7 @@
     </div>
     <div id="addProfSub" class="pb-modal-sub">Přihlas se pod jiným účtem — přidá se jako druhý profil.</div>
     <div class="field-gap">
-      <input class="pb-input" type="text" id="addProfUser" placeholder="Uživatelské jméno" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <input class="pb-input" type="email" id="addProfUser" placeholder="jmeno@firma.cz" autocomplete="off" autocapitalize="none" spellcheck="false">
       <div class="pw-wrap">
         <input class="pb-input" type="password" id="addProfPass" placeholder="Heslo" autocomplete="off">
         <button class="eye-btn" type="button" onclick="toggleEye('addProfPass',this)">👁️</button>
@@ -954,6 +954,19 @@
         <div class="pw-wrap" style="margin-top:8px">
           <input class="pb-input" type="password" id="addProfPass2" placeholder="Heslo znovu" autocomplete="off">
           <button class="eye-btn" type="button" onclick="toggleEye('addProfPass2',this)">👁️</button>
+        </div>
+        <!-- Typ účtu - zobrazí se jen při registraci -->
+        <div id="addProfAccTypeWrap" style="display:flex;gap:8px;margin-top:10px">
+          <button type="button" id="addProfAccBusiness" onclick="selectAddProfAccType('business')" style="
+            flex:1;padding:8px 4px;border-radius:9px;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;
+            border:2px solid var(--accent);background:rgba(61,127,255,0.15);color:var(--accent2)">
+            🏢 Firemní
+          </button>
+          <button type="button" id="addProfAccPersonal" onclick="selectAddProfAccType('personal')" style="
+            flex:1;padding:8px 4px;border-radius:9px;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;
+            border:2px solid var(--border2);background:transparent;color:var(--muted2)">
+            🏠 Osobní
+          </button>
         </div>
       </div>
       <div class="login-error" id="addProfErr" style="margin-top:0"></div>
@@ -973,7 +986,7 @@
 const SB_URL    = 'https://fplegasiabuqfxwdggct.supabase.co';
 const SB_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwbGVnYXNpYWJ1cWZ4d2RnZ2N0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxOTY3MzIsImV4cCI6MjA5Mjc3MjczMn0.BHTkCK3vzJKJYU_F8bnYS5scDRCnfGWbfSaSKUH65yw';
 const SB_BUCKET = 'pb-uploads';
-const SB_DOMAIN = '@photobridge.local';
+const SB_DOMAIN = '';  // email zadán přímo uživatelem
 const TYPE_KEY  = 'pb_doc_type';
 // ═══════════════════════════════════════════════════════
 
@@ -1105,7 +1118,7 @@ async function doAddProfile() {
   const pass  = document.getElementById('addProfPass').value;
   const errEl = document.getElementById('addProfErr');
   errEl.style.display = 'none';
-  if (!user || !pass) { errEl.textContent = '⚠️ Zadej jméno a heslo'; errEl.style.display = 'block'; return; }
+  if (!user || !pass) { errEl.textContent = '⚠️ Zadej e-mail a heslo'; errEl.style.display = 'block'; return; }
   if (pbProfiles.length >= MAX_PROFILES) {
     errEl.textContent = '⚠️ Maximálně ' + MAX_PROFILES + ' profily jsou podporovány';
     errEl.style.display = 'block';
@@ -1125,7 +1138,7 @@ async function doAddProfile() {
       const res = await fetch(`${SB_URL}/auth/v1/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
-        body: JSON.stringify({ email, password: pass, data: { username: user, email_verified: true } })
+        body: JSON.stringify({ email, password: pass, data: { username: user.split('@')[0], account_type: _addProfAccType || 'business' } })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || data.message || data.error_description || 'Registrace selhala');
@@ -1365,7 +1378,8 @@ async function doRegister() {
   const pass2 = document.getElementById('loginPass2').value;
   document.getElementById('loginErr').style.display = 'none';
 
-  if (!user)  { showLoginErr('Zadej uživatelské jméno'); return; }
+  if (!user)  { showLoginErr('Zadej e-mailovou adresu'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user)) { showLoginErr('Zadej platný e-mail'); return; }
   if (!pass)  { showLoginErr('Zadej heslo'); return; }
   if (pass.length < 6) { showLoginErr('Heslo musí mít alespoň 6 znaků'); return; }
   if (pass !== pass2) { showLoginErr('Hesla se neshodují'); return; }
@@ -1376,7 +1390,7 @@ async function doRegister() {
     const res = await fetch(`${SB_URL}/auth/v1/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
-      body: JSON.stringify({ email, password: pass, data: { username: user, email_verified: true, account_type: _accountType } })
+      body: JSON.stringify({ email, password: pass, data: { username: user.split('@')[0], account_type: _accountType || 'business' } })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -1405,7 +1419,8 @@ async function doLogin() {
   const errEl = document.getElementById('loginErr');
   errEl.style.display = 'none';
 
-  if (!user) { showLoginErr('Zadej uživatelské jméno'); return; }
+  if (!user) { showLoginErr('Zadej e-mailovou adresu'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user)) { showLoginErr('Zadej platný e-mail'); return; }
   if (!pass) { showLoginErr('Zadej heslo'); return; }
 
   setLoginLoading(true);
@@ -1460,6 +1475,21 @@ function translateLoginError(msg) {
 
 // ── Add profile mode toggle ──
 let _addProfMode = 'login';
+let _addProfAccType = 'business';
+
+function selectAddProfAccType(type) {
+  _addProfAccType = type;
+  const biz = document.getElementById('addProfAccBusiness');
+  const per = document.getElementById('addProfAccPersonal');
+  if (!biz || !per) return;
+  if (type === 'business') {
+    biz.style.border = '2px solid var(--accent)'; biz.style.background = 'rgba(61,127,255,0.15)'; biz.style.color = 'var(--accent2)';
+    per.style.border = '2px solid var(--border2)'; per.style.background = 'transparent'; per.style.color = 'var(--muted2)';
+  } else {
+    per.style.border = '2px solid var(--purple)'; per.style.background = 'rgba(155,114,255,0.15)'; per.style.color = 'var(--purple)';
+    biz.style.border = '2px solid var(--border2)'; biz.style.background = 'transparent'; biz.style.color = 'var(--muted2)';
+  }
+}
 
 function setAddProfMode(mode) {
   _addProfMode = mode;
