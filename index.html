@@ -1214,6 +1214,38 @@ let qrInterval = null;
 
 // ── On load ──
 window.addEventListener('DOMContentLoaded', () => {
+  // ── Zpracování potvrzovacího linku z emailu (Supabase hash) ──
+  const hash = window.location.hash;
+  if (hash && hash.includes('type=signup') || hash.includes('type=recovery')) {
+    const params = new URLSearchParams(hash.replace('#', ''));
+    const type = params.get('type');
+    if (type === 'signup' || type === 'recovery') {
+      // Vymazat hash z URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // Zobrazit uvítací overlay
+      const overlay = document.createElement('div');
+      overlay.id = 'confirmOverlay';
+      overlay.style.cssText = `
+        position:fixed;inset:0;z-index:9999;
+        background:var(--bg,#0b0d14);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        gap:16px;padding:32px;text-align:center;
+      `;
+      overlay.innerHTML = `
+        <div style="font-size:56px">✅</div>
+        <div style="font-size:22px;font-weight:700;color:#e8eaf0">E-mail potvrzen!</div>
+        <div style="font-size:15px;color:#7a87a8;max-width:280px;line-height:1.6">
+          Váš účet byl úspěšně aktivován.<br>Nyní se můžete přihlásit v aplikaci PhotoBridge.
+        </div>
+        <button onclick="document.getElementById('confirmOverlay').remove()" style="
+          margin-top:8px;padding:12px 32px;border-radius:12px;border:none;cursor:pointer;
+          background:var(--accent,#3d7fff);color:#fff;font-size:15px;font-weight:700;
+          font-family:var(--font,'Space Grotesk',sans-serif)
+        ">Přejít na přihlášení</button>
+      `;
+      document.body.appendChild(overlay);
+    }
+  }
   // Krátká prodleva – beforeinstallprompt přijde po load eventu
   setTimeout(showPwaInstall, 800);
   loadSession();
