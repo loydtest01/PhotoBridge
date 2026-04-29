@@ -2,7 +2,7 @@
   "name": "PhotoBridge",
   "short_name": "PhotoBridge",
   "description": "Firemní foto přenos",
-  "start_url": "/upload.html",
+  "start_url": "/PhotoBridge/",
   "display": "standalone",
   "background_color": "#0b0d14",
   "theme_color": "#0b0d14",
