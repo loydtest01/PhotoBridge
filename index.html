@@ -914,26 +914,15 @@
             <div class="settings-title">Režim uploadu</div>
             <div class="settings-sub" id="uploadModeDesc">Cloud (Supabase)</div>
           </div>
-          <!-- Toggle switch -->
-          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-            <span id="uploadModeLabelCloud" style="font-size:11px;font-weight:700;color:var(--accent2);font-family:var(--mono)">CLOUD</span>
-            <label style="position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0;cursor:pointer">
-              <input type="checkbox" id="uploadModeToggle" onchange="toggleUploadMode()" style="opacity:0;width:0;height:0;position:absolute">
-              <span id="uploadModeTrack" style="
-                position:absolute;inset:0;border-radius:13px;
-                background:rgba(61,127,255,0.25);border:1.5px solid rgba(61,127,255,0.5);
-                transition:background 0.25s,border-color 0.25s;
-              "></span>
-              <span id="uploadModeThumb" style="
-                position:absolute;top:3px;left:3px;
-                width:18px;height:18px;border-radius:50%;
-                background:var(--accent2);
-                transition:transform 0.25s,background 0.25s;
-                box-shadow:0 1px 4px rgba(0,0,0,0.4);
-              "></span>
-            </label>
-            <span id="uploadModeLabelLocal" style="font-size:11px;font-weight:700;color:var(--muted);font-family:var(--mono)">LOCAL</span>
-          </div>
+          <!-- Mode pill button -->
+          <button id="uploadModeBtn" onclick="toggleUploadMode()" style="
+            font-size:12px;font-weight:700;font-family:var(--mono);
+            padding:6px 14px;border-radius:20px;flex-shrink:0;cursor:pointer;
+            border:1.5px solid rgba(61,127,255,0.5);
+            background:rgba(61,127,255,0.15);color:var(--accent2);
+            transition:background 0.2s,border-color 0.2s,color 0.2s;
+            letter-spacing:0.06em;
+          ">📡 CLOUD</button>
         </div>
         <!-- Pole pro IP adresu – zobrazí se jen v LOCAL módu -->
         <div id="localUrlRow" style="display:none;padding:10px 14px 14px">
@@ -2165,13 +2154,8 @@ async function checkSBStatus() {
 
 // ── Upload mód (LOCAL / CLOUD) ────────────────────────────────────────────────
 function toggleUploadMode() {
-  const toggle = document.getElementById('uploadModeToggle');
-  // If called by checkbox, read its state; otherwise flip
-  if (toggle) {
-    pbUploadMode = toggle.checked ? 'local' : 'cloud';
-  } else {
-    pbUploadMode = (pbUploadMode === 'cloud') ? 'local' : 'cloud';
-  }
+  // Flip mode
+  pbUploadMode = (pbUploadMode === 'cloud') ? 'local' : 'cloud';
   localStorage.setItem('pb_upload_mode', pbUploadMode);
   // Při přepnutí do CLOUD vymaž local token (v cloud se nepoužívá)
   if (pbUploadMode === 'cloud') pbLocalToken = null;
@@ -2192,23 +2176,21 @@ function updateUploadModeUI() {
   const connLine = document.getElementById('connectionStatusLine');
   const bucketLine = document.getElementById('bucketLine');
 
-  // Toggle switch state
-  const toggle = document.getElementById('uploadModeToggle');
-  const track  = document.getElementById('uploadModeTrack');
-  const thumb  = document.getElementById('uploadModeThumb');
-  const lblCloud = document.getElementById('uploadModeLabelCloud');
-  const lblLocal = document.getElementById('uploadModeLabelLocal');
-  if (toggle) toggle.checked = isLocal;
-  if (track) {
-    track.style.background   = isLocal ? 'rgba(240,168,48,0.25)' : 'rgba(61,127,255,0.25)';
-    track.style.borderColor  = isLocal ? 'rgba(240,168,48,0.5)' : 'rgba(61,127,255,0.5)';
+  // Pill button update
+  const modeBtn = document.getElementById('uploadModeBtn');
+  if (modeBtn) {
+    if (isLocal) {
+      modeBtn.textContent = '🛜 LOCAL';
+      modeBtn.style.background   = 'rgba(240,168,48,0.15)';
+      modeBtn.style.borderColor  = 'rgba(240,168,48,0.5)';
+      modeBtn.style.color        = 'var(--yellow)';
+    } else {
+      modeBtn.textContent = '📡 CLOUD';
+      modeBtn.style.background   = 'rgba(61,127,255,0.15)';
+      modeBtn.style.borderColor  = 'rgba(61,127,255,0.5)';
+      modeBtn.style.color        = 'var(--accent2)';
+    }
   }
-  if (thumb) {
-    thumb.style.transform  = isLocal ? 'translateX(22px)' : 'translateX(0)';
-    thumb.style.background = isLocal ? 'var(--yellow)' : 'var(--accent2)';
-  }
-  if (lblCloud) lblCloud.style.color = isLocal ? 'var(--muted)' : 'var(--accent2)';
-  if (lblLocal) lblLocal.style.color = isLocal ? 'var(--yellow)' : 'var(--muted)';
 
   if (desc) desc.textContent = isLocal ? '⚡ LOCAL (WiFi – bez přihlášení)' : 'Cloud (Supabase)';
   if (row)  row.style.display = isLocal ? '' : 'none';
@@ -2218,7 +2200,7 @@ function updateUploadModeUI() {
   const badge = document.getElementById('hdrModeBadge');
   if (badge) {
     badge.style.display = '';
-    badge.textContent = isLocal ? '⚡LOCAL' : '☁CLOUD';
+    badge.textContent = isLocal ? '🛜 LOCAL' : '📡 CLOUD';
     badge.style.background   = isLocal ? 'rgba(240,168,48,0.15)' : 'rgba(61,127,255,0.15)';
     badge.style.borderColor  = isLocal ? 'rgba(240,168,48,0.4)' : 'rgba(61,127,255,0.35)';
     badge.style.color        = isLocal ? 'var(--yellow)' : 'var(--accent2)';
