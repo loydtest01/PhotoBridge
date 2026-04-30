@@ -694,6 +694,12 @@
   <div class="hdr">
     <div class="hdr-logo"><span class="logo-icon"><img src="icon_192.png" alt="" style="width:24px;height:24px;object-fit:contain;border-radius:5px;vertical-align:middle"></span>Photo<span class="logo-bridge">Bridge</span></div>
     <div class="hdr-job" id="hdrJob">—</div>
+    <div id="hdrModeBadge" style="
+      font-size:10px;font-weight:700;font-family:var(--mono);
+      padding:3px 8px;border-radius:10px;flex-shrink:0;
+      background:rgba(61,127,255,0.15);border:1px solid rgba(61,127,255,0.35);color:var(--accent2);
+      display:none;
+    ">CLOUD</div>
     <div id="hdrProfileArea" style="display:none;align-items:center;gap:6px">
       <!-- Aktivní profil – zelený -->
       <div id="hdrActiveProfile" style="
@@ -901,26 +907,45 @@
       </div>
 
       <!-- Upload mód LOCAL / CLOUD -->
-      <div class=\"settings-section\" id=\"uploadModeSection\">
-        <div class=\"settings-row\">
-          <div class=\"settings-icon\">📡</div>
-          <div class=\"settings-info\">
-            <div class=\"settings-title\">Režim uploadu</div>
-            <div class=\"settings-sub\" id=\"uploadModeDesc\">Cloud (Supabase)</div>
+      <div class="settings-section" id="uploadModeSection">
+        <div class="settings-row" style="gap:10px">
+          <div class="settings-icon">📡</div>
+          <div class="settings-info">
+            <div class="settings-title">Režim uploadu</div>
+            <div class="settings-sub" id="uploadModeDesc">Cloud (Supabase)</div>
           </div>
-          <button class=\"settings-btn\" id=\"uploadModeBtn\" onclick=\"toggleUploadMode()\">LOCAL</button>
+          <!-- Toggle switch -->
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span id="uploadModeLabelCloud" style="font-size:11px;font-weight:700;color:var(--accent2);font-family:var(--mono)">CLOUD</span>
+            <label style="position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0;cursor:pointer">
+              <input type="checkbox" id="uploadModeToggle" onchange="toggleUploadMode()" style="opacity:0;width:0;height:0;position:absolute">
+              <span id="uploadModeTrack" style="
+                position:absolute;inset:0;border-radius:13px;
+                background:rgba(61,127,255,0.25);border:1.5px solid rgba(61,127,255,0.5);
+                transition:background 0.25s,border-color 0.25s;
+              "></span>
+              <span id="uploadModeThumb" style="
+                position:absolute;top:3px;left:3px;
+                width:18px;height:18px;border-radius:50%;
+                background:var(--accent2);
+                transition:transform 0.25s,background 0.25s;
+                box-shadow:0 1px 4px rgba(0,0,0,0.4);
+              "></span>
+            </label>
+            <span id="uploadModeLabelLocal" style="font-size:11px;font-weight:700;color:var(--muted);font-family:var(--mono)">LOCAL</span>
+          </div>
         </div>
         <!-- Pole pro IP adresu – zobrazí se jen v LOCAL módu -->
-        <div id=\"localUrlRow\" style=\"display:none;padding:10px 14px 14px\">
-          <div style=\"font-size:12px;color:var(--muted2);margin-bottom:6px\">IP adresa PC serveru (automaticky z QR nebo ručně):</div>
-          <div style=\"display:flex;gap:8px;align-items:center\">
-            <input class=\"pb-input\" type=\"url\" id=\"localUrlInput\" placeholder=\"http://192.168.1.10:3000\"
-              style=\"flex:1;font-size:13px;font-family:var(--mono)\"
-              oninput=\"pbLocalUrl=this.value.replace(/\\/$/,'');localStorage.setItem('pb_local_url',pbLocalUrl)\">
-            <button class=\"settings-btn\" onclick=\"testLocalConnection()\">Test</button>
+        <div id="localUrlRow" style="display:none;padding:10px 14px 14px">
+          <div style="font-size:12px;color:var(--muted2);margin-bottom:6px">IP adresa PC serveru (automaticky z QR nebo ručně):</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="pb-input" type="url" id="localUrlInput" placeholder="http://192.168.1.10:3000"
+              style="flex:1;font-size:13px;font-family:var(--mono)"
+              oninput="pbLocalUrl=this.value.replace(/\/$/,'');localStorage.setItem('pb_local_url',pbLocalUrl)">
+            <button class="settings-btn" onclick="testLocalConnection()">Test</button>
           </div>
-          <div style=\"font-size:11px;color:var(--yellow);margin-top:6px;line-height:1.5\">
-            ⚠️ V LOCAL módu <strong>musíš naskenovat QR kód</strong> – ručně nelze zadat zakázku
+          <div style="font-size:11px;color:var(--yellow);margin-top:6px;line-height:1.5">
+            ⚠️ V LOCAL módu QR z PC <strong>automaticky přepne</strong> mobil do LOCAL – nebo přepni ručně zde
           </div>
         </div>
       </div>
@@ -1781,12 +1806,6 @@ function parseQRCode(raw) {
 }
 
 function setManualJob() {
-  // V LOCAL módu nelze zadat zakázku ručně – token musí přijít z QR
-  if (pbUploadMode === 'local') {
-    toast('⚠️ V LOCAL módu musíš naskenovat QR kód', 'err');
-    showTab('qr');
-    return;
-  }
   const val = document.getElementById('manualJobInput').value.trim().toUpperCase();
   if (!val) { toast('⚠️ Zadej číslo zakázky', 'err'); return; }
   setJob(val, null);
@@ -2146,38 +2165,64 @@ async function checkSBStatus() {
 
 // ── Upload mód (LOCAL / CLOUD) ────────────────────────────────────────────────
 function toggleUploadMode() {
-  pbUploadMode = (pbUploadMode === 'cloud') ? 'local' : 'cloud';
+  const toggle = document.getElementById('uploadModeToggle');
+  // If called by checkbox, read its state; otherwise flip
+  if (toggle) {
+    pbUploadMode = toggle.checked ? 'local' : 'cloud';
+  } else {
+    pbUploadMode = (pbUploadMode === 'cloud') ? 'local' : 'cloud';
+  }
   localStorage.setItem('pb_upload_mode', pbUploadMode);
   // Při přepnutí do CLOUD vymaž local token (v cloud se nepoužívá)
   if (pbUploadMode === 'cloud') pbLocalToken = null;
-  // Při přepnutí do LOCAL vymaž aktivní zakázku – vyžadujeme QR scan
+  // Při přepnutí do LOCAL zůstaň na zakázce – jen zobrazíme hint
   if (pbUploadMode === 'local') {
-    pbJob = null; pbJobToken = null; pbLocalToken = null;
-    syncCurrentToProfile();
-    updateJobUI();
-    toast('🔄 LOCAL mód – naskenuj QR kód zakázky', 'ok');
+    toast('⚡ LOCAL mód – připojeno přes WiFi', 'ok');
+  } else {
+    toast('☁️ CLOUD mód – Supabase', 'ok');
   }
   updateUploadModeUI();
 }
 
 function updateUploadModeUI() {
   const isLocal = pbUploadMode === 'local';
-  const btn     = document.getElementById('uploadModeBtn');
   const desc    = document.getElementById('uploadModeDesc');
   const row     = document.getElementById('localUrlRow');
   const input   = document.getElementById('localUrlInput');
   const connLine = document.getElementById('connectionStatusLine');
   const bucketLine = document.getElementById('bucketLine');
 
-  if (btn) {
-    btn.textContent = isLocal ? 'CLOUD' : 'LOCAL';
-    btn.style.background = isLocal ? 'rgba(240,168,48,0.15)' : '';
-    btn.style.color = isLocal ? 'var(--yellow)' : '';
-    btn.style.borderColor = isLocal ? 'rgba(240,168,48,0.4)' : '';
+  // Toggle switch state
+  const toggle = document.getElementById('uploadModeToggle');
+  const track  = document.getElementById('uploadModeTrack');
+  const thumb  = document.getElementById('uploadModeThumb');
+  const lblCloud = document.getElementById('uploadModeLabelCloud');
+  const lblLocal = document.getElementById('uploadModeLabelLocal');
+  if (toggle) toggle.checked = isLocal;
+  if (track) {
+    track.style.background   = isLocal ? 'rgba(240,168,48,0.25)' : 'rgba(61,127,255,0.25)';
+    track.style.borderColor  = isLocal ? 'rgba(240,168,48,0.5)' : 'rgba(61,127,255,0.5)';
   }
+  if (thumb) {
+    thumb.style.transform  = isLocal ? 'translateX(22px)' : 'translateX(0)';
+    thumb.style.background = isLocal ? 'var(--yellow)' : 'var(--accent2)';
+  }
+  if (lblCloud) lblCloud.style.color = isLocal ? 'var(--muted)' : 'var(--accent2)';
+  if (lblLocal) lblLocal.style.color = isLocal ? 'var(--yellow)' : 'var(--muted)';
+
   if (desc) desc.textContent = isLocal ? '⚡ LOCAL (WiFi – bez přihlášení)' : 'Cloud (Supabase)';
   if (row)  row.style.display = isLocal ? '' : 'none';
   if (input && pbLocalUrl) input.value = pbLocalUrl;
+
+  // Header mode badge
+  const badge = document.getElementById('hdrModeBadge');
+  if (badge) {
+    badge.style.display = '';
+    badge.textContent = isLocal ? '⚡LOCAL' : '☁CLOUD';
+    badge.style.background   = isLocal ? 'rgba(240,168,48,0.15)' : 'rgba(61,127,255,0.15)';
+    badge.style.borderColor  = isLocal ? 'rgba(240,168,48,0.4)' : 'rgba(61,127,255,0.35)';
+    badge.style.color        = isLocal ? 'var(--yellow)' : 'var(--accent2)';
+  }
 
   // Info panel – přepnout zobrazení podle módu
   if (connLine) {
@@ -2189,9 +2234,7 @@ function updateUploadModeUI() {
   }
   if (bucketLine) bucketLine.style.display = isLocal ? 'none' : '';
 
-  // Skrýt/zobrazit manuální zadání zakázky
-  const manualSection = document.getElementById('manualJobSection');
-  if (manualSection) manualSection.style.display = isLocal ? 'none' : '';
+  // (manual job section always visible – user can choose)
 }
 
 async function testLocalConnection() {
