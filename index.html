@@ -787,9 +787,9 @@
         <button class="job-banner-scan-btn" id="uploadBannerScanBtn" onclick="showTab('qr')">🔲 Naskenovat QR kód</button>
       </div>
 
-      <div class="upload-panel">
+      <div class="upload-panel" id="typesPanel">
         <div class="section-label">Vyber typ dokumentu:</div>
-        <div class="upload-subtitle">Vyber typ, pak klikni na <b>Foto</b>, <b>Video</b> nebo <b>Nahrát</b>.<br>Po odeslání potvrď OK.</div>
+        <div class="upload-subtitle" id="uploadSubtitle">Vyber typ, pak klikni na <b>Foto</b>, <b>Video</b> nebo <b>Nahrát</b>.<br>Po odeslání potvrď OK.</div>
         <div class="types" id="types">
           <label class="type-label sp-type">
             <input type="radio" name="typ" value="SP">
@@ -1417,6 +1417,46 @@ function showLogin() {
   setTimeout(() => document.getElementById('loginUser').focus(), 300);
 }
 
+// ── Typ účtu – osobní vs. firemní ──
+function isPersonalAccount() {
+  return pbUser?.user_metadata?.account_type === 'personal';
+}
+
+// Přizpůsobí UI podle typu účtu
+function updateAccountUI() {
+  const isPersonal = isPersonalAccount();
+
+  // QR sekce – osobní ji nepotřebuje
+  const screenQr = document.getElementById('screenQR');
+  if (screenQr) screenQr.style.display = isPersonal ? 'none' : '';
+
+  // Tab QR – skrýt u osobního
+  const tabQr = document.getElementById('tabQR');
+  if (tabQr) tabQr.style.display = isPersonal ? 'none' : '';
+
+  // Job banner a sekce zadání zakázky
+  const jobBanner = document.getElementById('uploadJobBanner');
+  const manualJob = document.getElementById('manualJobSection');
+  if (jobBanner) jobBanner.style.display = isPersonal ? 'none' : '';
+  if (manualJob) manualJob.style.display = isPersonal ? 'none' : '';
+
+  // Výběr typu dokumentu – osobní ho nepotřebuje
+  const typesPanel = document.getElementById('typesPanel');
+  if (typesPanel) typesPanel.style.display = isPersonal ? 'none' : '';
+
+  // Nadpis upload sekce
+  const uploadSub = document.getElementById('uploadSubtitle');
+  if (uploadSub) {
+    uploadSub.textContent = isPersonal
+      ? 'Vyfot, natoč nebo vyber soubor – odešle se automaticky.'
+      : 'Vyber typ, pak klikni na Foto, Video nebo Nahrát.';
+  }
+
+  // Sekce Scan v nastavení
+  const settingsScanRow = document.getElementById('settingsScanRow');
+  if (settingsScanRow) settingsScanRow.style.display = isPersonal ? 'none' : '';
+}
+
 function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -1425,12 +1465,15 @@ function showApp() {
   document.getElementById('settingsEmail').textContent = pbUser?.email || '—';
   updateProfileUI();
   updateJobUI();
+  updateAccountUI();
   updateUploadModeUI();
   checkSBStatus();
+  startTokenRefreshTimer();
   readURLParams();
   showPwaInstall();
+  const isPersonal = isPersonalAccount();
   const hasURLJob = new URLSearchParams(window.location.search).get('j');
-  if (!hasURLJob) {
+  if (!hasURLJob && !isPersonal) {
     setTimeout(() => startQRScan(), 400);
   }
 }
@@ -1670,6 +1713,7 @@ function doLogout() {
     pbActiveId = null;
     pbToken = pbRefresh = pbUser = pbJob = pbJobToken = null;
     ['pb_token','pb_refresh','pb_user','pb_job','pb_job_token','pb_active_id'].forEach(k => localStorage.removeItem(k));
+    stopTokenRefreshTimer();
     stopQRScan();
     showLogin();
   }
@@ -1901,6 +1945,7 @@ function triggerVideo() { if (!checkReady()) return; document.getElementById('in
 function triggerPick()  { if (!checkReady()) return; document.getElementById('inPick').click(); }
 
 function checkReady() {
+  if (isPersonalAccount()) return true; // osobní – žádná zakázka ani typ nejsou potřeba
   if (!pbJob) { toast('⚠️ Nejdřív naskenuj QR kód', 'err'); showTab('qr'); return false; }
   if (!getType()) { toast('⚠️ Vyber typ dokumentu', 'err'); return false; }
   return true;
@@ -1944,8 +1989,9 @@ async function optimizeImage(file) {
 
 // ── Supabase upload ──
 async function uploadFiles(fileList) {
-  const t = getType();
-  if (!t || !pbJob) return;
+  const isPersonal = isPersonalAccount();
+  const t = isPersonal ? null : getType();
+  if (!isPersonal && (!t || !pbJob)) return;
 
   const wrap  = document.getElementById('progressWrap');
   const fill  = document.getElementById('progressFill');
@@ -1964,10 +2010,21 @@ async function uploadFiles(fileList) {
     for (const rawFile of fileList) {
       const file = await optimizeImage(rawFile);
       const ext  = file.name.split('.').pop().toLowerCase();
-      const ts   = Date.now();
-      const openPaint = (t !== 'SP' && document.getElementById('openInPaint').checked) ? '_PAINT' : '';
-      const filename  = `${t}_${pbJob}_${ts}${openPaint}.${ext}`;
-      const path      = `${pbJob}/${filename}`;
+
+      let filename, path;
+      if (isPersonal) {
+        // Osobní účet – název = datum_čas, žádný prefix ani zakázka
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        filename = `${ts}.${ext}`;
+        path     = `personal/${filename}`;
+      } else {
+        const ts = Date.now();
+        const openPaint = (t !== 'SP' && document.getElementById('openInPaint').checked) ? '_PAINT' : '';
+        filename = `${t}_${pbJob}_${ts}${openPaint}.${ext}`;
+        path     = `${pbJob}/${filename}`;
+      }
 
       fill.style.width = `${Math.round((done / total) * 80)}%`;
       text.textContent = `⏳ Nahrávám ${done + 1}/${total}…`;
@@ -1982,7 +2039,7 @@ async function uploadFiles(fileList) {
         const fd = new FormData();
         fd.append('photos', file, filename);
         uploadRes = await fetch(
-          `${pbLocalUrl}/upload?token=${encodeURIComponent(pbLocalToken)}&job=${encodeURIComponent(pbJob)}`,
+          `${pbLocalUrl}/upload?token=${encodeURIComponent(pbLocalToken)}&job=${encodeURIComponent(pbJob || 'personal')}`,
           { method: 'POST', body: fd }
         );
       } else {
@@ -2024,6 +2081,7 @@ async function uploadFiles(fileList) {
 
         // ── Notifikuj PC přes pb_queue (jen cloud mód) ──────────────────
         if (uploadRes.ok) {
+          const uid = pbUser?.id || null;
           const queueRes = await fetch(`${SB_URL}/rest/v1/pb_queue`, {
             method: 'POST',
             headers: {
@@ -2032,7 +2090,7 @@ async function uploadFiles(fileList) {
               'Content-Type':  'application/json',
               'Prefer':        'return=minimal'
             },
-            body: JSON.stringify({ job: pbJob, file_path: path })
+            body: JSON.stringify({ user_id: uid, job: isPersonal ? null : pbJob, file_path: path })
           }).catch(e => ({ ok: false, _err: e.message }));
           if (queueRes && !queueRes.ok) {
             const qBody = await queueRes.text?.().catch(() => '') || queueRes._err || '';
@@ -2054,7 +2112,9 @@ async function uploadFiles(fileList) {
     // Reset paint checkbox after success
     if (t !== 'SP') document.getElementById('openInPaint').checked = false;
 
-    text.textContent = `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'} → ${pbJob}`;
+    text.textContent = isPersonal
+      ? `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'}`
+      : `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'} → ${pbJob}`;
     toast(`✅ ${done} soubor${done === 1 ? '' : 's'} nahrán`, 'ok');
 
     setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 3000);
@@ -2088,6 +2148,21 @@ async function tryRefreshToken() {
     syncCurrentToProfile();   // ← aktualizuj i pb_profiles, aby token přežil reload
     return true;
   } catch(_) { return false; }
+}
+
+// ── Proaktivní obnova tokenu – každých 50 minut bez čekání na chybu ──
+let _tokenRefreshInterval = null;
+function startTokenRefreshTimer() {
+  if (_tokenRefreshInterval) clearInterval(_tokenRefreshInterval);
+  _tokenRefreshInterval = setInterval(async () => {
+    if (pbRefresh) {
+      const ok = await tryRefreshToken();
+      if (!ok) console.warn('Proaktivní refresh tokenu selhal');
+    }
+  }, 50 * 60 * 1000); // každých 50 minut
+}
+function stopTokenRefreshTimer() {
+  if (_tokenRefreshInterval) { clearInterval(_tokenRefreshInterval); _tokenRefreshInterval = null; }
 }
 
 // ── Change password ──
