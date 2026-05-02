@@ -310,30 +310,27 @@
       font-size: 12px; color: var(--muted); line-height: 1.5;
       margin-top: 4px;
     }
-    .types { display: flex; flex-direction: column; gap: 8px; }
+    .types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .type-label {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 14px; border-radius: 11px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 9px 14px; border-radius: 20px;
       border: 1.5px solid var(--border2); background: var(--surface);
-      cursor: pointer; transition: all 0.15s;
+      cursor: pointer; transition: all 0.15s; flex-shrink: 0;
     }
-    .type-label input[type=radio] {
-      width: 18px; height: 18px; flex-shrink: 0;
-      accent-color: var(--accent2); cursor: pointer; margin: 0;
-    }
+    .type-label input[type=radio] { display: none; }
     .type-label .code {
-      font-family: var(--mono); font-size: 15px; font-weight: 700;
+      font-family: var(--mono); font-size: 14px; font-weight: 700;
       color: var(--muted2); white-space: nowrap;
     }
-    .type-label .desc { font-size: 12px; color: var(--muted); line-height: 1.3; margin-top: 1px; }
-    .type-label input:checked ~ .type-text .code { color: var(--accent2); }
+    .type-label .desc { font-size: 10px; color: var(--muted); line-height: 1.3; margin-top: 2px; white-space: nowrap; }
+    .type-label:has(input:checked) .code { color: var(--accent2); }
     .type-label:has(input:checked) {
-      border-color: var(--accent); background: rgba(61,127,255,0.1);
-      box-shadow: 0 0 0 1px rgba(61,127,255,0.15);
+      border-color: var(--accent); background: rgba(61,127,255,0.14);
+      box-shadow: 0 0 0 1px rgba(61,127,255,0.18);
     }
     .type-label.sp-type:has(input:checked) {
-      border-color: var(--yellow); background: rgba(245,200,66,0.08);
-      box-shadow: 0 0 0 1px rgba(245,200,66,0.15);
+      border-color: var(--yellow); background: rgba(245,200,66,0.10);
+      box-shadow: 0 0 0 1px rgba(245,200,66,0.18);
     }
     .type-label.sp-type:has(input:checked) .code { color: var(--yellow); }
 
@@ -2005,6 +2002,29 @@ async function optimizeImage(file) {
   });
 }
 
+// ── Zajistí platný token před uploadem ──
+// Vždy proaktivně obnoví token pokud máme refresh_token.
+// Pokud obnova selže kvůli síti, pokračujeme se stávajícím tokenem (třeba ještě platí).
+// Pokud refresh token vypršel úplně, vrátí false a přesměruje na login.
+async function ensureValidToken() {
+  if (!pbRefresh) return true; // žádný refresh token – anon nebo local mód
+  const result = await tryRefreshToken();
+  if (result === 'expired') {
+    toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
+    setTimeout(() => {
+      pbToken = pbRefresh = null;
+      syncCurrentToProfile();
+      saveProfiles();
+      stopTokenRefreshTimer();
+      stopQRScan();
+      showLogin();
+    }, 1500);
+    return false;
+  }
+  // result === true (obnoveno) nebo false (chyba sítě – pokračujeme se stávajícím tokenem)
+  return true;
+}
+
 // ── Supabase upload ──
 async function uploadFiles(fileList) {
   const isPersonal = isPersonalAccount();
@@ -2020,6 +2040,16 @@ async function uploadFiles(fileList) {
   wrap.style.display = '';
   fill.style.width = '0%';
   text.textContent = '⏳ Připravuji…';
+
+  // Obnov token před odesláním – pokud vypršel, počkáme na nový
+  if (pbUploadMode !== 'local') {
+    const tokenOk = await ensureValidToken();
+    if (!tokenOk) {
+      btns.forEach(id => document.getElementById(id).disabled = false);
+      wrap.style.display = 'none';
+      return;
+    }
+  }
 
   const total = fileList.length;
   let done = 0;
@@ -2085,13 +2115,23 @@ async function uploadFiles(fileList) {
         const activeToken = pbToken || SB_ANON;
         uploadRes = await doUpload(activeToken);
 
-        // 401/403 → pokus o refresh (jen pokud máme refresh token), pak retry
+        // 401/403 → záložní refresh a retry (token mohl vypršet během optimalizace obrázku)
         if (!uploadRes.ok && (uploadRes.status === 401 || uploadRes.status === 403)) {
           if (pbRefresh) {
             const refreshed = await tryRefreshToken();
-            if (refreshed) uploadRes = await doUpload(pbToken);
+            if (refreshed === true) {
+              uploadRes = await doUpload(pbToken);
+            } else if (refreshed === 'expired') {
+              toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
+              setTimeout(() => {
+                pbToken = pbRefresh = null;
+                syncCurrentToProfile(); saveProfiles();
+                stopTokenRefreshTimer(); stopQRScan(); showLogin();
+              }, 1500);
+              throw new Error('Relace vypršela – přihlas se znovu');
+            }
           }
-          // Pokud refresh selhal nebo nebyl k dispozici, zkus anon
+          // Síťová chyba při refreshi – zkus anon jako poslední záchrana
           if (!uploadRes.ok && activeToken !== SB_ANON) {
             uploadRes = await doUpload(SB_ANON);
           }
@@ -2156,31 +2196,65 @@ async function tryRefreshToken() {
       body: JSON.stringify({ refresh_token: pbRefresh })
     });
     const data = await res.json();
-    if (!data.access_token) return false;
+    if (!data.access_token) {
+      // Refresh token vypršel nebo je neplatný – session je mrtvá
+      const errMsg = data.error_description || data.error?.message || data.error || '';
+      console.warn('Refresh tokenu selhal:', errMsg);
+      // Oznámíme volajícímu, že session je ztracena (ne jen chyba sítě)
+      return 'expired';
+    }
     pbToken   = data.access_token;
     pbRefresh = data.refresh_token || pbRefresh;
     pbUser    = data.user || pbUser;
-    localStorage.setItem('pb_token',   pbToken);
-    localStorage.setItem('pb_refresh', pbRefresh);
-    localStorage.setItem('pb_user',    JSON.stringify(pbUser));
     syncCurrentToProfile();   // ← aktualizuj i pb_profiles, aby token přežil reload
     return true;
   } catch(_) { return false; }
 }
 
-// ── Proaktivní obnova tokenu – každých 50 minut bez čekání na chybu ──
+// Obnov token a při vypršení session automaticky odhlásí
+async function tryRefreshTokenOrLogout() {
+  const result = await tryRefreshToken();
+  if (result === 'expired') {
+    toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
+    // Krátká prodleva aby uživatel viděl toast, pak odhlásit
+    setTimeout(() => {
+      pbToken = pbRefresh = null;
+      syncCurrentToProfile();
+      saveProfiles();
+      stopTokenRefreshTimer();
+      stopQRScan();
+      showLogin();
+    }, 1500);
+    return false;
+  }
+  return result;
+}
+
+// ── Proaktivní obnova tokenu – každých 45 minut bez čekání na chybu ──
 let _tokenRefreshInterval = null;
 function startTokenRefreshTimer() {
   if (_tokenRefreshInterval) clearInterval(_tokenRefreshInterval);
   _tokenRefreshInterval = setInterval(async () => {
     if (pbRefresh) {
-      const ok = await tryRefreshToken();
-      if (!ok) console.warn('Proaktivní refresh tokenu selhal');
+      await tryRefreshTokenOrLogout();
     }
-  }, 50 * 60 * 1000); // každých 50 minut
+  }, 45 * 60 * 1000); // každých 45 minut
+
+  // Obnov token také při návratu z pozadí (telefon se probudil, tab se aktivoval)
+  document.removeEventListener('visibilitychange', _onVisibilityChange);
+  document.addEventListener('visibilitychange', _onVisibilityChange);
 }
+
+let _lastVisibleRefresh = 0;
+async function _onVisibilityChange() {
+  if (document.visibilityState !== 'visible') return;
+  if (!pbRefresh) return;
+  await tryRefreshTokenOrLogout();
+}
+
 function stopTokenRefreshTimer() {
   if (_tokenRefreshInterval) { clearInterval(_tokenRefreshInterval); _tokenRefreshInterval = null; }
+  document.removeEventListener('visibilitychange', _onVisibilityChange);
 }
 
 // ── Change password ──
