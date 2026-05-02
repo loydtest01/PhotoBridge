@@ -1300,6 +1300,21 @@ let pbLocalUrl   = localStorage.getItem('pb_local_url')  || '';
 // Token zakázky načtený z QR (v LOCAL módu povinný)
 let pbLocalToken = null;
 
+// ── Auto-init z LOCAL QR (window.PB_QR injektováno serverem při servírování index.html) ──
+// Spustí se vždy – bez ohledu na to jestli je uživatel přihlášen nebo ne.
+// Přihlášení zůstane zachováno, jen se přepne mód na LOCAL a nastaví zakázka.
+if (window.PB_QR && window.PB_QR.mode === 'local') {
+  pbUploadMode = 'local';
+  pbLocalUrl   = window.PB_QR.localUrl || window.location.origin;
+  pbLocalToken = window.PB_QR.token    || null;
+  if (window.PB_QR.job) {
+    pbJob      = window.PB_QR.job;
+    pbJobToken = window.PB_QR.token;
+  }
+  localStorage.setItem('pb_upload_mode', 'local');
+  localStorage.setItem('pb_local_url',   pbLocalUrl);
+}
+
 // ── On load ──
 window.addEventListener('DOMContentLoaded', () => {
   // ── Zpracování potvrzovacího linku z emailu (Supabase hash) ──
@@ -1403,6 +1418,9 @@ function loadSession() {
   } catch(e) { pbUser = null; }
 
   if (pbToken && pbUser) {
+    showApp();
+  } else if (pbUploadMode === 'local' && pbLocalToken) {
+    // LOCAL mód – přeskočíme přihlášení, stačí token ze serveru
     showApp();
   } else {
     showLogin();
