@@ -956,7 +956,7 @@
         <div style="font-size:11px;color:var(--muted);line-height:1.7">
           <div id="connectionStatusLine">📡 Supabase: <span style="color:var(--green);font-family:var(--mono);font-size:10px" id="sbStatus">—</span></div>
           <div style="margin-top:4px" id="bucketLine">🗂️ Bucket: <span style="font-family:var(--mono);color:var(--muted2)">pb-uploads</span></div>
-          <div style="margin-top:4px">⏱️ Auto-smazání: <span style="font-family:var(--mono);color:var(--muted2)">7 dní</span></div>
+          <div style="margin-top:4px">⏱️ Auto-smazání: <span style="font-family:var(--mono);color:var(--muted2)" id="retentionDisplay">7 dní</span></div>
         </div>
       </div>
 
@@ -1475,6 +1475,7 @@ function showApp() {
   updateAccountUI();
   updateUploadModeUI();
   checkSBStatus();
+  updateRetentionDisplay();
   startTokenRefreshTimer();
   readURLParams();
   showPwaInstall();
@@ -2448,6 +2449,13 @@ function toggleEye(id, btn) {
 }
 
 let toastTimer = null;
+function updateRetentionDisplay() {
+  const el = document.getElementById('retentionDisplay');
+  if (!el) return;
+  const days = window.PB_RETENTION_DAYS || window.PB_QR?.retentionDays || 7;
+  el.textContent = days + ' ' + (days === 1 ? 'den' : days < 5 ? 'dny' : 'dní');
+}
+
 function toast(msg, type = '') {
   const el = document.getElementById('toast');
   el.textContent = msg;
