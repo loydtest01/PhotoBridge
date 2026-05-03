@@ -784,7 +784,6 @@
 
       <div class="upload-panel" id="typesPanel">
         <div class="section-label">Vyber typ dokumentu:</div>
-        <div class="upload-subtitle" id="uploadSubtitle">Vyber typ, pak klikni na <b>Foto</b>, <b>Video</b> nebo <b>Nahrát</b>.<br>Po odeslání potvrď OK.</div>
         <div class="types" id="types">
           <label class="type-label sp-type">
             <input type="radio" name="typ" value="SP">
@@ -1460,14 +1459,6 @@ function updateAccountUI() {
   const typesPanel = document.getElementById('typesPanel');
   if (typesPanel) typesPanel.style.display = isPersonal ? 'none' : '';
 
-  // Nadpis upload sekce
-  const uploadSub = document.getElementById('uploadSubtitle');
-  if (uploadSub) {
-    uploadSub.textContent = isPersonal
-      ? 'Vyfot, natoč nebo vyber soubor – odešle se automaticky.'
-      : 'Vyber typ, pak klikni na Foto, Video nebo Nahrát.';
-  }
-
   // Sekce Scan v nastavení
   const settingsScanRow = document.getElementById('settingsScanRow');
   if (settingsScanRow) settingsScanRow.style.display = isPersonal ? 'none' : '';
@@ -1910,7 +1901,7 @@ function updateJobUI() {
     bannerNum.classList.remove('no-job');
     bannerIcon.textContent = '📂';
     bannerBadge.classList.add('visible');
-    bannerHint.textContent = 'Vyber typ dokumentu a nahrávej soubory níže.';
+    bannerHint.textContent = '';
     bannerHint.classList.add('visible');
     bannerScan.classList.remove('visible');
     banner.style.borderColor = 'rgba(54,217,102,0.4)';
