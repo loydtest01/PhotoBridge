@@ -144,7 +144,7 @@
     }
     .login-logo-name {
       font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
-      color: #fff;
+      color: var(--text);
     }
     .login-logo-name span { color: var(--accent2); }
     .login-logo-sub { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500; }
@@ -211,7 +211,7 @@
     }
     .hdr-logo {
       font-size: 17px; font-weight: 700; letter-spacing: -0.01em;
-      color: #fff; display: flex; align-items: center; gap: 8px; flex: 1;
+      color: var(--text); display: flex; align-items: center; gap: 8px; flex: 1;
     }
     .hdr-logo .logo-icon { font-size: 20px; }
     .hdr-logo .logo-bridge { color: var(--accent2); }
@@ -553,9 +553,12 @@
       font-size: 28px;
       font-weight: 700;
       letter-spacing: 0.04em;
-      color: #fff;
+      color: #555;
       line-height: 1;
       flex: 1;
+    }
+    [data-theme="dark"] .job-banner-number {
+      color: var(--text);
     }
     .job-banner-number.no-job {
       font-size: 14px;
@@ -701,25 +704,17 @@
       display:none;
     ">CLOUD</div>
     <div id="hdrProfileArea" style="display:none;align-items:center;gap:6px">
-      <!-- Aktivní profil – zelený -->
-      <div id="hdrActiveProfile" style="
+      <!-- Jediný chip – kliknutí přepne profil (jen pokud existuje druhý) -->
+      <button id="hdrActiveProfile" onclick="quickSwitchProfile()" title="Přepnout profil" style="
         background:rgba(54,217,102,0.15); border:1px solid rgba(54,217,102,0.4);
         color:#36d966; border-radius:20px; padding:3px 10px; font-size:12px;
         font-weight:700; font-family:var(--mono); line-height:1.4;
         display:flex; align-items:center; gap:5px;
+        cursor:default; transition:background 0.15s, border-color 0.15s;
       ">
         <span style="width:7px;height:7px;border-radius:50%;background:#36d966;display:inline-block;flex-shrink:0"></span>
         <span id="hdrUser">—</span>
-      </div>
-      <!-- Neaktivní profil – červený, klikací přepínač -->
-      <button id="hdrSwitchBtn" onclick="quickSwitchProfile()" title="Přepnout profil" style="
-        display:none; background:rgba(240,90,90,0.12); border:1px solid rgba(240,90,90,0.35);
-        color:#f05a5a; border-radius:20px; padding:3px 10px; font-size:12px;
-        font-weight:700; cursor:pointer; transition:all 0.15s; font-family:var(--mono);
-        line-height:1.4; display:flex; align-items:center; gap:5px;
-      ">
-        <span style="width:7px;height:7px;border-radius:50%;background:#f05a5a;display:inline-block;flex-shrink:0"></span>
-        <span id="hdrSwitchName"></span>
+        <span id="hdrSwitchArrow" style="display:none;opacity:0.7;font-size:10px">⇄</span>
       </button>
     </div>
   </div>
@@ -962,7 +957,7 @@
         <div style="font-size:11px;color:var(--muted);line-height:1.7">
           <div id="connectionStatusLine">📡 Supabase: <span style="color:var(--green);font-family:var(--mono);font-size:10px" id="sbStatus">—</span></div>
           <div style="margin-top:4px" id="bucketLine">🗂️ Bucket: <span style="font-family:var(--mono);color:var(--muted2)">pb-uploads</span></div>
-          <div style="margin-top:4px">⏱️ Auto-smazání: <span style="font-family:var(--mono);color:var(--muted2)">1 den</span></div>
+          <div style="margin-top:4px">⏱️ Auto-smazání: <span style="font-family:var(--mono);color:var(--muted2)">7 dní</span></div>
         </div>
       </div>
 
@@ -1167,16 +1162,19 @@ function updateProfileUI() {
   const area = document.getElementById('hdrProfileArea');
   if (area) area.style.display = (pbToken && pbUser) ? 'flex' : 'none';
   document.getElementById('hdrUser').textContent = label + ' ' + displayName;
-  const switchBtn = document.getElementById('hdrSwitchBtn');
-  if (switchBtn) {
-    switchBtn.style.display = other ? '' : 'none';
-    const nameEl = document.getElementById('hdrSwitchName');
-    if (nameEl) {
-      const otherDisplayName = getDisplayName(other, other?.user);
-      const otherLabel = getAccountLabel(other?.user);
-      nameEl.textContent = (other ? otherLabel + ' ' + otherDisplayName : '');
+  // Chip – klikací jen když existuje druhý profil
+  const chip  = document.getElementById('hdrActiveProfile');
+  const arrow = document.getElementById('hdrSwitchArrow');
+  if (chip) {
+    if (other) {
+      chip.style.cursor = 'pointer';
+      chip.title = 'Přepnout na ' + getAccountLabel(other?.user) + ' ' + getDisplayName(other, other?.user);
+    } else {
+      chip.style.cursor = 'default';
+      chip.title = '';
     }
   }
+  if (arrow) arrow.style.display = other ? '' : 'none';
 
   // Settings
   const hasSlot   = pbProfiles.length < MAX_PROFILES;
