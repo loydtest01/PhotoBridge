@@ -2018,119 +2018,132 @@ async function uploadFiles(fileList) {
   text.textContent = '⏳ Připravuji…';
 
   // Obnov token před odesláním – pokud vypršel, počkáme na nový
-  if (pbUploadMode !== 'local') {
-    const tokenOk = await ensureValidToken();
-    if (!tokenOk) {
-      btns.forEach(id => document.getElementById(id).disabled = false);
-      wrap.style.display = 'none';
-      return;
-    }
+  const tokenOk = await ensureValidToken();
+  if (!tokenOk) {
+    btns.forEach(id => document.getElementById(id).disabled = false);
+    wrap.style.display = 'none';
+    return;
   }
 
   const total = fileList.length;
   let done = 0;
 
-  try {
-    for (const rawFile of fileList) {
+  // Batch timestamp – stejný pro všechny soubory v jednom uploadu, aby PC
+  // poznala že jdou patřit k sobě a seřadila je podle sekvenčního indexu.
+  // Index 001, 002, … zachovává pořadí cvaknutí spouště i při paralelních uploadech.
+  const batchTs = Date.now();
+
+  /**
+   * Zpracuje jeden soubor: optimalizace + upload + pb_queue insert paralelně.
+   * Vrací Promise<{ok, path}>.
+   */
+  async function processOne(rawFile, seqIdx) {
+    try {
       const file = await optimizeImage(rawFile);
       const ext  = file.name.split('.').pop().toLowerCase();
 
+      // Pad index na 3 místa: 001, 002, …, 999 (max 999 fotek na batch, stačí)
+      const seqStr = String(seqIdx + 1).padStart(3, '0');
+
       let filename, path;
-      if (isPersonal) {
-        // Osobní účet – název = datum_čas, žádný prefix ani zakázka
-        const now = new Date();
-        const pad = n => String(n).padStart(2, '0');
-        const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-        filename = `${ts}.${ext}`;
-        path     = `personal/${filename}`;
-      } else {
-        const ts = Date.now();
-        const openPaint = (t !== 'SP' && document.getElementById('openInPaint').checked) ? '_PAINT' : '';
-        filename = `${t}_${pbJob}_${ts}${openPaint}.${ext}`;
-        path     = `${pbJob}/${filename}`;
+      // NOVÝ FORMÁT path (Cesta 1): {user_id}/personal/{name} nebo {user_id}/{job}/{name}
+      // Bez přihlášení (anon) NEJDE uploadovat – Supabase RLS to zablokuje.
+      // user_id musí být na začátku path, jinak Storage policy odmítne (storage.foldername(name)[1] = auth.uid()).
+      const userId = pbUser?.id || '';
+      if (!userId) {
+        throw new Error('Nelze nahrát – nejsi přihlášen. Přihlaš se a zkus znovu.');
       }
 
-      fill.style.width = `${Math.round((done / total) * 80)}%`;
-      text.textContent = `⏳ Nahrávám ${done + 1}/${total}…`;
-
-      let uploadRes;
-
-      if (pbUploadMode === 'local') {
-        // ── LOCAL mód: upload přímo na PC přes WiFi ──────────────────
-        if (!pbLocalUrl) throw new Error('LOCAL mód: není nastavena IP adresa serveru');
-        if (!pbLocalToken) throw new Error('LOCAL mód: chybí token – naskenuj QR kód');
-
-        const fd = new FormData();
-        fd.append('photos', file, filename);
-        uploadRes = await fetch(
-          `${pbLocalUrl}/upload?token=${encodeURIComponent(pbLocalToken)}&job=${encodeURIComponent(pbJob || 'personal')}`,
-          { method: 'POST', body: fd }
-        );
+      if (isPersonal) {
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}_${seqStr}`;
+        filename = `${ts}.${ext}`;
+        path     = `${userId}/personal/${filename}`;
       } else {
-        // ── CLOUD mód: upload na Supabase Storage ─────────────────────
-        // FIX: encodeURIComponent(path) kódovalo '/' jako '%2F' → 400/403.
-        // Správně: každý segment zvlášť, lomítko zachováme.
-        const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+        // {batchTs}_{seq} – batchTs zachovává pořadí mezi batchi,
+        // seq zachovává pořadí v jednom batchi (paralelní uploady).
+        const openPaint = (t !== 'SP' && document.getElementById('openInPaint').checked) ? '_PAINT' : '';
+        filename = `${t}_${pbJob}_${batchTs}_${seqStr}${openPaint}.${ext}`;
+        path     = `${userId}/${pbJob}/${filename}`;
+      }
 
-        const doUpload = async (token) => fetch(
-          `${SB_URL}/storage/v1/object/${SB_BUCKET}/${encodedPath}`,
-          {
-            method: 'POST',
-            headers: {
-              'apikey':        SB_ANON,
-              'Authorization': `Bearer ${token}`,
-              'Content-Type':  file.type || 'application/octet-stream',
-              'x-upsert':      'true'
-            },
-            body: file
-          }
-        );
+      const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+      const activeToken = pbToken || SB_ANON;
 
-        // Na telefonu přes QR kód pbToken může být null (nepřihlášen).
-        // Fallback: anon klíč jako Bearer — funguje pokud bucket policy povoluje anon upload.
-        const activeToken = pbToken || SB_ANON;
-        uploadRes = await doUpload(activeToken);
+      // Storage upload + pb_queue insert PARALELNĚ (Promise.all).
+      // Jakmile Storage potvrdí 200, pb_queue je už dávno hotová (mnohem rychlejší).
+      // PC dostane Realtime event z pb_queue inserve → začne stahovat,
+      // a Storage download se spustí v okamžiku kdy upload je hotový.
+      const doStorageUpload = async (token) => fetch(
+        `${SB_URL}/storage/v1/object/${SB_BUCKET}/${encodedPath}`,
+        {
+          method:  'POST',
+          headers: {
+            'apikey':        SB_ANON,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type':  file.type || 'application/octet-stream',
+            'x-upsert':      'true'
+          },
+          body: file
+        }
+      );
 
-        // 401/403 → záložní refresh a retry (token mohl vypršet během optimalizace obrázku)
-        if (!uploadRes.ok && (uploadRes.status === 401 || uploadRes.status === 403)) {
-          if (pbRefresh) {
-            const refreshed = await tryRefreshToken();
-            if (refreshed === true) {
-              uploadRes = await doUpload(pbToken);
-            } else if (refreshed === 'expired') {
-              toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
-              setTimeout(() => {
-                pbToken = pbRefresh = null;
-                syncCurrentToProfile(); saveProfiles();
-                stopTokenRefreshTimer(); stopQRScan(); showLogin();
-              }, 1500);
-              throw new Error('Relace vypršela – přihlas se znovu');
+      const doQueueInsert = async (token) => fetch(`${SB_URL}/rest/v1/pb_queue`, {
+        method:  'POST',
+        headers: {
+          'apikey':        SB_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type':  'application/json',
+          'Prefer':        'return=minimal'
+        },
+        body: JSON.stringify({
+          user_id:   pbUser?.id || null,
+          job:       isPersonal ? null : pbJob,
+          file_path: path,
+        })
+      }).catch(e => ({ ok: false, _err: e.message }));
+
+      // Spustit OBĚ operace souběžně
+      let [uploadRes, queueRes] = await Promise.all([
+        doStorageUpload(activeToken),
+        doQueueInsert(activeToken),
+      ]);
+
+      // 401/403 na uploadu → refresh tokenu a retry uploadu (queue už proběhla nebo selhala)
+      if (!uploadRes.ok && (uploadRes.status === 401 || uploadRes.status === 403)) {
+        if (pbRefresh) {
+          const refreshed = await tryRefreshToken();
+          if (refreshed === true) {
+            uploadRes = await doStorageUpload(pbToken);
+            // Queue insert taky znova s novým tokenem (kdyby selhala kvůli stejnému důvodu)
+            if (!queueRes || !queueRes.ok) {
+              queueRes = await doQueueInsert(pbToken);
             }
-          }
-          // Síťová chyba při refreshi – zkus anon jako poslední záchrana
-          if (!uploadRes.ok && activeToken !== SB_ANON) {
-            uploadRes = await doUpload(SB_ANON);
+          } else if (refreshed === 'expired') {
+            toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
+            setTimeout(() => {
+              pbToken = pbRefresh = null;
+              syncCurrentToProfile(); saveProfiles();
+              stopTokenRefreshTimer(); stopQRScan(); showLogin();
+            }, 1500);
+            throw new Error('Relace vypršela – přihlas se znovu');
           }
         }
+        if (!uploadRes.ok && activeToken !== SB_ANON) {
+          uploadRes = await doStorageUpload(SB_ANON);
+        }
+      }
 
-        // ── Notifikuj PC přes pb_queue (jen cloud mód) ──────────────────
-        if (uploadRes.ok) {
-          const uid = pbUser?.id || null;
-          const queueRes = await fetch(`${SB_URL}/rest/v1/pb_queue`, {
-            method: 'POST',
-            headers: {
-              'apikey':        SB_ANON,
-              'Authorization': `Bearer ${activeToken}`,
-              'Content-Type':  'application/json',
-              'Prefer':        'return=minimal'
-            },
-            body: JSON.stringify({ user_id: uid, job: isPersonal ? null : pbJob, file_path: path })
-          }).catch(e => ({ ok: false, _err: e.message }));
-          if (queueRes && !queueRes.ok) {
-            const qBody = await queueRes.text?.().catch(() => '') || queueRes._err || '';
-            console.warn('pb_queue insert selhal:', queueRes.status, qBody);
-            // Nezastavujeme – soubor je v storage, PC si ho najde při příštím scanu
-          }
+      // pb_queue retry (1×) pokud selhala – aby PC nemusela čekat na fallback Storage scan
+      if (!queueRes || !queueRes.ok) {
+        try {
+          queueRes = await doQueueInsert(pbToken || SB_ANON);
+        } catch (_) {}
+        if (!queueRes || !queueRes.ok) {
+          const qBody = await (queueRes?.text?.() || Promise.resolve('')).catch(() => '');
+          console.warn('pb_queue insert selhal:', queueRes?.status, qBody || queueRes?._err);
+          // PC si soubor najde přes fallback Storage scan (do 30 s)
         }
       }
 
@@ -2141,13 +2154,34 @@ async function uploadFiles(fileList) {
 
       done++;
       fill.style.width = `${Math.round((done / total) * 100)}%`;
+      text.textContent = `⏳ Nahráno ${done}/${total}`;
+
+      return { ok: true, path };
+
+    } catch (err) {
+      console.warn('processOne err', err);
+      return { ok: false, error: err.message };
+    }
+  }
+
+  try {
+    // Paralelně, ale s rozumným limitem (3 najednou) aby pomalá síť na mobilu
+    // nepadla. Promise.all by pustila všech N najednou; raději v dávkách po 3.
+    const PARALLEL_LIMIT = 3;
+    const results = [];
+    for (let i = 0; i < fileList.length; i += PARALLEL_LIMIT) {
+      const slice = fileList.slice(i, i + PARALLEL_LIMIT);
+      const promises = slice.map((f, j) => processOne(f, i + j));
+      const sliceResults = await Promise.all(promises);
+      results.push(...sliceResults);
     }
 
     // Reset paint checkbox after success
     if (t !== 'SP') document.getElementById('openInPaint').checked = false;
 
+    const okCount = results.filter(r => r && r.ok).length;
     text.textContent = isPersonal
-      ? `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'}`
+      ? `✅ Nahráno ${okCount} soubor${okCount === 1 ? '' : okCount < 5 ? 'y' : 'ů'}`
       : `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'} → ${pbJob}`;
     toast(`✅ ${done} soubor${done === 1 ? '' : 's'} nahrán`, 'ok');
 
