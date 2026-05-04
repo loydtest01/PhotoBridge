@@ -1472,6 +1472,21 @@ function showApp() {
   startTokenRefreshTimer();
   readURLParams();
   showPwaInstall();
+
+  // ── KLÍČOVÉ: Hned po startu webapp obnov token, pokud máme uloženou session ──
+  // Bez tohoto by uživatel musel ručně refresh / re-login po dlouhé pauze:
+  // - Webapp ležela v cache prohlížeče několik hodin
+  // - Access token už dávno vypršel (TTL 1h)
+  // - První upload by skončil 401/403 a vyžadoval re-login
+  //
+  // Voláme to fire-and-forget – nezdržuje načtení UI. Pokud refresh selže
+  // (refresh_token expiroval), funkce sama zobrazí přihlášení.
+  if (pbRefresh) {
+    setTimeout(() => {
+      tryRefreshTokenOrLogout().catch(err => console.warn('startup refresh err', err));
+    }, 200);
+  }
+
   const isPersonal = isPersonalAccount();
   const hasURLJob = new URLSearchParams(window.location.search).get('j');
   if (!hasURLJob && !isPersonal) {
@@ -1979,11 +1994,18 @@ async function optimizeImage(file) {
 }
 
 // ── Zajistí platný token před uploadem ──
-// Vždy proaktivně obnoví token pokud máme refresh_token.
-// Pokud obnova selže kvůli síti, pokračujeme se stávajícím tokenem (třeba ještě platí).
-// Pokud refresh token vypršel úplně, vrátí false a přesměruje na login.
+// Refresh JEN když je poslední refresh starší než 50 minut, jinak token ještě
+// platí (TTL je 1 h). Šetří síť a zabraňuje race conditions.
+// Pokud refresh selže kvůli síti, pokračujeme se stávajícím tokenem (možná ještě platí).
+// Pokud refresh token vypršel, vrátí false a přesměruje na login.
 async function ensureValidToken() {
   if (!pbRefresh) return true; // žádný refresh token – anon nebo local mód
+
+  // Pokud jsme refreshovali nedávno, token ještě platí – neztrácej čas
+  if (_lastRefreshAt && Date.now() - _lastRefreshAt < 50 * 60 * 1000) {
+    return true;
+  }
+
   const result = await tryRefreshToken();
   if (result === 'expired') {
     toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
@@ -2197,28 +2219,61 @@ async function uploadFiles(fileList) {
 }
 
 // ── Token refresh ──
+//
+// Supabase access token má JWT TTL 1 hodinu. Refresh token vydrží 30 dní (default).
+// Aby uživatel nemusel ručně se odhlašovat a přihlašovat:
+//   1) startTokenRefreshTimer – proaktivně refresh každých 45 minut
+//   2) onVisibilityChange – refresh kdykoliv se tab vrátí z pozadí (telefon spal)
+//   3) ensureValidToken – PŘED každým uploadem kontrola s automatickým refreshem
+//   4) onAppStart – HNED PO startu webapp s ulozenou session zkus refresh
+//      (token mohl už dávno vyprset zatím co webapp ležela v cache prohlížeče)
+//
+// Proti race condition (paralelní refreshe): _refreshInFlight Promise sdílíme,
+// pokud někdo už refreshuje, ostatní si počkají na jeho výsledek.
+
+let _refreshInFlight = null;     // Promise<true|false|'expired'> – sdíleno mezi callery
+let _lastRefreshAt   = 0;        // ms timestamp posledního úspěšného refreshe
+
 async function tryRefreshToken() {
   if (!pbRefresh) return false;
-  try {
-    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
-      body: JSON.stringify({ refresh_token: pbRefresh })
-    });
-    const data = await res.json();
-    if (!data.access_token) {
-      // Refresh token vypršel nebo je neplatný – session je mrtvá
-      const errMsg = data.error_description || data.error?.message || data.error || '';
-      console.warn('Refresh tokenu selhal:', errMsg);
-      // Oznámíme volajícímu, že session je ztracena (ne jen chyba sítě)
-      return 'expired';
+
+  // Pokud už nějaký refresh běží, čekej na jeho výsledek (žádné parallel volání)
+  if (_refreshInFlight) {
+    return _refreshInFlight;
+  }
+
+  _refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
+        body: JSON.stringify({ refresh_token: pbRefresh })
+      });
+      const data = await res.json();
+      if (!data.access_token) {
+        // Supabase vrací 400 s chybou "invalid_grant" když refresh token expiroval
+        // nebo byl invalidován (např. uživatel se přihlásil jinde).
+        const errMsg = data.error_description || data.error?.message || data.error || '';
+        console.warn('Refresh tokenu selhal:', res.status, errMsg);
+        return 'expired';
+      }
+      pbToken   = data.access_token;
+      pbRefresh = data.refresh_token || pbRefresh;
+      pbUser    = data.user || pbUser;
+      _lastRefreshAt = Date.now();
+      try { syncCurrentToProfile(); saveProfiles(); } catch(_) {}
+      console.log('Token refreshed at', new Date().toISOString());
+      return true;
+    } catch (err) {
+      // Síťová chyba – token NENÍ expirovaný, jen se zatím nepodařilo obnovit
+      console.warn('Refresh network error:', err);
+      return false;
+    } finally {
+      _refreshInFlight = null;
     }
-    pbToken   = data.access_token;
-    pbRefresh = data.refresh_token || pbRefresh;
-    pbUser    = data.user || pbUser;
-    syncCurrentToProfile();   // ← aktualizuj i pb_profiles, aby token přežil reload
-    return true;
-  } catch(_) { return false; }
+  })();
+
+  return _refreshInFlight;
 }
 
 // Obnov token a při vypršení session automaticky odhlásí
@@ -2226,11 +2281,9 @@ async function tryRefreshTokenOrLogout() {
   const result = await tryRefreshToken();
   if (result === 'expired') {
     toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
-    // Krátká prodleva aby uživatel viděl toast, pak odhlásit
     setTimeout(() => {
       pbToken = pbRefresh = null;
-      syncCurrentToProfile();
-      saveProfiles();
+      try { syncCurrentToProfile(); saveProfiles(); } catch(_) {}
       stopTokenRefreshTimer();
       stopQRScan();
       showLogin();
@@ -2240,8 +2293,9 @@ async function tryRefreshTokenOrLogout() {
   return result;
 }
 
-// ── Proaktivní obnova tokenu – každých 45 minut bez čekání na chybu ──
+// ── Proaktivní obnova tokenu – každých 45 minut + při návratu z pozadí ──
 let _tokenRefreshInterval = null;
+
 function startTokenRefreshTimer() {
   if (_tokenRefreshInterval) clearInterval(_tokenRefreshInterval);
   _tokenRefreshInterval = setInterval(async () => {
@@ -2250,15 +2304,17 @@ function startTokenRefreshTimer() {
     }
   }, 45 * 60 * 1000); // každých 45 minut
 
-  // Obnov token také při návratu z pozadí (telefon se probudil, tab se aktivoval)
+  // Při návratu z pozadí: refresh jen když poslední refresh byl víc než 5 min zpět
+  // (jinak při rychlém přepínání tabů by se to dělalo zbytečně mockrát).
   document.removeEventListener('visibilitychange', _onVisibilityChange);
   document.addEventListener('visibilitychange', _onVisibilityChange);
 }
 
-let _lastVisibleRefresh = 0;
 async function _onVisibilityChange() {
   if (document.visibilityState !== 'visible') return;
   if (!pbRefresh) return;
+  // Pokud jsme refreshovali nedávno (< 5 min), nedělej to znova
+  if (Date.now() - _lastRefreshAt < 5 * 60 * 1000) return;
   await tryRefreshTokenOrLogout();
 }
 
