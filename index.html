@@ -1289,27 +1289,20 @@ let pbJobToken = null;
 let qrStream   = null;
 let qrInterval = null;
 
-// ── LOCAL mód ──
-// 'cloud' = Supabase, 'local' = lokální server přes WiFi
-let pbUploadMode = localStorage.getItem('pb_upload_mode') || 'cloud';
-// URL lokálního serveru, např. "http://192.168.1.10:3000"
-let pbLocalUrl   = localStorage.getItem('pb_local_url')  || '';
-// Token zakázky načtený z QR (v LOCAL módu povinný)
+// ── Upload mód – natvrdo CLOUD (Supabase) ──
+// LOCAL mód byl vyřazen. Aplikace komunikuje výhradně přes Supabase.
+let pbUploadMode = 'cloud';
+// Vymaž případnou starou volbu z localStorage, aby se nikdy nevrátila
+try { localStorage.removeItem('pb_upload_mode'); } catch(_) {}
+// URL/token lokálního serveru – ponechány jen pro zpětnou kompatibilitu se starým kódem
+let pbLocalUrl   = '';
 let pbLocalToken = null;
 
-// ── Auto-init z LOCAL QR (window.PB_QR injektováno serverem při servírování index.html) ──
-// Spustí se vždy – bez ohledu na to jestli je uživatel přihlášen nebo ne.
-// Přihlášení zůstane zachováno, jen se přepne mód na LOCAL a nastaví zakázka.
-if (window.PB_QR && window.PB_QR.mode === 'local') {
-  pbUploadMode = 'local';
-  pbLocalUrl   = window.PB_QR.localUrl || window.location.origin;
-  pbLocalToken = window.PB_QR.token    || null;
-  if (window.PB_QR.job) {
-    pbJob      = window.PB_QR.job;
-    pbJobToken = window.PB_QR.token;
-  }
-  localStorage.setItem('pb_upload_mode', 'local');
-  localStorage.setItem('pb_local_url',   pbLocalUrl);
+// LOCAL QR auto-init odstraněn – ignorujeme window.PB_QR.mode === 'local'.
+// Pokud nějaký starý QR kód odkazuje na lokální server, mobil prostě otevře cloud mód.
+if (window.PB_QR && window.PB_QR.job) {
+  pbJob      = window.PB_QR.job;
+  pbJobToken = window.PB_QR.token || null;
 }
 
 // ── On load ──
@@ -1827,18 +1820,8 @@ function parseQRCode(raw) {
   // Fallback: use raw as job
   if (!job) { job = raw.trim().toUpperCase(); }
 
-  // Pokud QR obsahuje local_url → automaticky přepnout do LOCAL módu
-  if (localUrl) {
-    pbUploadMode = 'local';
-    pbLocalUrl   = localUrl.replace(/\/$/, ''); // odstranit trailing slash
-    pbLocalToken = token;
-    localStorage.setItem('pb_upload_mode', 'local');
-    localStorage.setItem('pb_local_url', pbLocalUrl);
-    updateUploadModeUI();
-  } else if (pbUploadMode === 'local') {
-    // LOCAL mód, QR bez local_url – token je povinný pro autorizaci
-    pbLocalToken = token;
-  }
+  // QR může obsahovat local_url, ale aplikace LOCAL mód nepodporuje – ignorujeme.
+  // Z QR si vezmeme jen číslo zakázky (a token, pokud tam je).
 
   setJob(job, token);
   toast('✅ Zakázka: ' + job, 'ok');
@@ -2313,70 +2296,38 @@ async function checkSBStatus() {
 }
 
 // ── Upload mód (LOCAL / CLOUD) ────────────────────────────────────────────────
+// LOCAL mód odstraněn – tato funkce je no-op, ale zůstává v kódu, aby existující
+// click handlery (které mohou být v DOMu) nepadaly s "function not defined".
 function toggleUploadMode() {
-  // Flip mode
-  pbUploadMode = (pbUploadMode === 'cloud') ? 'local' : 'cloud';
-  localStorage.setItem('pb_upload_mode', pbUploadMode);
-  // Při přepnutí do CLOUD vymaž local token (v cloud se nepoužívá)
-  if (pbUploadMode === 'cloud') pbLocalToken = null;
-  // Při přepnutí do LOCAL zůstaň na zakázce – jen zobrazíme hint
-  if (pbUploadMode === 'local') {
-    toast('⚡ LOCAL mód – připojeno přes WiFi', 'ok');
-  } else {
-    toast('☁️ CLOUD mód – Supabase', 'ok');
-  }
+  pbUploadMode = 'cloud';
+  toast('☁️ Cloud (Supabase) – jediný dostupný režim', 'info');
   updateUploadModeUI();
 }
 
 function updateUploadModeUI() {
-  const isLocal = pbUploadMode === 'local';
-  const desc    = document.getElementById('uploadModeDesc');
-  const row     = document.getElementById('localUrlRow');
-  const input   = document.getElementById('localUrlInput');
-  const connLine = document.getElementById('connectionStatusLine');
+  // LOCAL mód odstraněn – schováme všechny UI prvky pro přepínač a LOCAL hint.
+  const desc       = document.getElementById('uploadModeDesc');
+  const row        = document.getElementById('localUrlRow');
+  const connLine   = document.getElementById('connectionStatusLine');
   const bucketLine = document.getElementById('bucketLine');
 
-  // Pill button update
+  // Pill button v hlavičce – skryjeme úplně
   const modeBtn = document.getElementById('uploadModeBtn');
-  if (modeBtn) {
-    if (isLocal) {
-      modeBtn.textContent = '🛜 LOCAL';
-      modeBtn.style.background   = 'rgba(240,168,48,0.15)';
-      modeBtn.style.borderColor  = 'rgba(240,168,48,0.5)';
-      modeBtn.style.color        = 'var(--yellow)';
-    } else {
-      modeBtn.textContent = '📡 CLOUD';
-      modeBtn.style.background   = 'rgba(61,127,255,0.15)';
-      modeBtn.style.borderColor  = 'rgba(61,127,255,0.5)';
-      modeBtn.style.color        = 'var(--accent2)';
-    }
-  }
+  if (modeBtn) modeBtn.style.display = 'none';
 
-  if (desc) desc.textContent = isLocal ? '⚡ LOCAL (WiFi – bez přihlášení)' : 'Cloud (Supabase)';
-  if (row)  row.style.display = isLocal ? '' : 'none';
-  if (input && pbLocalUrl) input.value = pbLocalUrl;
-
-  // Header mode badge
+  // Header mode badge – také skryjeme
   const badge = document.getElementById('hdrModeBadge');
-  if (badge) {
-    badge.style.display = '';
-    badge.textContent = isLocal ? '🛜 LOCAL' : '📡 CLOUD';
-    badge.style.background   = isLocal ? 'rgba(240,168,48,0.15)' : 'rgba(61,127,255,0.15)';
-    badge.style.borderColor  = isLocal ? 'rgba(240,168,48,0.4)' : 'rgba(61,127,255,0.35)';
-    badge.style.color        = isLocal ? 'var(--yellow)' : 'var(--accent2)';
-  }
+  if (badge) badge.style.display = 'none';
 
-  // Info panel – přepnout zobrazení podle módu
+  // Popisky – ukáží jen Cloud, schováme local URL row
+  if (desc) desc.textContent = 'Cloud (Supabase)';
+  if (row)  row.style.display = 'none';
+
+  // Stavová linka – pouze Supabase
   if (connLine) {
-    if (isLocal) {
-      connLine.innerHTML = '⚡ LOCAL server: <span style="font-family:var(--mono);font-size:10px" id="sbStatus">' + (pbLocalUrl || 'není nastaveno') + '</span>';
-    } else {
-      connLine.innerHTML = '📡 Supabase: <span style="color:var(--green);font-family:var(--mono);font-size:10px" id="sbStatus">—</span>';
-    }
+    connLine.innerHTML = '📡 Supabase: <span style="color:var(--green);font-family:var(--mono);font-size:10px" id="sbStatus">—</span>';
   }
-  if (bucketLine) bucketLine.style.display = isLocal ? 'none' : '';
-
-  // (manual job section always visible – user can choose)
+  if (bucketLine) bucketLine.style.display = '';
 }
 
 async function testLocalConnection() {
