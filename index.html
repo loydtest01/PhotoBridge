@@ -109,10 +109,14 @@
       background-size: cover; background-position: center;
       opacity: 0.30;
     }
-    /* Login overlay – ztmaví pozadí aby byl formulář čitelný */
-    #loginScreen::after {
+    /* Login overlay – světlý/tmavý overlay pro čitelnost formuláře */
+    [data-theme="dark"] #loginScreen::after {
       content: ''; position: fixed; inset: 0; z-index: -1;
       background: rgba(11,13,20,0.60);
+    }
+    [data-theme="light"] #loginScreen::after {
+      content: ''; position: fixed; inset: 0; z-index: -1;
+      background: rgba(220,235,255,0.45);
     }
 
     /* ═══ LOGIN SCREEN ═══ */
@@ -141,6 +145,11 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 36px;
       box-shadow: 0 0 40px rgba(61,127,255,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    [data-theme="light"] .login-logo-icon {
+      background: linear-gradient(135deg, #daeaff 0%, #c0d8f8 100%);
+      border-color: rgba(61,127,255,0.30);
+      box-shadow: 0 0 30px rgba(61,127,255,0.15), inset 0 1px 0 rgba(255,255,255,0.70);
     }
     .login-logo-name {
       font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
@@ -504,6 +513,42 @@
     .spin { display: inline-block; animation: spin360 1s linear infinite; }
     @keyframes spin360 { to { transform: rotate(360deg); } }
 
+    /* ═══ HISTORIE ZAKÁZEK ═══ */
+    .job-history-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .job-history-label {
+      font-size: 10px; font-weight: 700; color: var(--muted2);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .job-history-list { display: flex; flex-direction: column; gap: 6px; }
+    .job-history-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 9px;
+      border: 1.5px solid var(--border2); background: var(--card);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .job-history-item:hover {
+      border-color: var(--accent); background: rgba(61,127,255,0.10);
+    }
+    .job-history-item:active { transform: scale(0.97); }
+    .job-history-icon { font-size: 16px; flex-shrink: 0; }
+    .job-history-num {
+      font-family: var(--mono); font-size: 16px; font-weight: 700;
+      color: var(--accent2); letter-spacing: 0.06em; flex: 1;
+    }
+    .job-history-time {
+      font-size: 10px; color: var(--muted); font-family: var(--mono);
+      white-space: nowrap;
+    }
+    .job-history-arrow { font-size: 12px; color: var(--muted); }
+    .job-history-empty {
+      font-size: 12px; color: var(--muted); text-align: center; padding: 4px 0;
+    }
+
     /* Upload section panels */
     .upload-panel {
       background: var(--surface); border: 1px solid var(--border);
@@ -765,6 +810,14 @@
         <div id="manualJobErr" style="display:none;margin-top:8px;font-size:12px;color:var(--red);font-weight:600;text-align:center"></div>
       </div>
 
+      <!-- Historie zakázek -->
+      <div class="job-history-panel" id="jobHistoryPanel">
+        <div class="job-history-label">🕐 Poslední zakázky</div>
+        <div class="job-history-list" id="jobHistoryList">
+          <div class="job-history-empty">Zatím žádná historie</div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Upload Screen -->
@@ -933,6 +986,32 @@
         </div>
       </div>
 
+      <!-- Časovač světlého režimu -->
+      <div class="settings-section">
+        <div class="settings-row">
+          <div class="settings-icon">🌅</div>
+          <div class="settings-info">
+            <div class="settings-title">Časovač světlého režimu</div>
+            <div class="settings-sub" id="themeScheduleSub">Světlý: 08:00 – 18:00</div>
+          </div>
+        </div>
+        <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:13px;color:var(--muted2);width:52px;flex-shrink:0">☀️ Od</span>
+            <input type="time" id="themeFrom" class="pb-input"
+              style="flex:1;font-family:var(--mono);font-size:15px;font-weight:700;text-align:center"
+              onchange="saveThemeSchedule()">
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:13px;color:var(--muted2);width:52px;flex-shrink:0">🌙 Do</span>
+            <input type="time" id="themeTo" class="pb-input"
+              style="flex:1;font-family:var(--mono);font-size:15px;font-weight:700;text-align:center"
+              onchange="saveThemeSchedule()">
+          </div>
+          <div id="themePreview" style="font-size:11px;color:var(--muted);text-align:center;margin-top:2px"></div>
+        </div>
+      </div>
+
       <!-- PWA Install -->
       <div class="settings-section" id="pwaInstallSection" style="display:none">
         <div class="settings-row">
@@ -1070,12 +1149,71 @@ const TYPE_KEY  = 'pb_doc_type';
 
 
 // ── Tapeta podle denní doby (data-theme na <html>) ──
+const THEME_SCHEDULE_KEY = 'pb_theme_schedule';
+
+function getThemeSchedule() {
+  try {
+    const s = JSON.parse(localStorage.getItem(THEME_SCHEDULE_KEY) || 'null');
+    if (s && s.from != null && s.to != null) return s;
+  } catch(_) {}
+  return { from: 8, to: 18 }; // výchozí 08:00–18:00
+}
+
 function applyTimeWallpaper() {
   const h = new Date().getHours();
-  const isNight = (h >= 18 || h < 8);
-  document.documentElement.dataset.theme = isNight ? 'dark' : 'light';
+  const m = new Date().getMinutes();
+  const now = h + m / 60;
+  const { from, to } = getThemeSchedule();
+  const isLight = from < to
+    ? (now >= from && now < to)
+    : (now >= from || now < to); // přes půlnoc
+  document.documentElement.dataset.theme = isLight ? 'light' : 'dark';
 }
 applyTimeWallpaper();
+
+function saveThemeSchedule() {
+  const fromVal = document.getElementById('themeFrom').value; // "HH:MM"
+  const toVal   = document.getElementById('themeTo').value;
+  if (!fromVal || !toVal) return;
+  const from = parseInt(fromVal.split(':')[0]) + parseInt(fromVal.split(':')[1]) / 60;
+  const to   = parseInt(toVal.split(':')[0])   + parseInt(toVal.split(':')[1])   / 60;
+  localStorage.setItem(THEME_SCHEDULE_KEY, JSON.stringify({ from, to, fromStr: fromVal, toStr: toVal }));
+  applyTimeWallpaper();
+  updateThemeScheduleUI();
+  toast('🌅 Časovač uložen', 'ok');
+}
+
+function updateThemeScheduleUI() {
+  const s = getThemeSchedule();
+  const pad = n => String(n).padStart(2, '0');
+  const fmtHour = v => {
+    const h = Math.floor(v), m = Math.round((v - h) * 60);
+    return pad(h) + ':' + pad(m);
+  };
+  // Načti uložené stringy nebo odvoď z čísel
+  let raw;
+  try { raw = JSON.parse(localStorage.getItem(THEME_SCHEDULE_KEY) || 'null'); } catch(_) {}
+  const fromStr = raw?.fromStr || fmtHour(s.from);
+  const toStr   = raw?.toStr   || fmtHour(s.to);
+
+  const subEl     = document.getElementById('themeScheduleSub');
+  const fromEl    = document.getElementById('themeFrom');
+  const toEl      = document.getElementById('themeTo');
+  const previewEl = document.getElementById('themePreview');
+
+  if (subEl)     subEl.textContent = `Světlý: ${fromStr} – ${toStr}`;
+  if (fromEl)    fromEl.value = fromStr;
+  if (toEl)      toEl.value   = toStr;
+
+  if (previewEl) {
+    const h = new Date().getHours();
+    const m = new Date().getMinutes();
+    const now = h + m / 60;
+    const { from, to } = s;
+    const isLight = from < to ? (now >= from && now < to) : (now >= from || now < to);
+    previewEl.textContent = `Právě teď: ${isLight ? '☀️ světlý' : '🌙 tmavý'} režim`;
+  }
+}
 
 // ══════════════════════════════════════════════════════════
 // PROFILY — max 2 účty, okamžité přepínání
@@ -1471,6 +1609,8 @@ function showApp() {
   updateUploadModeUI();
   checkSBStatus();
   updateRetentionDisplay();
+  renderJobHistory();
+  updateThemeScheduleUI();
   startTokenRefreshTimer();
   readURLParams();
   showPwaInstall();
@@ -1938,9 +2078,55 @@ function setManualJob() {
 function setJob(job, token) {
   pbJob      = job;
   pbJobToken = token;
+  saveJobHistory(job);
   syncCurrentToProfile();
   updateJobUI();
   showTab('upload');
+}
+
+// ── Historie zakázek (max 2) ──
+const JOB_HISTORY_KEY = 'pb_job_history';
+
+function saveJobHistory(job) {
+  if (!job) return;
+  try {
+    let hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]');
+    // Odstraň duplicitu
+    hist = hist.filter(h => h.job !== job);
+    // Přidej na začátek s časem
+    hist.unshift({ job, time: Date.now() });
+    // Max 2 záznamy
+    hist = hist.slice(0, 2);
+    localStorage.setItem(JOB_HISTORY_KEY, JSON.stringify(hist));
+    renderJobHistory();
+  } catch(_) {}
+}
+
+function renderJobHistory() {
+  const list = document.getElementById('jobHistoryList');
+  if (!list) return;
+  let hist = [];
+  try { hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]'); } catch(_) {}
+  if (!hist.length) {
+    list.innerHTML = '<div class="job-history-empty">Zatím žádná historie</div>';
+    return;
+  }
+  list.innerHTML = hist.map(h => {
+    const d = new Date(h.time);
+    const pad = n => String(n).padStart(2,'0');
+    const timeStr = pad(d.getDate())+'.'+pad(d.getMonth()+1)+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+    return `<div class="job-history-item" onclick="selectHistoryJob('${h.job}')">
+      <span class="job-history-icon">📁</span>
+      <span class="job-history-num">${h.job}</span>
+      <span class="job-history-time">${timeStr}</span>
+      <span class="job-history-arrow">›</span>
+    </div>`;
+  }).join('');
+}
+
+function selectHistoryJob(job) {
+  setJob(job, null);
+  toast('📁 Zakázka nastavena: ' + job, 'ok');
 }
 
 function clearJob() {
@@ -2602,13 +2788,13 @@ document.querySelectorAll('.pb-modal').forEach(m => {
 <!-- ═══ SERVICE WORKER REGISTRATION ═══ -->
 <div id="swUpdateBar" style="
   display:none; position:fixed; bottom:0; left:0; right:0; z-index:10000;
-  background:linear-gradient(135deg,rgba(7,14,36,0.97),rgba(4,8,22,0.97));
-  border-top:1px solid rgba(86,104,232,0.5);
+  background:var(--surface);
+  border-top:1px solid var(--border2);
   padding:12px 16px; display:none;
   flex-direction:row; align-items:center; gap:12px;
-  box-shadow:0 -4px 30px rgba(0,0,0,0.5);
+  box-shadow:0 -4px 30px rgba(0,0,0,0.3);
 ">
-  <span style="flex:1;font-size:13px;font-weight:600;color:#dce8ff">🔄 Dostupná nová verze</span>
+  <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">🔄 Dostupná nová verze</span>
   <button onclick="swApplyUpdate()" style="
     padding:8px 18px; border-radius:9px; font-size:13px; font-weight:700;
     background:var(--accent,#5668e8); color:#fff; border:none; cursor:pointer;
