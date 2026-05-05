@@ -2598,5 +2598,77 @@ document.querySelectorAll('.pb-modal').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
 });
 </script>
+
+<!-- ═══ SERVICE WORKER REGISTRATION ═══ -->
+<div id="swUpdateBar" style="
+  display:none; position:fixed; bottom:0; left:0; right:0; z-index:10000;
+  background:linear-gradient(135deg,rgba(7,14,36,0.97),rgba(4,8,22,0.97));
+  border-top:1px solid rgba(86,104,232,0.5);
+  padding:12px 16px; display:none;
+  flex-direction:row; align-items:center; gap:12px;
+  box-shadow:0 -4px 30px rgba(0,0,0,0.5);
+">
+  <span style="flex:1;font-size:13px;font-weight:600;color:#dce8ff">🔄 Dostupná nová verze</span>
+  <button onclick="swApplyUpdate()" style="
+    padding:8px 18px; border-radius:9px; font-size:13px; font-weight:700;
+    background:var(--accent,#5668e8); color:#fff; border:none; cursor:pointer;
+    font-family:var(--font,'Space Grotesk',sans-serif);
+    box-shadow:0 4px 14px rgba(86,104,232,0.4);
+  ">Aktualizovat</button>
+  <button onclick="document.getElementById('swUpdateBar').style.display='none'" style="
+    padding:8px 10px; border-radius:9px; font-size:13px; font-weight:700;
+    background:transparent; color:var(--muted,#546080); border:1px solid rgba(86,104,232,0.3);
+    cursor:pointer; font-family:var(--font,'Space Grotesk',sans-serif);
+  ">Později</button>
+</div>
+
+<script>
+(function() {
+  if (!('serviceWorker' in navigator)) return;
+
+  let _waitingWorker = null;
+
+  function showUpdateBar() {
+    const bar = document.getElementById('swUpdateBar');
+    if (bar) bar.style.display = 'flex';
+  }
+
+  window.swApplyUpdate = function() {
+    if (_waitingWorker) {
+      _waitingWorker.postMessage('SKIP_WAITING');
+    }
+    window.location.reload();
+  };
+
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    // Kontrola při načtení: je tam už čekající update?
+    if (reg.waiting) {
+      _waitingWorker = reg.waiting;
+      showUpdateBar();
+    }
+
+    // Nová verze se začala instalovat
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          _waitingWorker = newWorker;
+          showUpdateBar();
+        }
+      });
+    });
+
+    // Periodická kontrola aktualizací každých 30 minut
+    setInterval(() => reg.update(), 30 * 60 * 1000);
+
+  }).catch(err => console.warn('[SW] Registrace selhala:', err));
+
+  // Po aktivaci nového SW — reload
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) { refreshing = true; window.location.reload(); }
+  });
+})();
+</script>
 </body>
 </html>
