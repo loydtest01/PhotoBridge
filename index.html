@@ -509,9 +509,105 @@
     }
     .btn-cancel:hover { border-color: var(--border); color: var(--text); }
 
-    /* Hourglass */
-    .spin { display: inline-block; animation: spin360 1s linear infinite; }
-    @keyframes spin360 { to { transform: rotate(360deg); } }
+    /* ═══ OSOBNÍ GALERIE ═══ */
+    .gallery-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .gallery-header {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .gallery-title {
+      font-size: 13px; font-weight: 700; color: var(--fg); flex: 1;
+    }
+    .gallery-refresh {
+      background: none; color: var(--muted2); font-size: 16px;
+      padding: 4px 6px; border-radius: 7px; transition: all 0.15s;
+      line-height: 1;
+    }
+    .gallery-refresh:hover { color: var(--accent2); background: rgba(61,127,255,0.1); }
+    .gallery-refresh.spinning { animation: spin360 0.8s linear infinite; }
+    .gallery-count {
+      font-size: 10px; color: var(--muted); font-family: var(--mono);
+      background: var(--card); border-radius: 10px; padding: 2px 8px;
+      border: 1px solid var(--border);
+    }
+    .gallery-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    }
+    .gallery-thumb {
+      aspect-ratio: 1/1; border-radius: 8px; overflow: hidden;
+      background: var(--card); border: 1px solid var(--border);
+      position: relative; cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .gallery-thumb:active { transform: scale(0.94); }
+    .gallery-thumb img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .gallery-thumb .thumb-overlay {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.65));
+      padding: 4px 5px 5px; font-size: 9px; color: #fff;
+      font-family: var(--mono); font-weight: 600; line-height: 1.2;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .gallery-thumb:hover .thumb-overlay { opacity: 1; }
+    .gallery-thumb .thumb-type {
+      position: absolute; top: 4px; right: 4px;
+      background: rgba(0,0,0,0.55); border-radius: 5px;
+      font-size: 10px; padding: 1px 4px; color: #fff;
+    }
+    .gallery-file-list { display: flex; flex-direction: column; gap: 5px; }
+    .gallery-file-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--card);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .gallery-file-item:hover { border-color: var(--accent); background: rgba(61,127,255,0.08); }
+    .gallery-file-icon { font-size: 18px; flex-shrink: 0; }
+    .gallery-file-info { flex: 1; min-width: 0; }
+    .gallery-file-name {
+      font-size: 11px; font-family: var(--mono); color: var(--accent2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-weight: 600;
+    }
+    .gallery-file-date { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .gallery-file-size { font-size: 10px; color: var(--muted); font-family: var(--mono); flex-shrink: 0; }
+    .gallery-empty {
+      text-align: center; padding: 20px 0; color: var(--muted); font-size: 13px;
+    }
+    .gallery-empty-icon { font-size: 32px; margin-bottom: 6px; }
+    .gallery-loading {
+      text-align: center; padding: 16px 0; color: var(--muted); font-size: 13px;
+    }
+    /* Lightbox */
+    #galleryLightbox {
+      display: none; position: fixed; inset: 0; z-index: 9500;
+      background: rgba(0,0,0,0.92); align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px;
+    }
+    #galleryLightbox.open { display: flex; }
+    #galleryLightbox img {
+      max-width: 96vw; max-height: 80vh; border-radius: 10px;
+      object-fit: contain; box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+    }
+    .lightbox-close {
+      position: absolute; top: 16px; right: 16px;
+      background: rgba(255,255,255,0.12); border: none; color: #fff;
+      font-size: 22px; width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,0.25); }
+    .lightbox-name {
+      font-size: 11px; color: rgba(255,255,255,0.5);
+      font-family: var(--mono); text-align: center; max-width: 90vw;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
 
     /* ═══ HISTORIE ZAKÁZEK ═══ */
     .job-history-panel {
@@ -882,12 +978,44 @@
         <input type="file" id="inPhoto" accept="image/*" capture="environment" style="display:none" multiple>
         <input type="file" id="inVideo" accept="video/*" capture="environment" style="display:none">
         <input type="file" id="inPick"  accept="image/*,video/*,application/pdf" style="display:none" multiple>
+
+        <!-- Volitelný název souboru – pouze personal účet -->
+        <div id="personalNameRow" style="display:none;margin-top:4px">
+          <input class="pb-input" type="text" id="personalFileName"
+            placeholder="Název souboru (nepovinné)"
+            maxlength="80"
+            style="font-size:14px"
+            oninput="this.value=this.value.replace(/[\/\\:*?&quot;&lt;&gt;|]/g,'')">
+          <div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.4">
+            Pokud nevyplníš, použije se datum a čas. Přípona se doplní automaticky.
+          </div>
+        </div>
+
         <div class="progress-wrap" id="progressWrap">
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           <div class="progress-text" id="progressText"></div>
         </div>
       </div>
 
+      <!-- Osobní galerie – zobrazí se jen pro personal účet -->
+      <div class="gallery-panel" id="personalGallery" style="display:none">
+        <div class="gallery-header">
+          <span class="gallery-title">🖼️ Poslední nahrávky</span>
+          <span class="gallery-count" id="galleryCount"></span>
+          <button class="gallery-refresh" id="galleryRefreshBtn" onclick="loadPersonalGallery()" title="Obnovit">↻</button>
+        </div>
+        <div id="galleryContent">
+          <div class="gallery-loading">Načítám…</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Lightbox -->
+    <div id="galleryLightbox">
+      <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+      <img id="lightboxImg" src="" alt="">
+      <div class="lightbox-name" id="lightboxName"></div>
     </div>
 
     <!-- Settings Screen -->
@@ -1595,6 +1723,18 @@ function updateAccountUI() {
   // Sekce Scan v nastavení
   const settingsScanRow = document.getElementById('settingsScanRow');
   if (settingsScanRow) settingsScanRow.style.display = isPersonal ? 'none' : '';
+
+  // Osobní galerie – pouze pro personal účet
+  const gallery = document.getElementById('personalGallery');
+  if (gallery) gallery.style.display = isPersonal ? '' : 'none';
+
+  // Pole pro název souboru – pouze personal
+  const nameRow = document.getElementById('personalNameRow');
+  if (nameRow) nameRow.style.display = isPersonal ? '' : 'none';
+
+  // Historie zakázek – skrýt pro personal
+  const histPanel = document.getElementById('jobHistoryPanel');
+  if (histPanel) histPanel.style.display = isPersonal ? 'none' : '';
 }
 
 function showApp() {
@@ -1882,7 +2022,11 @@ function showTab(tab) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (tab === 'qr')       { document.getElementById('screenQR').classList.add('active');       document.getElementById('tabQR').classList.add('active'); }
-  if (tab === 'upload')   { document.getElementById('screenUpload').classList.add('active');   document.getElementById('tabUpload').classList.add('active'); }
+  if (tab === 'upload')   {
+    document.getElementById('screenUpload').classList.add('active');
+    document.getElementById('tabUpload').classList.add('active');
+    if (isPersonalAccount()) loadPersonalGallery();
+  }
   if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); }
   if (tab !== 'qr') stopQRScan();
 }
@@ -2234,8 +2378,9 @@ async function handleFiles(fileList, reset) {
   await uploadFiles(files);
 }
 
-// ── Image optimization ──
+// ── Image optimization (pouze firemní účet) ──
 async function optimizeImage(file) {
+  if (isPersonalAccount()) return file;          // osobní = originální kvalita
   if (file.type === 'application/pdf' || file.type.startsWith('video/')) return file;
   if (!file.type.startsWith('image/')) return file;
   if (file.size < 1_500_000) return file;
@@ -2349,7 +2494,13 @@ async function uploadFiles(fileList) {
         const now = new Date();
         const pad = n => String(n).padStart(2, '0');
         const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}_${seqStr}`;
-        filename = `${ts}.${ext}`;
+        const customName = (document.getElementById('personalFileName')?.value || '').trim()
+          .replace(/[\/\\:*?"<>|]/g, '').replace(/\s+/g, '_');
+        // Pokud je víc souborů a je zadaný název, přidej index aby se nepřepsaly
+        const baseName = customName
+          ? (fileList.length > 1 ? `${customName}_${seqStr}` : customName)
+          : ts;
+        filename = `${baseName}.${ext}`;
         path     = `${userId}/personal/${filename}`;
       } else {
         // {batchTs}_{seq} – batchTs zachovává pořadí mezi batchi,
@@ -2476,6 +2627,13 @@ async function uploadFiles(fileList) {
       : `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'} → ${pbJob}`;
     toast(`✅ ${done} soubor${done === 1 ? '' : 's'} nahrán`, 'ok');
 
+    // Obnov galerii po uploadu (personal účet)
+    if (isPersonalAccount()) {
+      const nameEl = document.getElementById('personalFileName');
+      if (nameEl) nameEl.value = '';
+      setTimeout(() => loadPersonalGallery(), 1200);
+    }
+
     setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 3000);
 
   } catch(err) {
@@ -2487,7 +2645,181 @@ async function uploadFiles(fileList) {
   btns.forEach(id => document.getElementById(id).disabled = false);
 }
 
-// ── Token refresh ──
+// ── Osobní galerie ──
+let _galleryLoading = false;
+
+function formatBytes(b) {
+  if (!b) return '';
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(0) + ' KB';
+  return (b / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function formatGalleryDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}. ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function getSignedUrl(path) {
+  try {
+    const encoded = path.split('/').map(encodeURIComponent).join('/');
+    const res = await fetch(`${SB_URL}/storage/v1/object/sign/${SB_BUCKET}/${encoded}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SB_ANON,
+        'Authorization': `Bearer ${pbToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ expiresIn: 3600 })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.signedURL ? `${SB_URL}/storage/v1${data.signedURL}` : null;
+  } catch(_) { return null; }
+}
+
+async function loadPersonalGallery() {
+  if (_galleryLoading || !pbToken || !pbUser?.id) return;
+  _galleryLoading = true;
+
+  const btn = document.getElementById('galleryRefreshBtn');
+  const content = document.getElementById('galleryContent');
+  const countEl = document.getElementById('galleryCount');
+  if (btn) btn.classList.add('spinning');
+  if (content) content.innerHTML = '<div class="gallery-loading">Načítám…</div>';
+
+  try {
+    const userId = pbUser.id;
+    const res = await fetch(`${SB_URL}/storage/v1/object/list/${SB_BUCKET}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SB_ANON,
+        'Authorization': `Bearer ${pbToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prefix: `${userId}/personal/`,
+        limit: 30,
+        offset: 0,
+        sortBy: { column: 'created_at', order: 'desc' }
+      })
+    });
+
+    if (!res.ok) throw new Error('Chyba načítání');
+    const files = await res.json();
+
+    // Filtruj jen skutečné soubory (ne složky)
+    const items = (files || []).filter(f => f.name && f.id);
+
+    if (countEl) countEl.textContent = items.length ? `${items.length} souborů` : '';
+
+    if (!items.length) {
+      content.innerHTML = `<div class="gallery-empty">
+        <div class="gallery-empty-icon">📭</div>
+        Zatím žádné nahrávky
+      </div>`;
+      return;
+    }
+
+    // Rozděl na obrázky a ostatní
+    const isImage = name => /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(name);
+    const isVideo = name => /\.(mp4|mov|avi|mkv|webm)$/i.test(name);
+    const imgs = items.filter(f => isImage(f.name));
+    const others = items.filter(f => !isImage(f.name));
+
+    let html = '';
+
+    // GRID obrázků
+    if (imgs.length) {
+      html += `<div class="gallery-grid" id="galleryGrid">`;
+      for (const f of imgs) {
+        const path = `${userId}/personal/${f.name}`;
+        const dateStr = formatGalleryDate(f.created_at || f.updated_at);
+        html += `<div class="gallery-thumb" onclick="openLightbox('${path}', '${f.name}')"
+          data-path="${path}">
+          <img src="" data-path="${path}" alt="${f.name}" loading="lazy">
+          <div class="thumb-type">🖼️</div>
+          <div class="thumb-overlay">${dateStr}</div>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    // SEZNAM videí a PDF
+    if (others.length) {
+      html += `<div class="gallery-file-list">`;
+      for (const f of others) {
+        const path = `${userId}/personal/${f.name}`;
+        const icon = isVideo(f.name) ? '🎥' : f.name.endsWith('.pdf') ? '📄' : '📎';
+        const dateStr = formatGalleryDate(f.created_at || f.updated_at);
+        const size = formatBytes(f.metadata?.size);
+        html += `<div class="gallery-file-item" onclick="openFile('${path}')">
+          <span class="gallery-file-icon">${icon}</span>
+          <div class="gallery-file-info">
+            <div class="gallery-file-name">${f.name}</div>
+            <div class="gallery-file-date">${dateStr}</div>
+          </div>
+          <span class="gallery-file-size">${size}</span>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    content.innerHTML = html;
+
+    // Načti signed URL pro obrázky a vlož do <img>
+    const thumbs = content.querySelectorAll('.gallery-thumb img[data-path]');
+    for (const img of thumbs) {
+      const p = img.dataset.path;
+      getSignedUrl(p).then(url => { if (url) img.src = url; });
+    }
+
+    // Ulož signed URL cache pro lightbox
+    window._gallerySignedCache = {};
+    thumbs.forEach(img => {
+      img.addEventListener('load', () => {
+        window._gallerySignedCache[img.dataset.path] = img.src;
+      });
+    });
+
+  } catch(e) {
+    if (content) content.innerHTML = `<div class="gallery-empty">❌ ${e.message}</div>`;
+  } finally {
+    _galleryLoading = false;
+    if (btn) btn.classList.remove('spinning');
+  }
+}
+
+async function openLightbox(path, name) {
+  const lb = document.getElementById('galleryLightbox');
+  const img = document.getElementById('lightboxImg');
+  const nameEl = document.getElementById('lightboxName');
+  img.src = '';
+  nameEl.textContent = name;
+  lb.classList.add('open');
+
+  // Zkus cache, jinak získej nový signed URL
+  const cached = window._gallerySignedCache?.[path];
+  if (cached) { img.src = cached; return; }
+  const url = await getSignedUrl(path);
+  if (url) img.src = url;
+}
+
+function closeLightbox() {
+  document.getElementById('galleryLightbox').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
+}
+document.getElementById('galleryLightbox')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('galleryLightbox')) closeLightbox();
+});
+
+async function openFile(path) {
+  const url = await getSignedUrl(path);
+  if (url) window.open(url, '_blank');
+  else toast('❌ Nepodařilo se otevřít soubor', 'err');
+}
 //
 // Supabase access token má JWT TTL 1 hodinu. Refresh token vydrží 30 dní (default).
 // Aby uživatel nemusel ručně se odhlašovat a přihlašovat:
