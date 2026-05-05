@@ -275,7 +275,7 @@
       pointer-events: none;
     }
     .qr-frame {
-      width: 60%; height: 60%;
+      width: 72%; height: 50%;
       border: 2px solid var(--accent2);
       border-radius: 12px;
       box-shadow:
@@ -726,8 +726,8 @@
     <div class="screen active" id="screenQR">
       <div class="qr-status" id="qrStatus">
         <div class="qr-status-icon">📱</div>
-        <div class="qr-status-title">Naskenuj QR kód z PC</div>
-        <div class="qr-status-sub">Otevři kameru na zakázku zobrazenou na PC obrazovce</div>
+        <div class="qr-status-title">Naskenuj QR nebo čárový kód</div>
+        <div class="qr-status-sub">Otevři kameru a namiř na QR kód nebo čárový kód zakázky</div>
       </div>
 
       <div class="qr-job-card" id="qrJobCard">
@@ -745,7 +745,7 @@
       </div>
 
       <div class="upload-panel">
-        <div class="section-label">Naskenovat QR kód</div>
+        <div class="section-label">Naskenovat QR nebo čárový kód</div>
         <button class="btn-full btn-primary" id="btnStartScan" onclick="startQRScan()">📷 Spustit kameru</button>
         <button class="btn-full" id="btnStopScan" onclick="stopQRScan()" style="display:none; background:rgba(240,90,90,0.1);border:1.5px solid rgba(240,90,90,0.3);color:var(--red);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">✖ Zastavit kameru</button>
       </div>
@@ -779,7 +779,7 @@
           <div class="job-banner-badge" id="uploadBannerBadge">● AKTIVNÍ</div>
         </div>
         <div class="job-banner-hint" id="uploadBannerHint"></div>
-        <button class="job-banner-scan-btn" id="uploadBannerScanBtn" onclick="showTab('qr')">🔲 Naskenovat QR kód</button>
+        <button class="job-banner-scan-btn" id="uploadBannerScanBtn" onclick="showTab('qr')">🔲 Naskenovat kód</button>
       </div>
 
       <div class="upload-panel" id="typesPanel">
@@ -1054,6 +1054,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // KONFIGURACE — vyplňte vaše Supabase údaje
@@ -1769,15 +1770,45 @@ function confirmManualJob() {
   toast('📁 Zakázka nastavena: ' + job, 'ok');
 }
 
-// ── QR Scanner ──
+// ── QR + Barcode Scanner ──
+let _zxingReader = null;
+
+function _initZXing() {
+  if (_zxingReader) return _zxingReader;
+  try {
+    if (!window.ZXing) return null;
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.CODE_93,
+      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.PDF_417,
+      ZXing.BarcodeFormat.DATA_MATRIX,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.AZTEC,
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    const r = new ZXing.MultiFormatReader();
+    r.setHints(hints);
+    _zxingReader = r;
+    return r;
+  } catch(e) { return null; }
+}
+
 async function startQRScan() {
   document.getElementById('qrScanArea').style.display = 'block';
   document.getElementById('btnStartScan').style.display = 'none';
   document.getElementById('btnStopScan').style.display = '';
+  const hasZXing = !!window.ZXing;
   document.getElementById('qrStatus').innerHTML = `
     <div class="qr-status-icon">🔍</div>
-    <div class="qr-status-title">Hledám QR kód…</div>
-    <div class="qr-status-sub">Namiř kameru na QR kód zobrazený na PC</div>`;
+    <div class="qr-status-title">Hledám kód…</div>
+    <div class="qr-status-sub">Namiř kameru na QR kód nebo čárový kód</div>`;
 
   try {
     qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -1787,14 +1818,31 @@ async function startQRScan() {
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
+    const zxing = _initZXing();
+
+    // Throttle ZXing separately (heavier) — every 4th frame (~800ms)
+    let zxingTick = 0;
+
     qrInterval = setInterval(() => {
       if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
       canvas.width  = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
-      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-      if (code) parseQRCode(code.data);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      // 1) jsQR — fast, QR codes
+      const qrCode = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      if (qrCode) { parseQRCode(qrCode.data); return; }
+
+      // 2) ZXing — slower, 1D + 2D barcodes (run every 4th tick)
+      if (zxing && (++zxingTick % 4 === 0)) {
+        try {
+          const luminance = new ZXing.RGBLuminanceSource(img.data, canvas.width, canvas.height);
+          const bitmap    = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminance));
+          const result    = zxing.decode(bitmap);
+          if (result) { parseQRCode(result.getText()); return; }
+        } catch(e) { /* NotFoundException = žádný kód v záběru, normální stav */ }
+      }
     }, 200);
   } catch(err) {
     toast('⚠️ Kamera nedostupná: ' + err.message, 'err');
@@ -1893,7 +1941,7 @@ function updateJobUI() {
     document.getElementById('qrStatus').innerHTML = `
       <div class="qr-status-icon">✅</div>
       <div class="qr-status-title">Zakázka aktivní</div>
-      <div class="qr-status-sub">Naskenuj nový QR pro změnu zakázky</div>`;
+      <div class="qr-status-sub">Naskenuj nový QR nebo čárový kód pro změnu zakázky</div>`;
 
     // Upload banner – active state
     bannerNum.textContent = pbJob;
