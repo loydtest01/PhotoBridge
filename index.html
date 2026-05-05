@@ -84,30 +84,31 @@
     input  { font-family: var(--font); }
 
 
-    /* ═══ WALLPAPERS (přepínání podle času: 18:00–8:00 = dark, jinak light) ═══ */
-    /* DAY: 8:00–18:00 */
+    /* ═══ WALLPAPERS ═══ */
+    /* Základní barva pozadí – na html aby neprosvítala bílá prohlížeče */
+    html { background: var(--pb-bg-fallback); }
+
+    /* DAY: světlý režim */
     [data-theme="light"] #loginScreen {
       background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/light.png');
       background-size: cover; background-position: center;
     }
     [data-theme="light"] body::before {
       content: ''; position: fixed; inset: 0; z-index: -1;
-      background-color: var(--bg);
       background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/light.png');
       background-size: cover; background-position: center;
       opacity: 0.18;
     }
-    /* NIGHT: 18:00–8:00 */
+    /* NIGHT: tmavý režim */
     [data-theme="dark"] #loginScreen {
       background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/dark.png');
       background-size: cover; background-position: center;
     }
     [data-theme="dark"] body::before {
       content: ''; position: fixed; inset: 0; z-index: -1;
-      background-color: var(--bg);
       background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/dark.png');
       background-size: cover; background-position: center;
-      opacity: 0.30;
+      opacity: 0.55;
     }
     /* Login overlay – světlý/tmavý overlay pro čitelnost formuláře */
     [data-theme="dark"] #loginScreen::after {
