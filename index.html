@@ -1114,16 +1114,39 @@
         </div>
       </div>
 
-      <!-- Časovač světlého režimu -->
+      <!-- Režim vzhledu -->
       <div class="settings-section">
         <div class="settings-row">
-          <div class="settings-icon">🌅</div>
+          <div class="settings-icon">🎨</div>
           <div class="settings-info">
-            <div class="settings-title">Časovač světlého režimu</div>
-            <div class="settings-sub" id="themeScheduleSub">Světlý: 08:00 – 18:00</div>
+            <div class="settings-title">Režim vzhledu</div>
+            <div class="settings-sub" id="themeScheduleSub">Automaticky dle času</div>
           </div>
         </div>
-        <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:10px">
+        <!-- 3 tlačítka výběru -->
+        <div style="padding:0 14px 12px;display:flex;gap:8px">
+          <button id="themeBtnLight" onclick="setThemeMode('light')" style="
+            flex:1;padding:10px 6px;border-radius:10px;font-size:13px;font-weight:700;
+            border:1.5px solid var(--border2);background:var(--card);color:var(--muted2);
+            transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:3px">
+            <span style="font-size:20px">☀️</span>Světlý
+          </button>
+          <button id="themeBtnDark" onclick="setThemeMode('dark')" style="
+            flex:1;padding:10px 6px;border-radius:10px;font-size:13px;font-weight:700;
+            border:1.5px solid var(--border2);background:var(--card);color:var(--muted2);
+            transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:3px">
+            <span style="font-size:20px">🌙</span>Tmavý
+          </button>
+          <button id="themeBtnAuto" onclick="setThemeMode('auto')" style="
+            flex:1;padding:10px 6px;border-radius:10px;font-size:13px;font-weight:700;
+            border:1.5px solid var(--border2);background:var(--card);color:var(--muted2);
+            transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:3px">
+            <span style="font-size:20px">🕐</span>Časovač
+          </button>
+        </div>
+        <!-- Časovač – zobrazí se jen pro 'auto' -->
+        <div id="themeTimerSection" style="display:none;padding:0 14px 14px;display:none;flex-direction:column;gap:10px;border-top:1px solid var(--border)">
+          <div style="height:10px"></div>
           <div style="display:flex;align-items:center;gap:12px">
             <span style="font-size:13px;color:var(--muted2);width:52px;flex-shrink:0">☀️ Od</span>
             <input type="time" id="themeFrom" class="pb-input"
@@ -1136,7 +1159,7 @@
               style="flex:1;font-family:var(--mono);font-size:15px;font-weight:700;text-align:center"
               onchange="saveThemeSchedule()">
           </div>
-          <div id="themePreview" style="font-size:11px;color:var(--muted);text-align:center;margin-top:2px"></div>
+          <div id="themePreview" style="font-size:11px;color:var(--muted);text-align:center"></div>
         </div>
       </div>
 
@@ -1276,70 +1299,104 @@ const TYPE_KEY  = 'pb_doc_type';
 
 
 
-// ── Tapeta podle denní doby (data-theme na <html>) ──
+// ── Režim vzhledu: 'light' | 'dark' | 'auto' ──
 const THEME_SCHEDULE_KEY = 'pb_theme_schedule';
 
 function getThemeSchedule() {
   try {
     const s = JSON.parse(localStorage.getItem(THEME_SCHEDULE_KEY) || 'null');
-    if (s && s.from != null && s.to != null) return s;
+    if (s) return s;
   } catch(_) {}
-  return { from: 8, to: 18 }; // výchozí 08:00–18:00
+  return { mode: 'auto', from: 8, to: 18, fromStr: '08:00', toStr: '18:00' };
 }
 
 function applyTimeWallpaper() {
-  const h = new Date().getHours();
-  const m = new Date().getMinutes();
-  const now = h + m / 60;
-  const { from, to } = getThemeSchedule();
-  const isLight = from < to
-    ? (now >= from && now < to)
-    : (now >= from || now < to); // přes půlnoc
-  document.documentElement.dataset.theme = isLight ? 'light' : 'dark';
-}
-applyTimeWallpaper();
-
-function saveThemeSchedule() {
-  const fromVal = document.getElementById('themeFrom').value; // "HH:MM"
-  const toVal   = document.getElementById('themeTo').value;
-  if (!fromVal || !toVal) return;
-  const from = parseInt(fromVal.split(':')[0]) + parseInt(fromVal.split(':')[1]) / 60;
-  const to   = parseInt(toVal.split(':')[0])   + parseInt(toVal.split(':')[1])   / 60;
-  localStorage.setItem(THEME_SCHEDULE_KEY, JSON.stringify({ from, to, fromStr: fromVal, toStr: toVal }));
-  applyTimeWallpaper();
-  updateThemeScheduleUI();
-  toast('🌅 Časovač uložen', 'ok');
-}
-
-function updateThemeScheduleUI() {
   const s = getThemeSchedule();
-  const pad = n => String(n).padStart(2, '0');
-  const fmtHour = v => {
-    const h = Math.floor(v), m = Math.round((v - h) * 60);
-    return pad(h) + ':' + pad(m);
-  };
-  // Načti uložené stringy nebo odvoď z čísel
-  let raw;
-  try { raw = JSON.parse(localStorage.getItem(THEME_SCHEDULE_KEY) || 'null'); } catch(_) {}
-  const fromStr = raw?.fromStr || fmtHour(s.from);
-  const toStr   = raw?.toStr   || fmtHour(s.to);
-
-  const subEl     = document.getElementById('themeScheduleSub');
-  const fromEl    = document.getElementById('themeFrom');
-  const toEl      = document.getElementById('themeTo');
-  const previewEl = document.getElementById('themePreview');
-
-  if (subEl)     subEl.textContent = `Světlý: ${fromStr} – ${toStr}`;
-  if (fromEl)    fromEl.value = fromStr;
-  if (toEl)      toEl.value   = toStr;
-
-  if (previewEl) {
+  const mode = s.mode || 'auto';
+  if (mode === 'light') {
+    document.documentElement.dataset.theme = 'light';
+  } else if (mode === 'dark') {
+    document.documentElement.dataset.theme = 'dark';
+  } else {
     const h = new Date().getHours();
     const m = new Date().getMinutes();
     const now = h + m / 60;
     const { from, to } = s;
-    const isLight = from < to ? (now >= from && now < to) : (now >= from || now < to);
-    previewEl.textContent = `Právě teď: ${isLight ? '☀️ světlý' : '🌙 tmavý'} režim`;
+    const isLight = (from < to) ? (now >= from && now < to) : (now >= from || now < to);
+    document.documentElement.dataset.theme = isLight ? 'light' : 'dark';
+  }
+}
+applyTimeWallpaper();
+
+function setThemeMode(mode) {
+  const s = getThemeSchedule();
+  s.mode = mode;
+  localStorage.setItem(THEME_SCHEDULE_KEY, JSON.stringify(s));
+  applyTimeWallpaper();
+  updateThemeScheduleUI();
+  const labels = { light: '☀️ Světlý režim', dark: '🌙 Tmavý režim', auto: '🕐 Automatický časovač' };
+  toast(labels[mode] || 'Uloženo', 'ok');
+}
+
+function saveThemeSchedule() {
+  const fromVal = document.getElementById('themeFrom').value;
+  const toVal   = document.getElementById('themeTo').value;
+  if (!fromVal || !toVal) return;
+  const from = parseInt(fromVal.split(':')[0]) + parseInt(fromVal.split(':')[1]) / 60;
+  const to   = parseInt(toVal.split(':')[0])   + parseInt(toVal.split(':')[1])   / 60;
+  const s = getThemeSchedule();
+  Object.assign(s, { from, to, fromStr: fromVal, toStr: toVal });
+  localStorage.setItem(THEME_SCHEDULE_KEY, JSON.stringify(s));
+  applyTimeWallpaper();
+  updateThemeScheduleUI();
+  toast('🕐 Časovač uložen', 'ok');
+}
+
+function updateThemeScheduleUI() {
+  const s = getThemeSchedule();
+  const mode = s.mode || 'auto';
+  const fromStr = s.fromStr || '08:00';
+  const toStr   = s.toStr   || '18:00';
+
+  // Subtitle
+  const subEl = document.getElementById('themeScheduleSub');
+  if (subEl) {
+    subEl.textContent = mode === 'light' ? 'Vždy světlý'
+      : mode === 'dark'  ? 'Vždy tmavý'
+      : `Automaticky: ☀️ ${fromStr} – ${toStr}`;
+  }
+
+  // Zvýrazni aktivní tlačítko
+  ['light','dark','auto'].forEach(m => {
+    const btn = document.getElementById('themeBtn' + m.charAt(0).toUpperCase() + m.slice(1));
+    if (!btn) return;
+    const active = m === mode;
+    btn.style.borderColor  = active ? 'var(--accent)'  : 'var(--border2)';
+    btn.style.background   = active ? 'rgba(61,127,255,0.15)' : 'var(--card)';
+    btn.style.color        = active ? 'var(--accent2)' : 'var(--muted2)';
+  });
+
+  // Zobraz/skryj sekci časovače
+  const timerSec = document.getElementById('themeTimerSection');
+  if (timerSec) timerSec.style.display = mode === 'auto' ? 'flex' : 'none';
+
+  // Naplň time inputy
+  const fromEl = document.getElementById('themeFrom');
+  const toEl   = document.getElementById('themeTo');
+  if (fromEl) fromEl.value = fromStr;
+  if (toEl)   toEl.value   = toStr;
+
+  // Náhled aktuálního stavu (jen u auto)
+  const previewEl = document.getElementById('themePreview');
+  if (previewEl) {
+    if (mode === 'auto') {
+      const h = new Date().getHours(), m2 = new Date().getMinutes();
+      const now = h + m2 / 60;
+      const isLight = (s.from < s.to) ? (now >= s.from && now < s.to) : (now >= s.from || now < s.to);
+      previewEl.textContent = `Právě teď: ${isLight ? '☀️ světlý' : '🌙 tmavý'} režim`;
+    } else {
+      previewEl.textContent = '';
+    }
   }
 }
 
