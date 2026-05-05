@@ -1164,6 +1164,34 @@
         </div>
       </div>
 
+      <!-- Sdílet aplikaci – QR kód -->
+      <div class="settings-section">
+        <div class="settings-row" style="cursor:pointer" onclick="toggleShareQR()">
+          <div class="settings-icon">📤</div>
+          <div class="settings-info">
+            <div class="settings-title">Sdílet aplikaci</div>
+            <div class="settings-sub">QR kód pro přidání na plochu</div>
+          </div>
+          <span id="shareQRArrow" style="font-size:18px;color:var(--muted);transition:transform 0.2s">›</span>
+        </div>
+        <div id="shareQRPanel" style="display:none;padding:0 14px 18px;flex-direction:column;align-items:center;gap:12px">
+          <div style="
+            background:#fff; border-radius:14px; padding:12px;
+            box-shadow:0 4px 20px rgba(0,0,0,0.25); display:inline-block; margin-top:4px
+          ">
+            <img id="shareQRImg" src="" alt="QR kód aplikace"
+              style="width:180px;height:180px;display:block;border-radius:6px">
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">PhotoBridge</div>
+            <div id="shareQRUrl" style="font-size:10px;color:var(--muted);font-family:var(--mono);word-break:break-all;max-width:220px"></div>
+          </div>
+          <button class="btn-full btn-primary" style="max-width:220px" onclick="copyAppUrl()">
+            📋 Kopírovat odkaz
+          </button>
+        </div>
+      </div>
+
       <!-- PWA Install -->
       <div class="settings-section" id="pwaInstallSection" style="display:none">
         <div class="settings-row">
@@ -2701,6 +2729,33 @@ async function uploadFiles(fileList) {
   }
 
   btns.forEach(id => document.getElementById(id).disabled = false);
+}
+
+// ── Sdílet aplikaci – QR kód ──
+let _shareQROpen = false;
+
+function toggleShareQR() {
+  _shareQROpen = !_shareQROpen;
+  const panel  = document.getElementById('shareQRPanel');
+  const arrow  = document.getElementById('shareQRArrow');
+  if (panel) panel.style.display = _shareQROpen ? 'flex' : 'none';
+  if (arrow) arrow.style.transform = _shareQROpen ? 'rotate(90deg)' : '';
+
+  if (_shareQROpen) {
+    const url = window.location.origin + window.location.pathname;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=0&data=${encodeURIComponent(url)}`;
+    const img = document.getElementById('shareQRImg');
+    const urlEl = document.getElementById('shareQRUrl');
+    if (img) img.src = qrUrl;
+    if (urlEl) urlEl.textContent = url;
+  }
+}
+
+function copyAppUrl() {
+  const url = window.location.origin + window.location.pathname;
+  navigator.clipboard?.writeText(url)
+    .then(() => toast('📋 Odkaz zkopírován', 'ok'))
+    .catch(() => toast('❌ Kopírování selhalo', 'err'));
 }
 
 // ── Osobní galerie ──
