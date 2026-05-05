@@ -957,6 +957,7 @@
           <div id="connectionStatusLine">📡 Supabase: <span style="color:var(--green);font-family:var(--mono);font-size:10px" id="sbStatus">—</span></div>
           <div style="margin-top:4px" id="bucketLine">🗂️ Bucket: <span style="font-family:var(--mono);color:var(--muted2)">pb-uploads</span></div>
           <div style="margin-top:4px">⏱️ Auto-smazání: <span style="font-family:var(--mono);color:var(--muted2)" id="retentionDisplay">7 dní</span></div>
+          <div style="margin-top:4px">📱 Verze: <span style="font-family:var(--mono);color:var(--muted2)">1.0.1</span></div>
         </div>
       </div>
 
@@ -1804,44 +1805,78 @@ async function startQRScan() {
   document.getElementById('qrScanArea').style.display = 'block';
   document.getElementById('btnStartScan').style.display = 'none';
   document.getElementById('btnStopScan').style.display = '';
-  const hasZXing = !!window.ZXing;
   document.getElementById('qrStatus').innerHTML = `
     <div class="qr-status-icon">🔍</div>
     <div class="qr-status-title">Hledám kód…</div>
     <div class="qr-status-sub">Namiř kameru na QR kód nebo čárový kód</div>`;
 
   try {
-    qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    qrStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
     const video = document.getElementById('qrVideo');
     video.srcObject = qrStream;
     await video.play();
 
+    // ── Skener 1: nativní BarcodeDetector (Android Chrome, Samsung Browser) ──
+    // Zvládá QR i 1D čárové kódy bez knihovny, velmi rychlý
+    const hasBD = ('BarcodeDetector' in window);
+    let barcodeDetector = null;
+    if (hasBD) {
+      try {
+        const supported = await BarcodeDetector.getSupportedFormats().catch(() => []);
+        const formats = supported.length > 0 ? supported : [
+          'qr_code','ean_13','ean_8','code_128','code_39','code_93',
+          'itf','upc_a','upc_e','pdf417','data_matrix','aztec','codabar'
+        ];
+        barcodeDetector = new BarcodeDetector({ formats });
+      } catch(e) { barcodeDetector = null; }
+    }
+
+    // ── Skener 2: ZXing (záloha pro prohlížeče bez BarcodeDetector) ──
+    const zxing = hasBD ? null : _initZXing();
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    const zxing = _initZXing();
-
-    // Throttle ZXing separately (heavier) — every 4th frame (~800ms)
     let zxingTick = 0;
+    let bdTick = 0;
+    let scanning = false; // zabrání souběžnému spuštění async detect
 
-    qrInterval = setInterval(() => {
+    qrInterval = setInterval(async () => {
       if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+      // ── BarcodeDetector path (async, jen každé 2. ticknutí = ~400ms) ──
+      if (barcodeDetector && !scanning && (++bdTick % 2 === 0)) {
+        scanning = true;
+        try {
+          const results = await barcodeDetector.detect(video);
+          if (results && results.length > 0) {
+            parseQRCode(results[0].rawValue);
+            return;
+          }
+        } catch(e) { /* prázdný záběr */ } finally { scanning = false; }
+        return; // BarcodeDetector pokryje vše, přeskočíme jsQR/ZXing
+      }
+
+      // ── Fallback path: jsQR + ZXing (pro Safari, Firefox, starší Android) ──
+      if (barcodeDetector) return; // BarcodeDetector je aktivní, nepotřebujeme fallback
       canvas.width  = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
       const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-      // 1) jsQR — fast, QR codes
+      // jsQR — rychlý, QR kódy
       const qrCode = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
       if (qrCode) { parseQRCode(qrCode.data); return; }
 
-      // 2) ZXing — slower, 1D + 2D barcodes (run every 4th tick)
+      // ZXing — 1D čárové kódy (každé 4. ticknutí = ~800ms)
       if (zxing && (++zxingTick % 4 === 0)) {
         try {
           const luminance = new ZXing.RGBLuminanceSource(img.data, canvas.width, canvas.height);
           const bitmap    = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminance));
           const result    = zxing.decode(bitmap);
           if (result) { parseQRCode(result.getText()); return; }
-        } catch(e) { /* NotFoundException = žádný kód v záběru, normální stav */ }
+        } catch(e) { /* NotFoundException = normální stav, žádný kód v záběru */ }
       }
     }, 200);
   } catch(err) {
