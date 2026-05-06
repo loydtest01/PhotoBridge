@@ -97,7 +97,7 @@
       content: ''; position: fixed; inset: 0; z-index: -1;
       background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/light.png');
       background-size: cover; background-position: center;
-      opacity: 0.18;
+      opacity: 0.90;
     }
     /* NIGHT: tmavý režim */
     [data-theme="dark"] #loginScreen {
@@ -767,6 +767,39 @@
         <button class="eye-btn" type="button" onclick="toggleEye('loginPass',this)">👁️</button>
       </div>
     </div>
+    <!-- Zapomenuté heslo – odkaz + inline panel -->
+    <div id="forgotLink" style="text-align:right;margin-top:6px;margin-bottom:2px">
+      <a href="#" class="login-fg-link" onclick="showForgotPanel();return false;">Zapomenuté heslo?</a>
+    </div>
+    <div id="forgotPanel" style="display:none;margin-bottom:4px;
+      background:rgba(61,127,255,0.07);border:1px solid rgba(61,127,255,0.22);
+      border-radius:12px;padding:14px 14px 12px">
+      <div style="font-size:12px;font-weight:600;color:var(--muted2);margin-bottom:10px;line-height:1.4">
+        Zadej svůj e-mail a pošleme ti odkaz pro obnovení hesla.
+      </div>
+      <input class="login-input" type="email" id="forgotEmail"
+        placeholder="tvuj@email.cz" autocomplete="email" autocapitalize="none" spellcheck="false"
+        style="margin-bottom:10px"
+        onkeydown="if(event.key==='Enter')doForgotPassword()">
+      <div id="forgotMsg" style="display:none;font-size:12px;border-radius:8px;padding:8px 10px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="doForgotPassword()" id="forgotBtn" style="
+          flex:1;padding:10px;border-radius:10px;
+          background:var(--accent);color:#fff;
+          font-size:13px;font-weight:700;font-family:var(--font);
+          border:none;cursor:pointer;transition:opacity 0.15s">
+          <span id="forgotBtnTxt">Poslat odkaz</span>
+        </button>
+        <button onclick="hideForgotPanel()" style="
+          padding:10px 14px;border-radius:10px;
+          background:transparent;color:var(--muted);
+          font-size:13px;font-weight:600;font-family:var(--font);
+          border:1px solid var(--border2);cursor:pointer">
+          Zrušit
+        </button>
+      </div>
+    </div>
+
     <!-- Pole pro registraci – skrytá dokud uživatel nepřepne -->
     <div id="regFields" style="display:none">
       <div class="login-field">
@@ -1892,10 +1925,12 @@ function selectAccountType(type) {
 function setLoginMode(mode) {
   _loginMode = mode;
   document.getElementById('loginErr').style.display = 'none';
-  const regFields = document.getElementById('regFields');
-  const loginTab  = document.getElementById('loginTabBtn');
-  const regTab    = document.getElementById('regTabBtn');
-  const btnTxt    = document.getElementById('loginBtnTxt');
+  hideForgotPanel();
+  const regFields  = document.getElementById('regFields');
+  const loginTab   = document.getElementById('loginTabBtn');
+  const regTab     = document.getElementById('regTabBtn');
+  const btnTxt     = document.getElementById('loginBtnTxt');
+  const forgotLink = document.getElementById('forgotLink');
   if (mode === 'register') {
     regFields.style.display = '';
     loginTab.style.color = 'var(--muted2)';
@@ -1903,6 +1938,7 @@ function setLoginMode(mode) {
     regTab.style.color = '#fff';
     regTab.style.borderBottom = '2px solid var(--accent)';
     btnTxt.textContent = 'Zaregistrovat se';
+    if (forgotLink) forgotLink.style.display = 'none';
   } else {
     regFields.style.display = 'none';
     loginTab.style.color = '#fff';
@@ -1910,6 +1946,74 @@ function setLoginMode(mode) {
     regTab.style.color = 'var(--muted2)';
     regTab.style.borderBottom = '2px solid transparent';
     btnTxt.textContent = 'Přihlásit se';
+    if (forgotLink) forgotLink.style.display = '';
+  }
+}
+
+function showForgotPanel() {
+  const panel = document.getElementById('forgotPanel');
+  const link  = document.getElementById('forgotLink');
+  const msg   = document.getElementById('forgotMsg');
+  const emailEl = document.getElementById('forgotEmail');
+  // Prefill email from login field
+  const loginEmail = document.getElementById('loginUser').value.trim();
+  if (loginEmail) emailEl.value = loginEmail;
+  if (msg) { msg.style.display = 'none'; msg.textContent = ''; }
+  document.getElementById('forgotBtnTxt').textContent = 'Poslat odkaz';
+  document.getElementById('forgotBtn').disabled = false;
+  link.style.display = 'none';
+  panel.style.display = '';
+  emailEl.focus();
+}
+
+function hideForgotPanel() {
+  const panel = document.getElementById('forgotPanel');
+  const link  = document.getElementById('forgotLink');
+  if (panel) panel.style.display = 'none';
+  if (link && _loginMode !== 'register') link.style.display = '';
+}
+
+async function doForgotPassword() {
+  const emailEl = document.getElementById('forgotEmail');
+  const msg     = document.getElementById('forgotMsg');
+  const btn     = document.getElementById('forgotBtn');
+  const btnTxt  = document.getElementById('forgotBtnTxt');
+  const email   = emailEl.value.trim();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    msg.style.display = '';
+    msg.style.background = 'rgba(240,90,90,0.12)';
+    msg.style.border = '1px solid rgba(240,90,90,0.3)';
+    msg.style.color = 'var(--red)';
+    msg.textContent = '⚠️ Zadej platný e-mail';
+    return;
+  }
+
+  btn.disabled = true;
+  btnTxt.textContent = '⏳ Odesílám…';
+  msg.style.display = 'none';
+
+  try {
+    const res = await fetch(`${SB_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
+      body: JSON.stringify({ email })
+    });
+    // Supabase vrací 200 i pro neexistující e-mail (bezpečnostní důvod)
+    msg.style.display = '';
+    msg.style.background = 'rgba(38,216,130,0.10)';
+    msg.style.border = '1px solid rgba(38,216,130,0.30)';
+    msg.style.color = 'var(--green)';
+    msg.textContent = '✅ Odkaz pro obnovení hesla byl odeslán na ' + email;
+    btnTxt.textContent = 'Odesláno';
+  } catch(err) {
+    msg.style.display = '';
+    msg.style.background = 'rgba(240,90,90,0.12)';
+    msg.style.border = '1px solid rgba(240,90,90,0.3)';
+    msg.style.color = 'var(--red)';
+    msg.textContent = '❌ Chyba: ' + err.message;
+    btn.disabled = false;
+    btnTxt.textContent = 'Poslat odkaz';
   }
 }
 
@@ -2212,6 +2316,32 @@ async function startQRScan() {
     let bdTick = 0;
     let scanning = false; // zabrání souběžnému spuštění async detect
 
+    // Vrátí výřez videa (v pixelech) odpovídající zobrazenému rámu (.qr-frame: 72% š, 50% v, centrovaný).
+    // Video používá object-fit: cover ve čtvercovém kontejneru – přepočet ze zobrazených % na skutečné pixely.
+    function getFrameCrop() {
+      const vw = video.videoWidth, vh = video.videoHeight;
+      const FW = 0.72, FH = 0.50; // rozměry rámu v procentech kontejneru
+      const FX = (1 - FW) / 2, FY = (1 - FH) / 2;
+      let x, y, w, h;
+      if (vw / vh >= 1) {
+        // Landscape: výška videa = výška kontejneru, šířka přesahuje po stranách
+        const hOff = (vw - vh) / 2;
+        x = Math.round(FX * vh + hOff); y = Math.round(FY * vh);
+        w = Math.round(FW * vh);        h = Math.round(FH * vh);
+      } else {
+        // Portrait: šířka videa = šířka kontejneru, výška přesahuje nahoře/dole
+        const vOff = (vh - vw) / 2;
+        x = Math.round(FX * vw);        y = Math.round(FY * vw + vOff);
+        w = Math.round(FW * vw);        h = Math.round(FH * vw);
+      }
+      // Pojistka – crop musí být uvnitř videa
+      x = Math.max(0, Math.min(x, vw - 1));
+      y = Math.max(0, Math.min(y, vh - 1));
+      w = Math.min(w, vw - x);
+      h = Math.min(h, vh - y);
+      return { x, y, w, h };
+    }
+
     qrInterval = setInterval(async () => {
       if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
 
@@ -2219,7 +2349,10 @@ async function startQRScan() {
       if (barcodeDetector && !scanning && (++bdTick % 2 === 0)) {
         scanning = true;
         try {
-          const results = await barcodeDetector.detect(video);
+          const { x, y, w, h } = getFrameCrop();
+          const bmp = await createImageBitmap(video, x, y, w, h);
+          const results = await barcodeDetector.detect(bmp);
+          bmp.close();
           if (results && results.length > 0) {
             parseQRCode(results[0].rawValue);
             return;
@@ -2230,10 +2363,11 @@ async function startQRScan() {
 
       // ── Fallback path: jsQR + ZXing (pro Safari, Firefox, starší Android) ──
       if (barcodeDetector) return; // BarcodeDetector je aktivní, nepotřebujeme fallback
-      canvas.width  = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const { x, y, w, h } = getFrameCrop();
+      canvas.width  = w;
+      canvas.height = h;
+      ctx.drawImage(video, x, y, w, h, 0, 0, w, h); // vykreslí jen oblast rámu
+      const img = ctx.getImageData(0, 0, w, h);
 
       // jsQR — rychlý, QR kódy
       const qrCode = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
@@ -2242,7 +2376,7 @@ async function startQRScan() {
       // ZXing — 1D čárové kódy (každé 4. ticknutí = ~800ms)
       if (zxing && (++zxingTick % 4 === 0)) {
         try {
-          const luminance = new ZXing.RGBLuminanceSource(img.data, canvas.width, canvas.height);
+          const luminance = new ZXing.RGBLuminanceSource(img.data, w, h);
           const bitmap    = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminance));
           const result    = zxing.decode(bitmap);
           if (result) { parseQRCode(result.getText()); return; }
