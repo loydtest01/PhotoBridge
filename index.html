@@ -84,40 +84,35 @@
     input  { font-family: var(--font); }
 
 
-    /* ═══ WALLPAPERS ═══ */
-    /* Základní barva pozadí – na html aby neprosvítala bílá prohlížeče */
-    html { background: var(--pb-bg-fallback); }
-
-    /* DAY: světlý režim */
+    /* ═══ WALLPAPERS (přepínání podle času: 18:00–8:00 = dark, jinak light) ═══ */
+    /* DAY: 8:00–18:00 */
     [data-theme="light"] #loginScreen {
       background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/light.png');
       background-size: cover; background-position: center;
     }
     [data-theme="light"] body::before {
       content: ''; position: fixed; inset: 0; z-index: -1;
+      background-color: var(--bg);
       background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/light.png');
       background-size: cover; background-position: center;
-      opacity: 0.90;
+      opacity: 0.18;
     }
-    /* NIGHT: tmavý režim */
+    /* NIGHT: 18:00–8:00 */
     [data-theme="dark"] #loginScreen {
       background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/dark.png');
       background-size: cover; background-position: center;
     }
     [data-theme="dark"] body::before {
       content: ''; position: fixed; inset: 0; z-index: -1;
+      background-color: var(--bg);
       background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/dark.png');
       background-size: cover; background-position: center;
-      opacity: 0.55;
+      opacity: 0.30;
     }
-    /* Login overlay – světlý/tmavý overlay pro čitelnost formuláře */
-    [data-theme="dark"] #loginScreen::after {
+    /* Login overlay – ztmaví pozadí aby byl formulář čitelný */
+    #loginScreen::after {
       content: ''; position: fixed; inset: 0; z-index: -1;
       background: rgba(11,13,20,0.60);
-    }
-    [data-theme="light"] #loginScreen::after {
-      content: ''; position: fixed; inset: 0; z-index: -1;
-      background: rgba(220,235,255,0.45);
     }
 
     /* ═══ LOGIN SCREEN ═══ */
@@ -146,11 +141,6 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 36px;
       box-shadow: 0 0 40px rgba(61,127,255,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
-    }
-    [data-theme="light"] .login-logo-icon {
-      background: linear-gradient(135deg, #daeaff 0%, #c0d8f8 100%);
-      border-color: rgba(61,127,255,0.30);
-      box-shadow: 0 0 30px rgba(61,127,255,0.15), inset 0 1px 0 rgba(255,255,255,0.70);
     }
     .login-logo-name {
       font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
@@ -285,7 +275,7 @@
       pointer-events: none;
     }
     .qr-frame {
-      width: 72%; height: 50%;
+      width: 60%; height: 60%;
       border: 2px solid var(--accent2);
       border-radius: 12px;
       box-shadow:
@@ -510,141 +500,9 @@
     }
     .btn-cancel:hover { border-color: var(--border); color: var(--text); }
 
-    /* ═══ OSOBNÍ GALERIE ═══ */
-    .gallery-panel {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 12px 14px;
-      display: flex; flex-direction: column; gap: 10px;
-    }
-    .gallery-header {
-      display: flex; align-items: center; gap: 8px;
-    }
-    .gallery-title {
-      font-size: 13px; font-weight: 700; color: var(--fg); flex: 1;
-    }
-    .gallery-refresh {
-      background: none; color: var(--muted2); font-size: 16px;
-      padding: 4px 6px; border-radius: 7px; transition: all 0.15s;
-      line-height: 1;
-    }
-    .gallery-refresh:hover { color: var(--accent2); background: rgba(61,127,255,0.1); }
-    .gallery-refresh.spinning { animation: spin360 0.8s linear infinite; }
-    .gallery-count {
-      font-size: 10px; color: var(--muted); font-family: var(--mono);
-      background: var(--card); border-radius: 10px; padding: 2px 8px;
-      border: 1px solid var(--border);
-    }
-    .gallery-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
-    }
-    .gallery-thumb {
-      aspect-ratio: 1/1; border-radius: 8px; overflow: hidden;
-      background: var(--card); border: 1px solid var(--border);
-      position: relative; cursor: pointer;
-      transition: transform 0.15s, border-color 0.15s;
-    }
-    .gallery-thumb:active { transform: scale(0.94); }
-    .gallery-thumb img {
-      width: 100%; height: 100%; object-fit: cover; display: block;
-    }
-    .gallery-thumb .thumb-overlay {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      background: linear-gradient(transparent, rgba(0,0,0,0.65));
-      padding: 4px 5px 5px; font-size: 9px; color: #fff;
-      font-family: var(--mono); font-weight: 600; line-height: 1.2;
-      opacity: 0;
-      transition: opacity 0.15s;
-    }
-    .gallery-thumb:hover .thumb-overlay { opacity: 1; }
-    .gallery-thumb .thumb-type {
-      position: absolute; top: 4px; right: 4px;
-      background: rgba(0,0,0,0.55); border-radius: 5px;
-      font-size: 10px; padding: 1px 4px; color: #fff;
-    }
-    .gallery-file-list { display: flex; flex-direction: column; gap: 5px; }
-    .gallery-file-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 10px; border-radius: 8px;
-      border: 1px solid var(--border); background: var(--card);
-      cursor: pointer; transition: all 0.15s;
-    }
-    .gallery-file-item:hover { border-color: var(--accent); background: rgba(61,127,255,0.08); }
-    .gallery-file-icon { font-size: 18px; flex-shrink: 0; }
-    .gallery-file-info { flex: 1; min-width: 0; }
-    .gallery-file-name {
-      font-size: 11px; font-family: var(--mono); color: var(--accent2);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      font-weight: 600;
-    }
-    .gallery-file-date { font-size: 10px; color: var(--muted); margin-top: 2px; }
-    .gallery-file-size { font-size: 10px; color: var(--muted); font-family: var(--mono); flex-shrink: 0; }
-    .gallery-empty {
-      text-align: center; padding: 20px 0; color: var(--muted); font-size: 13px;
-    }
-    .gallery-empty-icon { font-size: 32px; margin-bottom: 6px; }
-    .gallery-loading {
-      text-align: center; padding: 16px 0; color: var(--muted); font-size: 13px;
-    }
-    /* Lightbox */
-    #galleryLightbox {
-      display: none; position: fixed; inset: 0; z-index: 9500;
-      background: rgba(0,0,0,0.92); align-items: center; justify-content: center;
-      flex-direction: column; gap: 12px;
-    }
-    #galleryLightbox.open { display: flex; }
-    #galleryLightbox img {
-      max-width: 96vw; max-height: 80vh; border-radius: 10px;
-      object-fit: contain; box-shadow: 0 8px 40px rgba(0,0,0,0.8);
-    }
-    .lightbox-close {
-      position: absolute; top: 16px; right: 16px;
-      background: rgba(255,255,255,0.12); border: none; color: #fff;
-      font-size: 22px; width: 40px; height: 40px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: background 0.15s;
-    }
-    .lightbox-close:hover { background: rgba(255,255,255,0.25); }
-    .lightbox-name {
-      font-size: 11px; color: rgba(255,255,255,0.5);
-      font-family: var(--mono); text-align: center; max-width: 90vw;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-
-    /* ═══ HISTORIE ZAKÁZEK ═══ */
-    .job-history-panel {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 12px 14px;
-      display: flex; flex-direction: column; gap: 8px;
-    }
-    .job-history-label {
-      font-size: 10px; font-weight: 700; color: var(--muted2);
-      letter-spacing: 0.08em; text-transform: uppercase;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .job-history-list { display: flex; flex-direction: column; gap: 6px; }
-    .job-history-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 12px; border-radius: 9px;
-      border: 1.5px solid var(--border2); background: var(--card);
-      cursor: pointer; transition: all 0.15s;
-    }
-    .job-history-item:hover {
-      border-color: var(--accent); background: rgba(61,127,255,0.10);
-    }
-    .job-history-item:active { transform: scale(0.97); }
-    .job-history-icon { font-size: 16px; flex-shrink: 0; }
-    .job-history-num {
-      font-family: var(--mono); font-size: 16px; font-weight: 700;
-      color: var(--accent2); letter-spacing: 0.06em; flex: 1;
-    }
-    .job-history-time {
-      font-size: 10px; color: var(--muted); font-family: var(--mono);
-      white-space: nowrap;
-    }
-    .job-history-arrow { font-size: 12px; color: var(--muted); }
-    .job-history-empty {
-      font-size: 12px; color: var(--muted); text-align: center; padding: 4px 0;
-    }
+    /* Hourglass */
+    .spin { display: inline-block; animation: spin360 1s linear infinite; }
+    @keyframes spin360 { to { transform: rotate(360deg); } }
 
     /* Upload section panels */
     .upload-panel {
@@ -767,39 +625,6 @@
         <button class="eye-btn" type="button" onclick="toggleEye('loginPass',this)">👁️</button>
       </div>
     </div>
-    <!-- Zapomenuté heslo – odkaz + inline panel -->
-    <div id="forgotLink" style="text-align:right;margin-top:6px;margin-bottom:2px">
-      <a href="#" class="login-fg-link" onclick="showForgotPanel();return false;">Zapomenuté heslo?</a>
-    </div>
-    <div id="forgotPanel" style="display:none;margin-bottom:4px;
-      background:rgba(61,127,255,0.07);border:1px solid rgba(61,127,255,0.22);
-      border-radius:12px;padding:14px 14px 12px">
-      <div style="font-size:12px;font-weight:600;color:var(--muted2);margin-bottom:10px;line-height:1.4">
-        Zadej svůj e-mail a pošleme ti odkaz pro obnovení hesla.
-      </div>
-      <input class="login-input" type="email" id="forgotEmail"
-        placeholder="tvuj@email.cz" autocomplete="email" autocapitalize="none" spellcheck="false"
-        style="margin-bottom:10px"
-        onkeydown="if(event.key==='Enter')doForgotPassword()">
-      <div id="forgotMsg" style="display:none;font-size:12px;border-radius:8px;padding:8px 10px;margin-bottom:10px"></div>
-      <div style="display:flex;gap:8px">
-        <button onclick="doForgotPassword()" id="forgotBtn" style="
-          flex:1;padding:10px;border-radius:10px;
-          background:var(--accent);color:#fff;
-          font-size:13px;font-weight:700;font-family:var(--font);
-          border:none;cursor:pointer;transition:opacity 0.15s">
-          <span id="forgotBtnTxt">Poslat odkaz</span>
-        </button>
-        <button onclick="hideForgotPanel()" style="
-          padding:10px 14px;border-radius:10px;
-          background:transparent;color:var(--muted);
-          font-size:13px;font-weight:600;font-family:var(--font);
-          border:1px solid var(--border2);cursor:pointer">
-          Zrušit
-        </button>
-      </div>
-    </div>
-
     <!-- Pole pro registraci – skrytá dokud uživatel nepřepne -->
     <div id="regFields" style="display:none">
       <div class="login-field">
@@ -901,8 +726,8 @@
     <div class="screen active" id="screenQR">
       <div class="qr-status" id="qrStatus">
         <div class="qr-status-icon">📱</div>
-        <div class="qr-status-title">Naskenuj QR nebo čárový kód</div>
-        <div class="qr-status-sub">Otevři kameru a namiř na QR kód nebo čárový kód zakázky</div>
+        <div class="qr-status-title">Naskenuj QR kód z PC</div>
+        <div class="qr-status-sub">Otevři kameru na zakázku zobrazenou na PC obrazovce</div>
       </div>
 
       <div class="qr-job-card" id="qrJobCard">
@@ -920,7 +745,7 @@
       </div>
 
       <div class="upload-panel">
-        <div class="section-label">Naskenovat QR nebo čárový kód</div>
+        <div class="section-label">Naskenovat QR kód</div>
         <button class="btn-full btn-primary" id="btnStartScan" onclick="startQRScan()">📷 Spustit kameru</button>
         <button class="btn-full" id="btnStopScan" onclick="stopQRScan()" style="display:none; background:rgba(240,90,90,0.1);border:1.5px solid rgba(240,90,90,0.3);color:var(--red);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">✖ Zastavit kameru</button>
       </div>
@@ -940,14 +765,6 @@
         <div id="manualJobErr" style="display:none;margin-top:8px;font-size:12px;color:var(--red);font-weight:600;text-align:center"></div>
       </div>
 
-      <!-- Historie zakázek -->
-      <div class="job-history-panel" id="jobHistoryPanel">
-        <div class="job-history-label">🕐 Poslední zakázky</div>
-        <div class="job-history-list" id="jobHistoryList">
-          <div class="job-history-empty">Zatím žádná historie</div>
-        </div>
-      </div>
-
     </div>
 
     <!-- Upload Screen -->
@@ -962,7 +779,7 @@
           <div class="job-banner-badge" id="uploadBannerBadge">● AKTIVNÍ</div>
         </div>
         <div class="job-banner-hint" id="uploadBannerHint"></div>
-        <button class="job-banner-scan-btn" id="uploadBannerScanBtn" onclick="showTab('qr')">🔲 Naskenovat kód</button>
+        <button class="job-banner-scan-btn" id="uploadBannerScanBtn" onclick="showTab('qr')">🔲 Naskenovat QR kód</button>
       </div>
 
       <div class="upload-panel" id="typesPanel">
@@ -1012,44 +829,12 @@
         <input type="file" id="inPhoto" accept="image/*" capture="environment" style="display:none" multiple>
         <input type="file" id="inVideo" accept="video/*" capture="environment" style="display:none">
         <input type="file" id="inPick"  accept="image/*,video/*,application/pdf" style="display:none" multiple>
-
-        <!-- Volitelný název souboru – pouze personal účet -->
-        <div id="personalNameRow" style="display:none;margin-top:4px">
-          <input class="pb-input" type="text" id="personalFileName"
-            placeholder="Název souboru (nepovinné)"
-            maxlength="80"
-            style="font-size:14px"
-            oninput="this.value=this.value.replace(/[\/\\:*?&quot;&lt;&gt;|]/g,'')">
-          <div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.4">
-            Pokud nevyplníš, použije se datum a čas. Přípona se doplní automaticky.
-          </div>
-        </div>
-
         <div class="progress-wrap" id="progressWrap">
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           <div class="progress-text" id="progressText"></div>
         </div>
       </div>
 
-      <!-- Osobní galerie – zobrazí se jen pro personal účet -->
-      <div class="gallery-panel" id="personalGallery" style="display:none">
-        <div class="gallery-header">
-          <span class="gallery-title">🖼️ Poslední nahrávky</span>
-          <span class="gallery-count" id="galleryCount"></span>
-          <button class="gallery-refresh" id="galleryRefreshBtn" onclick="loadPersonalGallery()" title="Obnovit">↻</button>
-        </div>
-        <div id="galleryContent">
-          <div class="gallery-loading">Načítám…</div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Lightbox -->
-    <div id="galleryLightbox">
-      <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-      <img id="lightboxImg" src="" alt="">
-      <div class="lightbox-name" id="lightboxName"></div>
     </div>
 
     <!-- Settings Screen -->
@@ -1148,83 +933,6 @@
         </div>
       </div>
 
-      <!-- Režim vzhledu -->
-      <div class="settings-section">
-        <div class="settings-row">
-          <div class="settings-icon">🎨</div>
-          <div class="settings-info">
-            <div class="settings-title">Režim vzhledu</div>
-            <div class="settings-sub" id="themeScheduleSub">Automaticky dle času</div>
-          </div>
-        </div>
-        <!-- 3 tlačítka výběru -->
-        <div style="padding:0 14px 12px;display:flex;gap:8px">
-          <button id="themeBtnLight" onclick="setThemeMode('light')" style="
-            flex:1;padding:10px 6px;border-radius:10px;font-size:13px;font-weight:700;
-            border:1.5px solid var(--border2);background:var(--card);color:var(--muted2);
-            transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:3px">
-            <span style="font-size:20px">☀️</span>Světlý
-          </button>
-          <button id="themeBtnDark" onclick="setThemeMode('dark')" style="
-            flex:1;padding:10px 6px;border-radius:10px;font-size:13px;font-weight:700;
-            border:1.5px solid var(--border2);background:var(--card);color:var(--muted2);
-            transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:3px">
-            <span style="font-size:20px">🌙</span>Tmavý
-          </button>
-          <button id="themeBtnAuto" onclick="setThemeMode('auto')" style="
-            flex:1;padding:10px 6px;border-radius:10px;font-size:13px;font-weight:700;
-            border:1.5px solid var(--border2);background:var(--card);color:var(--muted2);
-            transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:3px">
-            <span style="font-size:20px">🕐</span>Časovač
-          </button>
-        </div>
-        <!-- Časovač – zobrazí se jen pro 'auto' -->
-        <div id="themeTimerSection" style="display:none;padding:0 14px 14px;display:none;flex-direction:column;gap:10px;border-top:1px solid var(--border)">
-          <div style="height:10px"></div>
-          <div style="display:flex;align-items:center;gap:12px">
-            <span style="font-size:13px;color:var(--muted2);width:52px;flex-shrink:0">☀️ Od</span>
-            <input type="time" id="themeFrom" class="pb-input"
-              style="flex:1;font-family:var(--mono);font-size:15px;font-weight:700;text-align:center"
-              onchange="saveThemeSchedule()">
-          </div>
-          <div style="display:flex;align-items:center;gap:12px">
-            <span style="font-size:13px;color:var(--muted2);width:52px;flex-shrink:0">🌙 Do</span>
-            <input type="time" id="themeTo" class="pb-input"
-              style="flex:1;font-family:var(--mono);font-size:15px;font-weight:700;text-align:center"
-              onchange="saveThemeSchedule()">
-          </div>
-          <div id="themePreview" style="font-size:11px;color:var(--muted);text-align:center"></div>
-        </div>
-      </div>
-
-      <!-- Sdílet aplikaci – QR kód -->
-      <div class="settings-section">
-        <div class="settings-row" style="cursor:pointer" onclick="toggleShareQR()">
-          <div class="settings-icon">📤</div>
-          <div class="settings-info">
-            <div class="settings-title">Sdílet aplikaci</div>
-            <div class="settings-sub">QR kód pro přidání na plochu</div>
-          </div>
-          <span id="shareQRArrow" style="font-size:18px;color:var(--muted);transition:transform 0.2s">›</span>
-        </div>
-        <div id="shareQRPanel" style="display:none;padding:0 14px 18px;flex-direction:column;align-items:center;gap:12px">
-          <div style="
-            background:#fff; border-radius:14px; padding:12px;
-            box-shadow:0 4px 20px rgba(0,0,0,0.25); display:inline-block; margin-top:4px
-          ">
-            <img id="shareQRImg" src="" alt="QR kód aplikace"
-              style="width:180px;height:180px;display:block;border-radius:6px">
-          </div>
-          <div style="text-align:center">
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">PhotoBridge</div>
-            <div id="shareQRUrl" style="font-size:10px;color:var(--muted);font-family:var(--mono);word-break:break-all;max-width:220px"></div>
-          </div>
-          <button class="btn-full btn-primary" style="max-width:220px" onclick="copyAppUrl()">
-            📋 Kopírovat odkaz
-          </button>
-        </div>
-      </div>
-
       <!-- PWA Install -->
       <div class="settings-section" id="pwaInstallSection" style="display:none">
         <div class="settings-row">
@@ -1249,7 +957,6 @@
           <div id="connectionStatusLine">📡 Supabase: <span style="color:var(--green);font-family:var(--mono);font-size:10px" id="sbStatus">—</span></div>
           <div style="margin-top:4px" id="bucketLine">🗂️ Bucket: <span style="font-family:var(--mono);color:var(--muted2)">pb-uploads</span></div>
           <div style="margin-top:4px">⏱️ Auto-smazání: <span style="font-family:var(--mono);color:var(--muted2)" id="retentionDisplay">7 dní</span></div>
-          <div style="margin-top:4px">📱 Verze: <span style="font-family:var(--mono);color:var(--muted2)">1.0.1</span></div>
         </div>
       </div>
 
@@ -1347,7 +1054,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // KONFIGURACE — vyplňte vaše Supabase údaje
@@ -1361,106 +1067,13 @@ const TYPE_KEY  = 'pb_doc_type';
 
 
 
-// ── Režim vzhledu: 'light' | 'dark' | 'auto' ──
-const THEME_SCHEDULE_KEY = 'pb_theme_schedule';
-
-function getThemeSchedule() {
-  try {
-    const s = JSON.parse(localStorage.getItem(THEME_SCHEDULE_KEY) || 'null');
-    if (s) return s;
-  } catch(_) {}
-  return { mode: 'auto', from: 8, to: 18, fromStr: '08:00', toStr: '18:00' };
-}
-
+// ── Tapeta podle denní doby (data-theme na <html>) ──
 function applyTimeWallpaper() {
-  const s = getThemeSchedule();
-  const mode = s.mode || 'auto';
-  if (mode === 'light') {
-    document.documentElement.dataset.theme = 'light';
-  } else if (mode === 'dark') {
-    document.documentElement.dataset.theme = 'dark';
-  } else {
-    const h = new Date().getHours();
-    const m = new Date().getMinutes();
-    const now = h + m / 60;
-    const { from, to } = s;
-    const isLight = (from < to) ? (now >= from && now < to) : (now >= from || now < to);
-    document.documentElement.dataset.theme = isLight ? 'light' : 'dark';
-  }
+  const h = new Date().getHours();
+  const isNight = (h >= 18 || h < 8);
+  document.documentElement.dataset.theme = isNight ? 'dark' : 'light';
 }
 applyTimeWallpaper();
-
-function setThemeMode(mode) {
-  const s = getThemeSchedule();
-  s.mode = mode;
-  localStorage.setItem(THEME_SCHEDULE_KEY, JSON.stringify(s));
-  applyTimeWallpaper();
-  updateThemeScheduleUI();
-  const labels = { light: '☀️ Světlý režim', dark: '🌙 Tmavý režim', auto: '🕐 Automatický časovač' };
-  toast(labels[mode] || 'Uloženo', 'ok');
-}
-
-function saveThemeSchedule() {
-  const fromVal = document.getElementById('themeFrom').value;
-  const toVal   = document.getElementById('themeTo').value;
-  if (!fromVal || !toVal) return;
-  const from = parseInt(fromVal.split(':')[0]) + parseInt(fromVal.split(':')[1]) / 60;
-  const to   = parseInt(toVal.split(':')[0])   + parseInt(toVal.split(':')[1])   / 60;
-  const s = getThemeSchedule();
-  Object.assign(s, { from, to, fromStr: fromVal, toStr: toVal });
-  localStorage.setItem(THEME_SCHEDULE_KEY, JSON.stringify(s));
-  applyTimeWallpaper();
-  updateThemeScheduleUI();
-  toast('🕐 Časovač uložen', 'ok');
-}
-
-function updateThemeScheduleUI() {
-  const s = getThemeSchedule();
-  const mode = s.mode || 'auto';
-  const fromStr = s.fromStr || '08:00';
-  const toStr   = s.toStr   || '18:00';
-
-  // Subtitle
-  const subEl = document.getElementById('themeScheduleSub');
-  if (subEl) {
-    subEl.textContent = mode === 'light' ? 'Vždy světlý'
-      : mode === 'dark'  ? 'Vždy tmavý'
-      : `Automaticky: ☀️ ${fromStr} – ${toStr}`;
-  }
-
-  // Zvýrazni aktivní tlačítko
-  ['light','dark','auto'].forEach(m => {
-    const btn = document.getElementById('themeBtn' + m.charAt(0).toUpperCase() + m.slice(1));
-    if (!btn) return;
-    const active = m === mode;
-    btn.style.borderColor  = active ? 'var(--accent)'  : 'var(--border2)';
-    btn.style.background   = active ? 'rgba(61,127,255,0.15)' : 'var(--card)';
-    btn.style.color        = active ? 'var(--accent2)' : 'var(--muted2)';
-  });
-
-  // Zobraz/skryj sekci časovače
-  const timerSec = document.getElementById('themeTimerSection');
-  if (timerSec) timerSec.style.display = mode === 'auto' ? 'flex' : 'none';
-
-  // Naplň time inputy
-  const fromEl = document.getElementById('themeFrom');
-  const toEl   = document.getElementById('themeTo');
-  if (fromEl) fromEl.value = fromStr;
-  if (toEl)   toEl.value   = toStr;
-
-  // Náhled aktuálního stavu (jen u auto)
-  const previewEl = document.getElementById('themePreview');
-  if (previewEl) {
-    if (mode === 'auto') {
-      const h = new Date().getHours(), m2 = new Date().getMinutes();
-      const now = h + m2 / 60;
-      const isLight = (s.from < s.to) ? (now >= s.from && now < s.to) : (now >= s.from || now < s.to);
-      previewEl.textContent = `Právě teď: ${isLight ? '☀️ světlý' : '🌙 tmavý'} režim`;
-    } else {
-      previewEl.textContent = '';
-    }
-  }
-}
 
 // ══════════════════════════════════════════════════════════
 // PROFILY — max 2 účty, okamžité přepínání
@@ -1842,18 +1455,6 @@ function updateAccountUI() {
   // Sekce Scan v nastavení
   const settingsScanRow = document.getElementById('settingsScanRow');
   if (settingsScanRow) settingsScanRow.style.display = isPersonal ? 'none' : '';
-
-  // Osobní galerie – pouze pro personal účet
-  const gallery = document.getElementById('personalGallery');
-  if (gallery) gallery.style.display = isPersonal ? '' : 'none';
-
-  // Pole pro název souboru – pouze personal
-  const nameRow = document.getElementById('personalNameRow');
-  if (nameRow) nameRow.style.display = isPersonal ? '' : 'none';
-
-  // Historie zakázek – skrýt pro personal
-  const histPanel = document.getElementById('jobHistoryPanel');
-  if (histPanel) histPanel.style.display = isPersonal ? 'none' : '';
 }
 
 function showApp() {
@@ -1866,10 +1467,10 @@ function showApp() {
   updateJobUI();
   updateAccountUI();
   updateUploadModeUI();
+  // Osobní účet: QR záložka je skrytá, přepni rovnou na Upload
+  if (isPersonalAccount()) showTab('upload');
   checkSBStatus();
   updateRetentionDisplay();
-  renderJobHistory();
-  updateThemeScheduleUI();
   startTokenRefreshTimer();
   readURLParams();
   showPwaInstall();
@@ -1925,12 +1526,10 @@ function selectAccountType(type) {
 function setLoginMode(mode) {
   _loginMode = mode;
   document.getElementById('loginErr').style.display = 'none';
-  hideForgotPanel();
-  const regFields  = document.getElementById('regFields');
-  const loginTab   = document.getElementById('loginTabBtn');
-  const regTab     = document.getElementById('regTabBtn');
-  const btnTxt     = document.getElementById('loginBtnTxt');
-  const forgotLink = document.getElementById('forgotLink');
+  const regFields = document.getElementById('regFields');
+  const loginTab  = document.getElementById('loginTabBtn');
+  const regTab    = document.getElementById('regTabBtn');
+  const btnTxt    = document.getElementById('loginBtnTxt');
   if (mode === 'register') {
     regFields.style.display = '';
     loginTab.style.color = 'var(--muted2)';
@@ -1938,7 +1537,6 @@ function setLoginMode(mode) {
     regTab.style.color = '#fff';
     regTab.style.borderBottom = '2px solid var(--accent)';
     btnTxt.textContent = 'Zaregistrovat se';
-    if (forgotLink) forgotLink.style.display = 'none';
   } else {
     regFields.style.display = 'none';
     loginTab.style.color = '#fff';
@@ -1946,74 +1544,6 @@ function setLoginMode(mode) {
     regTab.style.color = 'var(--muted2)';
     regTab.style.borderBottom = '2px solid transparent';
     btnTxt.textContent = 'Přihlásit se';
-    if (forgotLink) forgotLink.style.display = '';
-  }
-}
-
-function showForgotPanel() {
-  const panel = document.getElementById('forgotPanel');
-  const link  = document.getElementById('forgotLink');
-  const msg   = document.getElementById('forgotMsg');
-  const emailEl = document.getElementById('forgotEmail');
-  // Prefill email from login field
-  const loginEmail = document.getElementById('loginUser').value.trim();
-  if (loginEmail) emailEl.value = loginEmail;
-  if (msg) { msg.style.display = 'none'; msg.textContent = ''; }
-  document.getElementById('forgotBtnTxt').textContent = 'Poslat odkaz';
-  document.getElementById('forgotBtn').disabled = false;
-  link.style.display = 'none';
-  panel.style.display = '';
-  emailEl.focus();
-}
-
-function hideForgotPanel() {
-  const panel = document.getElementById('forgotPanel');
-  const link  = document.getElementById('forgotLink');
-  if (panel) panel.style.display = 'none';
-  if (link && _loginMode !== 'register') link.style.display = '';
-}
-
-async function doForgotPassword() {
-  const emailEl = document.getElementById('forgotEmail');
-  const msg     = document.getElementById('forgotMsg');
-  const btn     = document.getElementById('forgotBtn');
-  const btnTxt  = document.getElementById('forgotBtnTxt');
-  const email   = emailEl.value.trim();
-
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    msg.style.display = '';
-    msg.style.background = 'rgba(240,90,90,0.12)';
-    msg.style.border = '1px solid rgba(240,90,90,0.3)';
-    msg.style.color = 'var(--red)';
-    msg.textContent = '⚠️ Zadej platný e-mail';
-    return;
-  }
-
-  btn.disabled = true;
-  btnTxt.textContent = '⏳ Odesílám…';
-  msg.style.display = 'none';
-
-  try {
-    const res = await fetch(`${SB_URL}/auth/v1/recover`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
-      body: JSON.stringify({ email })
-    });
-    // Supabase vrací 200 i pro neexistující e-mail (bezpečnostní důvod)
-    msg.style.display = '';
-    msg.style.background = 'rgba(38,216,130,0.10)';
-    msg.style.border = '1px solid rgba(38,216,130,0.30)';
-    msg.style.color = 'var(--green)';
-    msg.textContent = '✅ Odkaz pro obnovení hesla byl odeslán na ' + email;
-    btnTxt.textContent = 'Odesláno';
-  } catch(err) {
-    msg.style.display = '';
-    msg.style.background = 'rgba(240,90,90,0.12)';
-    msg.style.border = '1px solid rgba(240,90,90,0.3)';
-    msg.style.color = 'var(--red)';
-    msg.textContent = '❌ Chyba: ' + err.message;
-    btn.disabled = false;
-    btnTxt.textContent = 'Poslat odkaz';
   }
 }
 
@@ -2212,11 +1742,7 @@ function showTab(tab) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (tab === 'qr')       { document.getElementById('screenQR').classList.add('active');       document.getElementById('tabQR').classList.add('active'); }
-  if (tab === 'upload')   {
-    document.getElementById('screenUpload').classList.add('active');
-    document.getElementById('tabUpload').classList.add('active');
-    if (isPersonalAccount()) loadPersonalGallery();
-  }
+  if (tab === 'upload')   { document.getElementById('screenUpload').classList.add('active');   document.getElementById('tabUpload').classList.add('active'); }
   if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); }
   if (tab !== 'qr') stopQRScan();
 }
@@ -2245,143 +1771,32 @@ function confirmManualJob() {
   toast('📁 Zakázka nastavena: ' + job, 'ok');
 }
 
-// ── QR + Barcode Scanner ──
-let _zxingReader = null;
-
-function _initZXing() {
-  if (_zxingReader) return _zxingReader;
-  try {
-    if (!window.ZXing) return null;
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.QR_CODE,
-      ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39,
-      ZXing.BarcodeFormat.CODE_93,
-      ZXing.BarcodeFormat.ITF,
-      ZXing.BarcodeFormat.PDF_417,
-      ZXing.BarcodeFormat.DATA_MATRIX,
-      ZXing.BarcodeFormat.UPC_A,
-      ZXing.BarcodeFormat.UPC_E,
-      ZXing.BarcodeFormat.AZTEC,
-    ]);
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    const r = new ZXing.MultiFormatReader();
-    r.setHints(hints);
-    _zxingReader = r;
-    return r;
-  } catch(e) { return null; }
-}
-
+// ── QR Scanner ──
 async function startQRScan() {
   document.getElementById('qrScanArea').style.display = 'block';
   document.getElementById('btnStartScan').style.display = 'none';
   document.getElementById('btnStopScan').style.display = '';
   document.getElementById('qrStatus').innerHTML = `
     <div class="qr-status-icon">🔍</div>
-    <div class="qr-status-title">Hledám kód…</div>
-    <div class="qr-status-sub">Namiř kameru na QR kód nebo čárový kód</div>`;
+    <div class="qr-status-title">Hledám QR kód…</div>
+    <div class="qr-status-sub">Namiř kameru na QR kód zobrazený na PC</div>`;
 
   try {
-    qrStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
+    qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     const video = document.getElementById('qrVideo');
     video.srcObject = qrStream;
     await video.play();
 
-    // ── Skener 1: nativní BarcodeDetector (Android Chrome, Samsung Browser) ──
-    // Zvládá QR i 1D čárové kódy bez knihovny, velmi rychlý
-    const hasBD = ('BarcodeDetector' in window);
-    let barcodeDetector = null;
-    if (hasBD) {
-      try {
-        const supported = await BarcodeDetector.getSupportedFormats().catch(() => []);
-        const formats = supported.length > 0 ? supported : [
-          'qr_code','ean_13','ean_8','code_128','code_39','code_93',
-          'itf','upc_a','upc_e','pdf417','data_matrix','aztec','codabar'
-        ];
-        barcodeDetector = new BarcodeDetector({ formats });
-      } catch(e) { barcodeDetector = null; }
-    }
-
-    // ── Skener 2: ZXing (záloha pro prohlížeče bez BarcodeDetector) ──
-    const zxing = hasBD ? null : _initZXing();
-
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    let zxingTick = 0;
-    let bdTick = 0;
-    let scanning = false; // zabrání souběžnému spuštění async detect
-
-    // Vrátí výřez videa (v pixelech) odpovídající zobrazenému rámu (.qr-frame: 72% š, 50% v, centrovaný).
-    // Video používá object-fit: cover ve čtvercovém kontejneru – přepočet ze zobrazených % na skutečné pixely.
-    function getFrameCrop() {
-      const vw = video.videoWidth, vh = video.videoHeight;
-      const FW = 0.72, FH = 0.50; // rozměry rámu v procentech kontejneru
-      const FX = (1 - FW) / 2, FY = (1 - FH) / 2;
-      let x, y, w, h;
-      if (vw / vh >= 1) {
-        // Landscape: výška videa = výška kontejneru, šířka přesahuje po stranách
-        const hOff = (vw - vh) / 2;
-        x = Math.round(FX * vh + hOff); y = Math.round(FY * vh);
-        w = Math.round(FW * vh);        h = Math.round(FH * vh);
-      } else {
-        // Portrait: šířka videa = šířka kontejneru, výška přesahuje nahoře/dole
-        const vOff = (vh - vw) / 2;
-        x = Math.round(FX * vw);        y = Math.round(FY * vw + vOff);
-        w = Math.round(FW * vw);        h = Math.round(FH * vw);
-      }
-      // Pojistka – crop musí být uvnitř videa
-      x = Math.max(0, Math.min(x, vw - 1));
-      y = Math.max(0, Math.min(y, vh - 1));
-      w = Math.min(w, vw - x);
-      h = Math.min(h, vh - y);
-      return { x, y, w, h };
-    }
-
-    qrInterval = setInterval(async () => {
+    qrInterval = setInterval(() => {
       if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
-
-      // ── BarcodeDetector path (async, jen každé 2. ticknutí = ~400ms) ──
-      if (barcodeDetector && !scanning && (++bdTick % 2 === 0)) {
-        scanning = true;
-        try {
-          const { x, y, w, h } = getFrameCrop();
-          const bmp = await createImageBitmap(video, x, y, w, h);
-          const results = await barcodeDetector.detect(bmp);
-          bmp.close();
-          if (results && results.length > 0) {
-            parseQRCode(results[0].rawValue);
-            return;
-          }
-        } catch(e) { /* prázdný záběr */ } finally { scanning = false; }
-        return; // BarcodeDetector pokryje vše, přeskočíme jsQR/ZXing
-      }
-
-      // ── Fallback path: jsQR + ZXing (pro Safari, Firefox, starší Android) ──
-      if (barcodeDetector) return; // BarcodeDetector je aktivní, nepotřebujeme fallback
-      const { x, y, w, h } = getFrameCrop();
-      canvas.width  = w;
-      canvas.height = h;
-      ctx.drawImage(video, x, y, w, h, 0, 0, w, h); // vykreslí jen oblast rámu
-      const img = ctx.getImageData(0, 0, w, h);
-
-      // jsQR — rychlý, QR kódy
-      const qrCode = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-      if (qrCode) { parseQRCode(qrCode.data); return; }
-
-      // ZXing — 1D čárové kódy (každé 4. ticknutí = ~800ms)
-      if (zxing && (++zxingTick % 4 === 0)) {
-        try {
-          const luminance = new ZXing.RGBLuminanceSource(img.data, w, h);
-          const bitmap    = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminance));
-          const result    = zxing.decode(bitmap);
-          if (result) { parseQRCode(result.getText()); return; }
-        } catch(e) { /* NotFoundException = normální stav, žádný kód v záběru */ }
-      }
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      if (code) parseQRCode(code.data);
     }, 200);
   } catch(err) {
     toast('⚠️ Kamera nedostupná: ' + err.message, 'err');
@@ -2442,55 +1857,9 @@ function setManualJob() {
 function setJob(job, token) {
   pbJob      = job;
   pbJobToken = token;
-  saveJobHistory(job);
   syncCurrentToProfile();
   updateJobUI();
   showTab('upload');
-}
-
-// ── Historie zakázek (max 2) ──
-const JOB_HISTORY_KEY = 'pb_job_history';
-
-function saveJobHistory(job) {
-  if (!job) return;
-  try {
-    let hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]');
-    // Odstraň duplicitu
-    hist = hist.filter(h => h.job !== job);
-    // Přidej na začátek s časem
-    hist.unshift({ job, time: Date.now() });
-    // Max 2 záznamy
-    hist = hist.slice(0, 2);
-    localStorage.setItem(JOB_HISTORY_KEY, JSON.stringify(hist));
-    renderJobHistory();
-  } catch(_) {}
-}
-
-function renderJobHistory() {
-  const list = document.getElementById('jobHistoryList');
-  if (!list) return;
-  let hist = [];
-  try { hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]'); } catch(_) {}
-  if (!hist.length) {
-    list.innerHTML = '<div class="job-history-empty">Zatím žádná historie</div>';
-    return;
-  }
-  list.innerHTML = hist.map(h => {
-    const d = new Date(h.time);
-    const pad = n => String(n).padStart(2,'0');
-    const timeStr = pad(d.getDate())+'.'+pad(d.getMonth()+1)+' '+pad(d.getHours())+':'+pad(d.getMinutes());
-    return `<div class="job-history-item" onclick="selectHistoryJob('${h.job}')">
-      <span class="job-history-icon">📁</span>
-      <span class="job-history-num">${h.job}</span>
-      <span class="job-history-time">${timeStr}</span>
-      <span class="job-history-arrow">›</span>
-    </div>`;
-  }).join('');
-}
-
-function selectHistoryJob(job) {
-  setJob(job, null);
-  toast('📁 Zakázka nastavena: ' + job, 'ok');
 }
 
 function clearJob() {
@@ -2526,7 +1895,7 @@ function updateJobUI() {
     document.getElementById('qrStatus').innerHTML = `
       <div class="qr-status-icon">✅</div>
       <div class="qr-status-title">Zakázka aktivní</div>
-      <div class="qr-status-sub">Naskenuj nový QR nebo čárový kód pro změnu zakázky</div>`;
+      <div class="qr-status-sub">Naskenuj nový QR pro změnu zakázky</div>`;
 
     // Upload banner – active state
     bannerNum.textContent = pbJob;
@@ -2598,9 +1967,8 @@ async function handleFiles(fileList, reset) {
   await uploadFiles(files);
 }
 
-// ── Image optimization (pouze firemní účet) ──
+// ── Image optimization ──
 async function optimizeImage(file) {
-  if (isPersonalAccount()) return file;          // osobní = originální kvalita
   if (file.type === 'application/pdf' || file.type.startsWith('video/')) return file;
   if (!file.type.startsWith('image/')) return file;
   if (file.size < 1_500_000) return file;
@@ -2714,13 +2082,7 @@ async function uploadFiles(fileList) {
         const now = new Date();
         const pad = n => String(n).padStart(2, '0');
         const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}_${seqStr}`;
-        const customName = (document.getElementById('personalFileName')?.value || '').trim()
-          .replace(/[\/\\:*?"<>|]/g, '').replace(/\s+/g, '_');
-        // Pokud je víc souborů a je zadaný název, přidej index aby se nepřepsaly
-        const baseName = customName
-          ? (fileList.length > 1 ? `${customName}_${seqStr}` : customName)
-          : ts;
-        filename = `${baseName}.${ext}`;
+        filename = `${ts}.${ext}`;
         path     = `${userId}/personal/${filename}`;
       } else {
         // {batchTs}_{seq} – batchTs zachovává pořadí mezi batchi,
@@ -2847,13 +2209,6 @@ async function uploadFiles(fileList) {
       : `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'} → ${pbJob}`;
     toast(`✅ ${done} soubor${done === 1 ? '' : 's'} nahrán`, 'ok');
 
-    // Obnov galerii po uploadu (personal účet)
-    if (isPersonalAccount()) {
-      const nameEl = document.getElementById('personalFileName');
-      if (nameEl) nameEl.value = '';
-      setTimeout(() => loadPersonalGallery(), 1200);
-    }
-
     setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 3000);
 
   } catch(err) {
@@ -2865,208 +2220,7 @@ async function uploadFiles(fileList) {
   btns.forEach(id => document.getElementById(id).disabled = false);
 }
 
-// ── Sdílet aplikaci – QR kód ──
-let _shareQROpen = false;
-
-function toggleShareQR() {
-  _shareQROpen = !_shareQROpen;
-  const panel  = document.getElementById('shareQRPanel');
-  const arrow  = document.getElementById('shareQRArrow');
-  if (panel) panel.style.display = _shareQROpen ? 'flex' : 'none';
-  if (arrow) arrow.style.transform = _shareQROpen ? 'rotate(90deg)' : '';
-
-  if (_shareQROpen) {
-    const url = window.location.origin + window.location.pathname;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=0&data=${encodeURIComponent(url)}`;
-    const img = document.getElementById('shareQRImg');
-    const urlEl = document.getElementById('shareQRUrl');
-    if (img) img.src = qrUrl;
-    if (urlEl) urlEl.textContent = url;
-  }
-}
-
-function copyAppUrl() {
-  const url = window.location.origin + window.location.pathname;
-  navigator.clipboard?.writeText(url)
-    .then(() => toast('📋 Odkaz zkopírován', 'ok'))
-    .catch(() => toast('❌ Kopírování selhalo', 'err'));
-}
-
-// ── Osobní galerie ──
-let _galleryLoading = false;
-
-function formatBytes(b) {
-  if (!b) return '';
-  if (b < 1024) return b + ' B';
-  if (b < 1024 * 1024) return (b / 1024).toFixed(0) + ' KB';
-  return (b / 1024 / 1024).toFixed(1) + ' MB';
-}
-
-function formatGalleryDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const pad = n => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}. ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-async function getSignedUrl(path) {
-  try {
-    const encoded = path.split('/').map(encodeURIComponent).join('/');
-    const res = await fetch(`${SB_URL}/storage/v1/object/sign/${SB_BUCKET}/${encoded}`, {
-      method: 'POST',
-      headers: {
-        'apikey': SB_ANON,
-        'Authorization': `Bearer ${pbToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ expiresIn: 3600 })
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.signedURL ? `${SB_URL}/storage/v1${data.signedURL}` : null;
-  } catch(_) { return null; }
-}
-
-async function loadPersonalGallery() {
-  if (_galleryLoading || !pbToken || !pbUser?.id) return;
-  _galleryLoading = true;
-
-  const btn = document.getElementById('galleryRefreshBtn');
-  const content = document.getElementById('galleryContent');
-  const countEl = document.getElementById('galleryCount');
-  if (btn) btn.classList.add('spinning');
-  if (content) content.innerHTML = '<div class="gallery-loading">Načítám…</div>';
-
-  try {
-    const userId = pbUser.id;
-    const res = await fetch(`${SB_URL}/storage/v1/object/list/${SB_BUCKET}`, {
-      method: 'POST',
-      headers: {
-        'apikey': SB_ANON,
-        'Authorization': `Bearer ${pbToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        prefix: `${userId}/personal/`,
-        limit: 30,
-        offset: 0,
-        sortBy: { column: 'created_at', order: 'desc' }
-      })
-    });
-
-    if (!res.ok) throw new Error('Chyba načítání');
-    const files = await res.json();
-
-    // Filtruj jen skutečné soubory (ne složky)
-    const items = (files || []).filter(f => f.name && f.id);
-
-    if (countEl) countEl.textContent = items.length ? `${items.length} souborů` : '';
-
-    if (!items.length) {
-      content.innerHTML = `<div class="gallery-empty">
-        <div class="gallery-empty-icon">📭</div>
-        Zatím žádné nahrávky
-      </div>`;
-      return;
-    }
-
-    // Rozděl na obrázky a ostatní
-    const isImage = name => /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(name);
-    const isVideo = name => /\.(mp4|mov|avi|mkv|webm)$/i.test(name);
-    const imgs = items.filter(f => isImage(f.name));
-    const others = items.filter(f => !isImage(f.name));
-
-    let html = '';
-
-    // GRID obrázků
-    if (imgs.length) {
-      html += `<div class="gallery-grid" id="galleryGrid">`;
-      for (const f of imgs) {
-        const path = `${userId}/personal/${f.name}`;
-        const dateStr = formatGalleryDate(f.created_at || f.updated_at);
-        html += `<div class="gallery-thumb" onclick="openLightbox('${path}', '${f.name}')"
-          data-path="${path}">
-          <img src="" data-path="${path}" alt="${f.name}" loading="lazy">
-          <div class="thumb-type">🖼️</div>
-          <div class="thumb-overlay">${dateStr}</div>
-        </div>`;
-      }
-      html += `</div>`;
-    }
-
-    // SEZNAM videí a PDF
-    if (others.length) {
-      html += `<div class="gallery-file-list">`;
-      for (const f of others) {
-        const path = `${userId}/personal/${f.name}`;
-        const icon = isVideo(f.name) ? '🎥' : f.name.endsWith('.pdf') ? '📄' : '📎';
-        const dateStr = formatGalleryDate(f.created_at || f.updated_at);
-        const size = formatBytes(f.metadata?.size);
-        html += `<div class="gallery-file-item" onclick="openFile('${path}')">
-          <span class="gallery-file-icon">${icon}</span>
-          <div class="gallery-file-info">
-            <div class="gallery-file-name">${f.name}</div>
-            <div class="gallery-file-date">${dateStr}</div>
-          </div>
-          <span class="gallery-file-size">${size}</span>
-        </div>`;
-      }
-      html += `</div>`;
-    }
-
-    content.innerHTML = html;
-
-    // Načti signed URL pro obrázky a vlož do <img>
-    const thumbs = content.querySelectorAll('.gallery-thumb img[data-path]');
-    for (const img of thumbs) {
-      const p = img.dataset.path;
-      getSignedUrl(p).then(url => { if (url) img.src = url; });
-    }
-
-    // Ulož signed URL cache pro lightbox
-    window._gallerySignedCache = {};
-    thumbs.forEach(img => {
-      img.addEventListener('load', () => {
-        window._gallerySignedCache[img.dataset.path] = img.src;
-      });
-    });
-
-  } catch(e) {
-    if (content) content.innerHTML = `<div class="gallery-empty">❌ ${e.message}</div>`;
-  } finally {
-    _galleryLoading = false;
-    if (btn) btn.classList.remove('spinning');
-  }
-}
-
-async function openLightbox(path, name) {
-  const lb = document.getElementById('galleryLightbox');
-  const img = document.getElementById('lightboxImg');
-  const nameEl = document.getElementById('lightboxName');
-  img.src = '';
-  nameEl.textContent = name;
-  lb.classList.add('open');
-
-  // Zkus cache, jinak získej nový signed URL
-  const cached = window._gallerySignedCache?.[path];
-  if (cached) { img.src = cached; return; }
-  const url = await getSignedUrl(path);
-  if (url) img.src = url;
-}
-
-function closeLightbox() {
-  document.getElementById('galleryLightbox').classList.remove('open');
-  document.getElementById('lightboxImg').src = '';
-}
-document.getElementById('galleryLightbox')?.addEventListener('click', e => {
-  if (e.target === document.getElementById('galleryLightbox')) closeLightbox();
-});
-
-async function openFile(path) {
-  const url = await getSignedUrl(path);
-  if (url) window.open(url, '_blank');
-  else toast('❌ Nepodařilo se otevřít soubor', 'err');
-}
+// ── Token refresh ──
 //
 // Supabase access token má JWT TTL 1 hodinu. Refresh token vydrží 30 dní (default).
 // Aby uživatel nemusel ručně se odhlašovat a přihlašovat:
@@ -3362,78 +2516,6 @@ function closeModal(id) {
 document.querySelectorAll('.pb-modal').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
 });
-</script>
-
-<!-- ═══ SERVICE WORKER REGISTRATION ═══ -->
-<div id="swUpdateBar" style="
-  display:none; position:fixed; bottom:0; left:0; right:0; z-index:10000;
-  background:var(--surface);
-  border-top:1px solid var(--border2);
-  padding:12px 16px; display:none;
-  flex-direction:row; align-items:center; gap:12px;
-  box-shadow:0 -4px 30px rgba(0,0,0,0.3);
-">
-  <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">🔄 Dostupná nová verze</span>
-  <button onclick="swApplyUpdate()" style="
-    padding:8px 18px; border-radius:9px; font-size:13px; font-weight:700;
-    background:var(--accent,#5668e8); color:#fff; border:none; cursor:pointer;
-    font-family:var(--font,'Space Grotesk',sans-serif);
-    box-shadow:0 4px 14px rgba(86,104,232,0.4);
-  ">Aktualizovat</button>
-  <button onclick="document.getElementById('swUpdateBar').style.display='none'" style="
-    padding:8px 10px; border-radius:9px; font-size:13px; font-weight:700;
-    background:transparent; color:var(--muted,#546080); border:1px solid rgba(86,104,232,0.3);
-    cursor:pointer; font-family:var(--font,'Space Grotesk',sans-serif);
-  ">Později</button>
-</div>
-
-<script>
-(function() {
-  if (!('serviceWorker' in navigator)) return;
-
-  let _waitingWorker = null;
-
-  function showUpdateBar() {
-    const bar = document.getElementById('swUpdateBar');
-    if (bar) bar.style.display = 'flex';
-  }
-
-  window.swApplyUpdate = function() {
-    if (_waitingWorker) {
-      _waitingWorker.postMessage('SKIP_WAITING');
-    }
-    window.location.reload();
-  };
-
-  navigator.serviceWorker.register('./sw.js').then(reg => {
-    // Kontrola při načtení: je tam už čekající update?
-    if (reg.waiting) {
-      _waitingWorker = reg.waiting;
-      showUpdateBar();
-    }
-
-    // Nová verze se začala instalovat
-    reg.addEventListener('updatefound', () => {
-      const newWorker = reg.installing;
-      newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          _waitingWorker = newWorker;
-          showUpdateBar();
-        }
-      });
-    });
-
-    // Periodická kontrola aktualizací každých 30 minut
-    setInterval(() => reg.update(), 30 * 60 * 1000);
-
-  }).catch(err => console.warn('[SW] Registrace selhala:', err));
-
-  // Po aktivaci nového SW — reload
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshing) { refreshing = true; window.location.reload(); }
-  });
-})();
 </script>
 </body>
 </html>
