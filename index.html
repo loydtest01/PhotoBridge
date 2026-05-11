@@ -660,9 +660,6 @@
         <input class="login-input" type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
         <button class="eye-btn" type="button" onclick="toggleEye('loginPass',this)">👁️</button>
       </div>
-      <div id="forgotLinkWrap" class="login-fg">
-        <a href="#" class="login-fg-link" onclick="openForgotModal();return false;">Zapomněl/a jsem heslo</a>
-      </div>
     </div>
     <!-- Pole pro registraci – skrytá dokud uživatel nepřepne -->
     <div id="regFields" style="display:none">
@@ -726,26 +723,6 @@
     border-radius:12px;padding:12px 16px;font-size:12px;color:var(--muted2);line-height:1.7">
     📲 <strong style="color:var(--text)">Přidat na plochu (iOS):</strong><br>
     Klepni na <strong>⎋ Sdílet</strong> v Safari → <strong>Přidat na plochu</strong>
-  </div>
-</div>
-
-<!-- ═══ MODAL: Zapomenuté heslo ═══ -->
-<div class="pb-modal" id="modalForgot">
-  <div class="pb-modal-box">
-    <div class="pb-modal-title">🔑 Zapomenuté heslo</div>
-    <div class="pb-modal-sub">Zadej svůj e-mail a pošleme ti odkaz pro reset hesla.</div>
-    <input class="pb-input" type="email" id="forgotEmail" placeholder="jmeno@firma.cz"
-      autocomplete="email" autocapitalize="none" spellcheck="false"
-      onkeydown="if(event.key==='Enter') sendForgotPassword()">
-    <div id="forgotMsg" style="display:none;margin-top:10px;font-size:13px;font-weight:600;
-      padding:9px 13px;border-radius:9px;text-align:center"></div>
-    <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeModal('modalForgot')">Zrušit</button>
-      <button class="btn-full btn-primary" style="flex:1" onclick="sendForgotPassword()">
-        <span id="forgotBtnTxt">Odeslat odkaz</span>
-        <span id="forgotBtnLoad" style="display:none"><span class="spin">⏳</span> Odesílám…</span>
-      </button>
-    </div>
   </div>
 </div>
 
@@ -1085,6 +1062,11 @@
             font-family:var(--font);
           ">🗑️ Vymazat log</button>
         </div>
+      </div>
+
+      <!-- Verze aplikace -->
+      <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
+        PhotoBridge&nbsp;&nbsp;v1.0.2
       </div>
 
     </div>
@@ -1804,8 +1786,6 @@ function setLoginMode(mode) {
     regTab.style.color = '#fff';
     regTab.style.borderBottom = '2px solid var(--accent)';
     btnTxt.textContent = 'Zaregistrovat se';
-    const fw = document.getElementById('forgotLinkWrap');
-    if (fw) fw.style.display = 'none';
   } else {
     regFields.style.display = 'none';
     loginTab.style.color = '#fff';
@@ -1813,8 +1793,6 @@ function setLoginMode(mode) {
     regTab.style.color = 'var(--muted2)';
     regTab.style.borderBottom = '2px solid transparent';
     btnTxt.textContent = 'Přihlásit se';
-    const fw = document.getElementById('forgotLinkWrap');
-    if (fw) fw.style.display = '';
   }
 }
 
@@ -3197,83 +3175,9 @@ async function shareViaSystem() {
   }
 }
 
-
 function shareViaWhatsApp() {
   const text = encodeURIComponent('PhotoBridge – nahrej fotky do zakázky: ' + getShareUrl());
   window.open('https://wa.me/?text=' + text, '_blank');
-}
-
-// ══════════════════════════════════════════════════════════
-// 🔑 ZAPOMENUTÉ HESLO
-// ══════════════════════════════════════════════════════════
-function openForgotModal() {
-  // Předvyplň e-mail z přihlašovacího pole pokud je zadán
-  const loginEmail = document.getElementById('loginUser').value.trim();
-  const forgotEl   = document.getElementById('forgotEmail');
-  if (forgotEl && loginEmail) forgotEl.value = loginEmail;
-  // Reset stavu
-  const msg = document.getElementById('forgotMsg');
-  if (msg) { msg.style.display = 'none'; msg.textContent = ''; }
-  const btnTxt  = document.getElementById('forgotBtnTxt');
-  const btnLoad = document.getElementById('forgotBtnLoad');
-  if (btnTxt)  btnTxt.style.display  = '';
-  if (btnLoad) btnLoad.style.display = 'none';
-  openModal('modalForgot');
-}
-
-async function sendForgotPassword() {
-  const email   = (document.getElementById('forgotEmail').value || '').trim().toLowerCase();
-  const msg     = document.getElementById('forgotMsg');
-  const btnTxt  = document.getElementById('forgotBtnTxt');
-  const btnLoad = document.getElementById('forgotBtnLoad');
-
-  if (!email) {
-    showForgotMsg('⚠️ Zadej svůj e-mail', 'err');
-    return;
-  }
-
-  // Loading stav
-  btnTxt.style.display  = 'none';
-  btnLoad.style.display = '';
-
-  try {
-    const redirectUrl = window.location.origin + window.location.pathname;
-    const res = await fetch(`${SB_URL}/auth/v1/recover`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
-      body:    JSON.stringify({ email, redirect_to: redirectUrl })
-    });
-
-    btnTxt.style.display  = '';
-    btnLoad.style.display = 'none';
-
-    if (res.ok || res.status === 200) {
-      showForgotMsg('✅ Odkaz odeslán! Zkontroluj svůj e-mail.', 'ok');
-      // Po 3s zavřít modal
-      setTimeout(() => closeModal('modalForgot'), 3000);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showForgotMsg('⚠️ ' + (data.msg || data.message || 'Nepodařilo se odeslat reset e-mail.'), 'err');
-    }
-  } catch(e) {
-    btnTxt.style.display  = '';
-    btnLoad.style.display = 'none';
-    showForgotMsg('⚠️ Chyba připojení. Zkontroluj internet.', 'err');
-  }
-}
-
-function showForgotMsg(text, type) {
-  const msg = document.getElementById('forgotMsg');
-  if (!msg) return;
-  msg.textContent    = text;
-  msg.style.display  = '';
-  msg.style.color    = type === 'ok' ? 'var(--green)' : 'var(--red)';
-  msg.style.background = type === 'ok'
-    ? 'rgba(38,216,130,0.08)'
-    : 'rgba(240,96,96,0.08)';
-  msg.style.border   = '1px solid ' + (type === 'ok'
-    ? 'rgba(38,216,130,0.25)'
-    : 'rgba(240,96,96,0.25)');
 }
 
 </script>
