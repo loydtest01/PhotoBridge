@@ -79,7 +79,24 @@
       --mono:    'JetBrains Mono', monospace;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html { height: 100%; background: var(--pb-bg-fallback); }
+    html {
+      height: 100%;
+      /* Fallback barva dokud se nenačte tapeta */
+      background-color: #050d20;
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      background-repeat: no-repeat;
+    }
+    /* ═══ WALLPAPERS — přímo na html (má data-theme), žádné vrstvy navíc ═══ */
+    html[data-theme="dark"] {
+      background-color: #050d20;
+      background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/dark.png');
+    }
+    html[data-theme="light"] {
+      background-color: #cfddf0;
+      background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/light.png');
+    }
     body { height: 100%; background: transparent; color: var(--text); font-family: var(--font); overflow: hidden; }
     button { font-family: var(--font); cursor: pointer; border: none; }
     input  { font-family: var(--font); }
@@ -94,28 +111,14 @@
     }
 
 
-    /* ═══ WALLPAPERS (přepínání podle času: 18:00–8:00 = dark, jinak light) ═══ */
+    /* ═══ LOGIN SCREEN tapeta — sdílí tapetu z html, nepotřebuje vlastní ═══ */
     /* DAY: 8:00–18:00 */
     [data-theme="light"] #loginScreen {
-      background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/light.png');
-      background-size: cover; background-position: center;
-    }
-    [data-theme="light"] body::before {
-      content: ''; position: fixed; inset: 0; z-index: -1;
-      background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/light.png');
-      background-size: cover; background-position: center;
-      opacity: 1;
+      background: transparent;
     }
     /* NIGHT: 18:00–8:00 */
     [data-theme="dark"] #loginScreen {
-      background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/dark.png');
-      background-size: cover; background-position: center;
-    }
-    [data-theme="dark"] body::before {
-      content: ''; position: fixed; inset: 0; z-index: -1;
-      background-image: url('https://raw.githubusercontent.com/loydtest01/PhotoBridge/main/dark.png');
-      background-size: cover; background-position: center;
-      opacity: 1;
+      background: transparent;
     }
     /* Login overlay – ztmaví pozadí aby byl formulář čitelný */
     #loginScreen::after {
@@ -128,7 +131,7 @@
       position: fixed; inset: 0; z-index: 9000;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       padding: 24px;
-      background: var(--bg);
+      background: transparent;
     }
     #loginScreen::before {
       content: '';
