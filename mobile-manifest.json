@@ -2,7 +2,7 @@
   "name": "PhotoBridge",
   "short_name": "PhotoBridge",
   "description": "Firemní foto přenos",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "start_url": "/PhotoBridge/",
   "display": "standalone",
   "background_color": "#0b0d14",

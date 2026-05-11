@@ -1066,7 +1066,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.0.2
+        PhotoBridge&nbsp;&nbsp;v1.0.3
       </div>
 
     </div>
@@ -1234,6 +1234,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- ZXing: QR + všechny 1D čárové kódy (Code128, EAN, Code39…) – funguje i na iOS Safari -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // KONFIGURACE — vyplňte vaše Supabase údaje
@@ -1722,7 +1724,6 @@ function showApp() {
   readURLParams();
   showPwaInstall();
   initOfflineDetection();
-  cleanJobHistory();   // jednorázový cleanup starých [object Object] záznamů
   renderJobHistory();
 
   // ── KLÍČOVÉ: Hned po startu webapp obnov token, pokud máme uloženou session ──
@@ -2077,15 +2078,59 @@ async function startQRScan() {
         } catch(_) {}
       }, 300);
 
-    // ── Priorita 2: jsQR fallback (QR kódy – pro iOS / starší prohlížeče) ──
+    // ── Priorita 2: ZXing (iOS Safari + starší prohlížeče) – QR kódy i 1D čárové kódy ──
     } else {
+      // Inicializuj ZXing MultiFormatReader se všemi potřebnými formáty
+      let zxReader = null;
+      if (typeof ZXing !== 'undefined') {
+        try {
+          const hints = new Map();
+          hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+            ZXing.BarcodeFormat.QR_CODE,
+            ZXing.BarcodeFormat.CODE_128,    // nejčastější čárový kód v průmyslu
+            ZXing.BarcodeFormat.CODE_39,
+            ZXing.BarcodeFormat.CODE_93,
+            ZXing.BarcodeFormat.EAN_13,
+            ZXing.BarcodeFormat.EAN_8,
+            ZXing.BarcodeFormat.UPC_A,
+            ZXing.BarcodeFormat.UPC_E,
+            ZXing.BarcodeFormat.ITF,
+            ZXing.BarcodeFormat.CODABAR,
+            ZXing.BarcodeFormat.DATA_MATRIX,
+            ZXing.BarcodeFormat.PDF_417,
+          ]);
+          // TRY_HARDER = důkladnější skenování, lepší detekce mírně nakloněných kódů
+          hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+          zxReader = new ZXing.MultiFormatReader();
+          zxReader.setHints(hints);
+        } catch(e) { console.warn('[PB] ZXing init:', e); }
+      }
+
       qrInterval = setInterval(() => {
         if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+        // Stejný ořez jako Android – 60 % středu, nechytá sousední kódy ~5 cm níž
         cropToFrame();
-        const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-        if (code) parseQRCode(code.data);
-      }, 200);
+
+        // ZXing: primární cesta – čte QR i všechny 1D čárové kódy na iOS
+        if (zxReader) {
+          try {
+            const luminance = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+            const bitmap    = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminance));
+            const result    = zxReader.decode(bitmap);
+            if (result?.getText()) { parseQRCode(result.getText()); return; }
+          } catch(e) {
+            // NotFoundException = kód nenalezen v tomto snímku → normální stav, pokračuj
+          }
+        }
+
+        // jsQR jako záloha (rychlejší pro čisté QR kódy)
+        try {
+          const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+          if (code) parseQRCode(code.data);
+        } catch(_) {}
+      }, 300);
     }
   } catch(err) {
     toast('⚠️ Kamera nedostupná: ' + err.message, 'err');
@@ -2892,30 +2937,11 @@ function updateHapticUI() {
 // ══════════════════════════════════════════════════════════
 const JOB_HISTORY_KEY = 'pb_job_history';
 
-function sanitizeJob(job) {
-  if (job === null || job === undefined) return null;
-  const s = String(job).trim();
-  if (!s || s === '[object Object]') return null;
-  return s;
-}
-
-function cleanJobHistory() {
-  try {
-    let hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]');
-    const cleaned = hist.map(j => sanitizeJob(j)).filter(Boolean);
-    if (cleaned.length !== hist.length) {
-      localStorage.setItem(JOB_HISTORY_KEY, JSON.stringify(cleaned));
-    }
-  } catch(_) {}
-}
-
 function addJobHistory(job) {
-  const clean = sanitizeJob(job);
-  if (!clean) return;
+  if (!job) return;
   try {
     let hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]');
-    hist = hist.map(j => sanitizeJob(j)).filter(Boolean); // vyčisti starý bordel
-    hist = [clean, ...hist.filter(j => j !== clean)].slice(0, 3);
+    hist = [job, ...hist.filter(j => j !== job)].slice(0, 3);
     localStorage.setItem(JOB_HISTORY_KEY, JSON.stringify(hist));
     renderJobHistory();
   } catch(_) {}
@@ -2928,8 +2954,6 @@ function renderJobHistory() {
   if (isPersonalAccount()) { wrap.style.display = 'none'; return; }
   let hist = [];
   try { hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]'); } catch(_) {}
-  // Vyfiltruj jakékoli [object Object] nebo prázdné záznamy
-  hist = hist.map(j => sanitizeJob(j)).filter(Boolean);
   if (!hist.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   chips.innerHTML = hist.map(job => `
