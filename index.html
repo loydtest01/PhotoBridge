@@ -1726,6 +1726,7 @@ function showApp() {
   readURLParams();
   showPwaInstall();
   initOfflineDetection();
+  cleanJobHistory();   // vymaže [object Object] záznamy z localStorage hned při startu
   renderJobHistory();
 
   // ── KLÍČOVÉ: Hned po startu webapp obnov token, pokud máme uloženou session ──
@@ -2192,7 +2193,7 @@ function setManualJob() {
 }
 
 function setJob(job, token) {
-  pbJob      = job;
+  pbJob      = _sanitizeJobStr(job) || job;  // vždy string
   pbJobToken = token;
   syncCurrentToProfile();
   addJobHistory(job);
@@ -2939,11 +2940,38 @@ function updateHapticUI() {
 // ══════════════════════════════════════════════════════════
 const JOB_HISTORY_KEY = 'pb_job_history';
 
-function addJobHistory(job) {
-  if (!job) return;
+function _sanitizeJobStr(job) {
+  // Vždy vrátí čistý string nebo null
+  if (!job) return null;
+  if (typeof job === 'object') {
+    // Zkus vytáhnout job/j property pokud je to objekt z JSON
+    const s = job.job || job.j || job.number || job.num || null;
+    job = s ? String(s) : null;
+  } else {
+    job = String(job).trim();
+  }
+  if (!job || job === '[object Object]' || job.length < 1) return null;
+  return job;
+}
+
+function _loadJobHist() {
   try {
-    let hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]');
-    hist = [job, ...hist.filter(j => j !== job)].slice(0, 3);
+    const raw = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]');
+    return raw.map(_sanitizeJobStr).filter(Boolean);
+  } catch(_) { return []; }
+}
+
+function cleanJobHistory() {
+  // Vymaže staré [object Object] záznamy z localStorage hned při startu
+  const clean = _loadJobHist();
+  try { localStorage.setItem(JOB_HISTORY_KEY, JSON.stringify(clean)); } catch(_) {}
+}
+
+function addJobHistory(job) {
+  const j = _sanitizeJobStr(job);
+  if (!j) return;
+  try {
+    const hist = [j, ..._loadJobHist().filter(x => x !== j)].slice(0, 3);
     localStorage.setItem(JOB_HISTORY_KEY, JSON.stringify(hist));
     renderJobHistory();
   } catch(_) {}
@@ -2954,12 +2982,11 @@ function renderJobHistory() {
   const chips = document.getElementById('jobHistoryChips');
   if (!wrap || !chips) return;
   if (isPersonalAccount()) { wrap.style.display = 'none'; return; }
-  let hist = [];
-  try { hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]'); } catch(_) {}
+  const hist = _loadJobHist();
   if (!hist.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   chips.innerHTML = hist.map(job => `
-    <button onclick="loadJobFromHistory('${job}')" style="
+    <button onclick="loadJobFromHistory(${JSON.stringify(job)})" style="
       padding:7px 14px; border-radius:20px; cursor:pointer; font-family:var(--mono);
       font-size:14px; font-weight:700; letter-spacing:0.05em;
       background:rgba(61,127,255,0.12); border:1.5px solid rgba(61,127,255,0.3);
