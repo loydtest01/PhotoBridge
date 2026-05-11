@@ -15,7 +15,6 @@
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     /* ═══ PB DESIGN SYSTEM TOKENS ═══ */
     :root, [data-theme="dark"] {
@@ -791,10 +790,10 @@
         <div class="section-label" style="margin-bottom:8px">— nebo zadej číslo zakázky ručně —</div>
         <div style="display:flex;gap:8px;align-items:center">
           <input class="pb-input" type="text" id="manualJobInput"
-            placeholder="0012345"
-            inputmode="numeric" pattern="[0-9]*" maxlength="7"
-            style="flex:1;letter-spacing:0.1em;font-family:var(--mono);font-size:18px;font-weight:700;text-align:center"
-            oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+            placeholder="např. AB1234567"
+            inputmode="text" maxlength="10"
+            style="flex:1;letter-spacing:0.1em;font-family:var(--mono);font-size:18px;font-weight:700;text-align:center;text-transform:uppercase"
+            oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
             onkeydown="if(event.key==='Enter') confirmManualJob()">
           <button class="btn-full btn-primary" onclick="confirmManualJob()"
             style="width:auto;padding:13px 20px;white-space:nowrap;flex-shrink:0">✓ Potvrdit</button>
@@ -1103,7 +1102,7 @@
 
 <!-- ═══ MODAL: Sdílet aplikaci ═══ -->
 <div class="pb-modal" id="modalShare">
-  <div class="pb-modal-box" style="text-align:center">
+  <div class="pb-modal-box" style="text-align:center;background:var(--pb-bg-fallback);border-color:rgba(55,95,195,0.35)">
     <div class="pb-modal-title">📲 Sdílet PhotoBridge</div>
     <div class="pb-modal-sub" style="margin-bottom:16px">Naskenuj QR nebo pošli odkaz</div>
 
@@ -1997,11 +1996,11 @@ function showTab(tab) {
 function confirmManualJob() {
   const inp = document.getElementById('manualJobInput');
   const errEl = document.getElementById('manualJobErr');
-  const job = (inp.value || '').trim().replace(/[^0-9]/g, '');
+  const job = (inp.value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   errEl.style.display = 'none';
 
-  if (job.length !== 7) {
-    errEl.textContent = '⚠️ Zakázka musí mít přesně 7 číslic (např. 0012345)';
+  if (job.length < 1 || job.length > 10) {
+    errEl.textContent = '⚠️ Zakázka musí mít 1–10 znaků';
     errEl.style.display = 'block';
     inp.focus();
     return;
@@ -3108,8 +3107,6 @@ function clearUploadLog() {
 // ══════════════════════════════════════════════════════════
 // 📲 SDÍLET APLIKACI
 // ══════════════════════════════════════════════════════════
-let _shareQrInstance = null;
-
 function getShareUrl() {
   return window.location.origin + window.location.pathname;
 }
@@ -3122,22 +3119,21 @@ function openShareModal() {
   const sysBtn = document.getElementById('shareSystemBtn');
   if (sysBtn) sysBtn.style.display = navigator.share ? '' : 'none';
 
-  // Vygeneruj QR kód (jen jednou, pak recykluj)
+  // QR kód přes api.qrserver.com (žádné JS knihovny, žádné problémy)
   const container = document.getElementById('shareQrCode');
-  if (_shareQrInstance) {
-    _shareQrInstance.clear();
-    _shareQrInstance.makeCode(url);
-  } else {
-    container.innerHTML = '';
-    _shareQrInstance = new QRCode(container, {
-      text: url,
-      width:  180,
-      height: 180,
-      colorDark:  '#000000',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  }
+  container.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=0&data=' + encodeURIComponent(url);
+  img.width = 180; img.height = 180;
+  img.style.cssText = 'display:block;border-radius:4px';
+  img.alt = 'QR kód';
+  // Zobraz placeholder dokud se QR nenačte
+  const loader = document.createElement('div');
+  loader.style.cssText = 'width:180px;height:180px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#888';
+  loader.textContent = '⏳ Načítám…';
+  container.appendChild(loader);
+  img.onload  = () => { container.innerHTML = ''; container.appendChild(img); };
+  img.onerror = () => { loader.textContent = '⚠️ QR nelze načíst'; };
 
   openModal('modalShare');
 }
