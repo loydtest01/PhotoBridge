@@ -2888,9 +2888,12 @@ const JOB_HISTORY_KEY = 'pb_job_history';
 
 function addJobHistory(job) {
   if (!job) return;
+  const jobStr = String(job).trim();
+  if (!jobStr || jobStr === '[object Object]') return;
   try {
     let hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]');
-    hist = [job, ...hist.filter(j => j !== job)].slice(0, 3);
+    hist = hist.map(j => String(j).trim()).filter(j => j && j !== '[object Object]');
+    hist = [jobStr, ...hist.filter(j => j !== jobStr)].slice(0, 3);
     localStorage.setItem(JOB_HISTORY_KEY, JSON.stringify(hist));
     renderJobHistory();
   } catch(_) {}
@@ -2903,6 +2906,7 @@ function renderJobHistory() {
   if (isPersonalAccount()) { wrap.style.display = 'none'; return; }
   let hist = [];
   try { hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]'); } catch(_) {}
+  hist = hist.map(j => String(j).trim()).filter(j => j && j !== '[object Object]');
   if (!hist.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   chips.innerHTML = hist.map(job => `
