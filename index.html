@@ -1722,6 +1722,7 @@ function showApp() {
   readURLParams();
   showPwaInstall();
   initOfflineDetection();
+  cleanJobHistory();   // jednorázový cleanup starých [object Object] záznamů
   renderJobHistory();
 
   // ── KLÍČOVÉ: Hned po startu webapp obnov token, pokud máme uloženou session ──
@@ -2891,11 +2892,30 @@ function updateHapticUI() {
 // ══════════════════════════════════════════════════════════
 const JOB_HISTORY_KEY = 'pb_job_history';
 
-function addJobHistory(job) {
-  if (!job) return;
+function sanitizeJob(job) {
+  if (job === null || job === undefined) return null;
+  const s = String(job).trim();
+  if (!s || s === '[object Object]') return null;
+  return s;
+}
+
+function cleanJobHistory() {
   try {
     let hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]');
-    hist = [job, ...hist.filter(j => j !== job)].slice(0, 3);
+    const cleaned = hist.map(j => sanitizeJob(j)).filter(Boolean);
+    if (cleaned.length !== hist.length) {
+      localStorage.setItem(JOB_HISTORY_KEY, JSON.stringify(cleaned));
+    }
+  } catch(_) {}
+}
+
+function addJobHistory(job) {
+  const clean = sanitizeJob(job);
+  if (!clean) return;
+  try {
+    let hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]');
+    hist = hist.map(j => sanitizeJob(j)).filter(Boolean); // vyčisti starý bordel
+    hist = [clean, ...hist.filter(j => j !== clean)].slice(0, 3);
     localStorage.setItem(JOB_HISTORY_KEY, JSON.stringify(hist));
     renderJobHistory();
   } catch(_) {}
@@ -2908,6 +2928,8 @@ function renderJobHistory() {
   if (isPersonalAccount()) { wrap.style.display = 'none'; return; }
   let hist = [];
   try { hist = JSON.parse(localStorage.getItem(JOB_HISTORY_KEY) || '[]'); } catch(_) {}
+  // Vyfiltruj jakékoli [object Object] nebo prázdné záznamy
+  hist = hist.map(j => sanitizeJob(j)).filter(Boolean);
   if (!hist.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   chips.innerHTML = hist.map(job => `
