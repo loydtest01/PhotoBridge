@@ -640,6 +640,41 @@
     }
     .job-banner-scan-btn.visible { display: block; }
     .job-banner-scan-btn:active { transform: scale(0.98); }
+
+    /* ═══ PERSONAL SIZE TOGGLE ═══ */
+    .size-toggle-wrap {
+      display: none; /* skryto – zobrazí se jen u osobního účtu */
+      align-items: center;
+      background: var(--card);
+      border: 1.5px solid var(--border2);
+      border-radius: 11px;
+      padding: 4px;
+      gap: 4px;
+    }
+    .size-toggle-btn {
+      flex: 1; padding: 8px 10px; border: none; border-radius: 8px;
+      font-size: 12px; font-weight: 700; font-family: var(--font);
+      color: var(--muted2); cursor: pointer; background: transparent;
+      transition: all 0.2s; display: flex; align-items: center;
+      justify-content: center; gap: 5px; line-height: 1.2;
+    }
+    .size-toggle-btn.active-limited {
+      background: rgba(54,217,102,0.15);
+      color: var(--green);
+      border: 1px solid rgba(54,217,102,0.3);
+    }
+    .size-toggle-btn.active-full {
+      background: rgba(155,114,255,0.15);
+      color: var(--purple);
+      border: 1px solid rgba(155,114,255,0.3);
+    }
+    .size-toggle-btn:not(.active-limited):not(.active-full) {
+      border: 1px solid transparent;
+    }
+    .size-toggle-label {
+      font-size: 10px; color: var(--muted2); text-align: center;
+      font-weight: 600; letter-spacing: 0.04em;
+    }
   </style>
 </head>
 <body>
@@ -867,6 +902,16 @@
           </button>
           <button class="btn-pb btn-pick" id="btnPick" onclick="triggerPick()">
             <span class="btn-icon">📤</span><span>Nahrát<br><small style="font-size:10px;font-weight:400">(Foto/Video/PDF)</small></span>
+          </button>
+        </div>
+
+        <!-- Přepínač velikosti fotek – jen pro osobní účet -->
+        <div class="size-toggle-wrap" id="personalSizeToggleWrap">
+          <button class="size-toggle-btn active-limited" id="sizeToggleLimited" onclick="setPersonalSizeMode('limited')">
+            🚀 S omezením<br><span class="size-toggle-label">rychlejší odeslání</span>
+          </button>
+          <button class="size-toggle-btn" id="sizeToggleFull" onclick="setPersonalSizeMode('full')">
+            📷 Plná velikost<br><span class="size-toggle-label">originál bez komprese</span>
           </button>
         </div>
         <input type="file" id="inPhoto" accept="image/*" capture="environment" style="display:none" multiple>
@@ -1703,6 +1748,10 @@ function updateAccountUI() {
   const typesPanel = document.getElementById('typesPanel');
   if (typesPanel) typesPanel.style.display = isPersonal ? 'none' : '';
 
+  // Přepínač velikosti fotek – zobrazit jen pro osobní účet
+  const sizeToggleWrap = document.getElementById('personalSizeToggleWrap');
+  if (sizeToggleWrap) sizeToggleWrap.style.display = isPersonal ? 'flex' : 'none';
+
   // Sekce Scan v nastavení
   const settingsScanRow = document.getElementById('settingsScanRow');
   if (settingsScanRow) settingsScanRow.style.display = isPersonal ? 'none' : '';
@@ -1718,6 +1767,7 @@ function showApp() {
   updateJobUI();
   updateAccountUI();
   updateUploadModeUI();
+  loadPersonalSizeMode();
   // Osobní účet: QR záložka je skrytá, přepni rovnou na Upload
   if (isPersonalAccount()) showTab('upload');
   checkSBStatus();
@@ -2299,7 +2349,45 @@ function checkReady() {
   return true;
 }
 
-// ── File handling ──
+// ── Image handling ──
+// ── Personal account – přepínač velikosti fotek ──
+let _personalSizeMode = 'limited'; // 'limited' (výchozí, s omezením) nebo 'full' (plná velikost)
+
+function setPersonalSizeMode(mode) {
+  _personalSizeMode = mode;
+  const btnLimited = document.getElementById('sizeToggleLimited');
+  const btnFull    = document.getElementById('sizeToggleFull');
+  if (!btnLimited || !btnFull) return;
+  if (mode === 'limited') {
+    btnLimited.classList.add('active-limited');
+    btnLimited.classList.remove('active-full');
+    btnFull.classList.remove('active-limited', 'active-full');
+  } else {
+    btnFull.classList.add('active-full');
+    btnFull.classList.remove('active-limited');
+    btnLimited.classList.remove('active-limited', 'active-full');
+  }
+  localStorage.setItem('pb_personal_size', mode);
+  const label = mode === 'full' ? 'plná velikost' : 'omezení zapnuto';
+  toast(mode === 'full' ? '📷 Plná velikost – originál bez komprese' : '🚀 S omezením – rychlejší odeslání');
+}
+
+function loadPersonalSizeMode() {
+  const saved = localStorage.getItem('pb_personal_size') || 'limited';
+  _personalSizeMode = saved;
+  // Nastav vizuální stav bez toastu
+  const btnLimited = document.getElementById('sizeToggleLimited');
+  const btnFull    = document.getElementById('sizeToggleFull');
+  if (!btnLimited || !btnFull) return;
+  if (saved === 'full') {
+    btnFull.classList.add('active-full');
+    btnLimited.classList.remove('active-limited', 'active-full');
+  } else {
+    btnLimited.classList.add('active-limited');
+    btnFull.classList.remove('active-limited', 'active-full');
+  }
+}
+
 async function handleFiles(fileList, reset) {
   if (!fileList || !fileList.length) return;
   const files = Array.from(fileList);
@@ -2311,6 +2399,8 @@ async function handleFiles(fileList, reset) {
 async function optimizeImage(file) {
   if (file.type === 'application/pdf' || file.type.startsWith('video/')) return file;
   if (!file.type.startsWith('image/')) return file;
+  // Osobní účet v režimu plné velikosti → žádná optimalizace, originál
+  if (isPersonalAccount() && _personalSizeMode === 'full') return file;
   if (file.size < 1_500_000) return file;
   return new Promise(resolve => {
     const reader = new FileReader();
