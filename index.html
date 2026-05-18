@@ -909,7 +909,7 @@
         <div class="size-toggle-wrap" id="personalSizeToggleWrap">
           <button class="size-switch" id="sizeSwitchBtn" onclick="togglePersonalSizeMode()" title="Přepnout kvalitu fotek"></button>
           <div class="size-toggle-info">
-            <div class="size-toggle-title" id="sizeSwitchTitle"><strong id="sizeSwitchBold">S omezením</strong> <span id="sizeSwitchSub" style="font-weight:400;color:var(--muted2)">– snížení velikosti fotek, rychlejší odeslání</span></div>
+            <div class="size-toggle-title" id="sizeSwitchTitle"><strong id="sizeSwitchBold">Nižší velikost</strong> <span id="sizeSwitchSub" style="font-weight:400;color:var(--muted2)">– rychlejší odesílání</span></div>
           </div>
         </div>
         <input type="file" id="inPhoto" accept="image/*" capture="environment" style="display:none" multiple>
@@ -2362,10 +2362,10 @@ function _applySizeToggleUI(mode, showToast) {
     if (sub)  sub.textContent  = '– originál bez úprav';
   } else {
     sw.classList.remove('on');
-    if (bold) bold.textContent = '🚀 S omezením';
-    if (sub)  sub.textContent  = '– snížení velikosti fotek, rychlejší odeslání';
+    if (bold) bold.textContent = '🚀 Nižší velikost';
+    if (sub)  sub.textContent  = '– rychlejší odesílání';
   }
-  if (showToast) toast(mode === 'full' ? '📷 Plná velikost zapnuta' : '🚀 S omezením – rychlejší odeslání');
+  if (showToast) toast(mode === 'full' ? '📷 Plná velikost zapnuta' : '🚀 Nižší velikost – rychlejší odesílání');
 }
 
 function togglePersonalSizeMode() {
