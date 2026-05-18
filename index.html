@@ -645,36 +645,36 @@
     .size-toggle-wrap {
       display: none; /* skryto – zobrazí se jen u osobního účtu */
       align-items: center;
-      background: var(--card);
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface);
       border: 1.5px solid var(--border2);
       border-radius: 11px;
-      padding: 4px;
-      gap: 4px;
     }
-    .size-toggle-btn {
-      flex: 1; padding: 8px 10px; border: none; border-radius: 8px;
-      font-size: 12px; font-weight: 700; font-family: var(--font);
-      color: var(--muted2); cursor: pointer; background: transparent;
-      transition: all 0.2s; display: flex; align-items: center;
-      justify-content: center; gap: 5px; line-height: 1.2;
+    /* iOS-style pill switch */
+    .size-switch {
+      position: relative; width: 44px; height: 26px; flex-shrink: 0;
+      background: #8a93a8; border-radius: 13px;
+      cursor: pointer; border: none; padding: 0;
+      transition: background 0.25s;
     }
-    .size-toggle-btn.active-limited {
-      background: rgba(54,217,102,0.15);
-      color: var(--green);
-      border: 1px solid rgba(54,217,102,0.3);
+    .size-switch::after {
+      content: ''; position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      border-radius: 50%; background: #fff;
+      transition: transform 0.25s, box-shadow 0.25s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.35);
     }
-    .size-toggle-btn.active-full {
-      background: rgba(155,114,255,0.15);
-      color: var(--purple);
-      border: 1px solid rgba(155,114,255,0.3);
+    .size-switch.on { background: var(--purple); }
+    .size-switch.on::after { transform: translateX(18px); }
+    /* Text vedle switche – jeden řádek */
+    .size-toggle-info { flex: 1; min-width: 0; }
+    .size-toggle-title {
+      font-size: 13px; font-weight: 700; color: var(--text);
+      line-height: 1.4;
     }
-    .size-toggle-btn:not(.active-limited):not(.active-full) {
-      border: 1px solid transparent;
-    }
-    .size-toggle-label {
-      font-size: 10px; color: var(--muted2); text-align: center;
-      font-weight: 600; letter-spacing: 0.04em;
-    }
+    .size-toggle-sub { display: none; }
   </style>
 </head>
 <body>
@@ -907,12 +907,10 @@
 
         <!-- Přepínač velikosti fotek – jen pro osobní účet -->
         <div class="size-toggle-wrap" id="personalSizeToggleWrap">
-          <button class="size-toggle-btn active-limited" id="sizeToggleLimited" onclick="setPersonalSizeMode('limited')">
-            🚀 S omezením<br><span class="size-toggle-label">rychlejší odeslání</span>
-          </button>
-          <button class="size-toggle-btn" id="sizeToggleFull" onclick="setPersonalSizeMode('full')">
-            📷 Plná velikost<br><span class="size-toggle-label">originál bez komprese</span>
-          </button>
+          <button class="size-switch" id="sizeSwitchBtn" onclick="togglePersonalSizeMode()" title="Přepnout kvalitu fotek"></button>
+          <div class="size-toggle-info">
+            <div class="size-toggle-title" id="sizeSwitchTitle"><strong id="sizeSwitchBold">S omezením</strong> <span id="sizeSwitchSub" style="font-weight:400;color:var(--muted2)">– snížení velikosti fotek, rychlejší odeslání</span></div>
+          </div>
         </div>
         <input type="file" id="inPhoto" accept="image/*" capture="environment" style="display:none" multiple>
         <input type="file" id="inVideo" accept="video/*" capture="environment" style="display:none">
@@ -2353,39 +2351,32 @@ function checkReady() {
 // ── Personal account – přepínač velikosti fotek ──
 let _personalSizeMode = 'limited'; // 'limited' (výchozí, s omezením) nebo 'full' (plná velikost)
 
-function setPersonalSizeMode(mode) {
-  _personalSizeMode = mode;
-  const btnLimited = document.getElementById('sizeToggleLimited');
-  const btnFull    = document.getElementById('sizeToggleFull');
-  if (!btnLimited || !btnFull) return;
-  if (mode === 'limited') {
-    btnLimited.classList.add('active-limited');
-    btnLimited.classList.remove('active-full');
-    btnFull.classList.remove('active-limited', 'active-full');
+function _applySizeToggleUI(mode, showToast) {
+  const sw   = document.getElementById('sizeSwitchBtn');
+  const bold = document.getElementById('sizeSwitchBold');
+  const sub  = document.getElementById('sizeSwitchSub');
+  if (!sw) return;
+  if (mode === 'full') {
+    sw.classList.add('on');
+    if (bold) bold.textContent = '📷 Plná velikost';
+    if (sub)  sub.textContent  = '– originál bez úprav';
   } else {
-    btnFull.classList.add('active-full');
-    btnFull.classList.remove('active-limited');
-    btnLimited.classList.remove('active-limited', 'active-full');
+    sw.classList.remove('on');
+    if (bold) bold.textContent = '🚀 S omezením';
+    if (sub)  sub.textContent  = '– snížení velikosti fotek, rychlejší odeslání';
   }
-  localStorage.setItem('pb_personal_size', mode);
-  const label = mode === 'full' ? 'plná velikost' : 'omezení zapnuto';
-  toast(mode === 'full' ? '📷 Plná velikost – originál bez komprese' : '🚀 S omezením – rychlejší odeslání');
+  if (showToast) toast(mode === 'full' ? '📷 Plná velikost zapnuta' : '🚀 S omezením – rychlejší odeslání');
+}
+
+function togglePersonalSizeMode() {
+  _personalSizeMode = _personalSizeMode === 'full' ? 'limited' : 'full';
+  localStorage.setItem('pb_personal_size', _personalSizeMode);
+  _applySizeToggleUI(_personalSizeMode, true);
 }
 
 function loadPersonalSizeMode() {
-  const saved = localStorage.getItem('pb_personal_size') || 'limited';
-  _personalSizeMode = saved;
-  // Nastav vizuální stav bez toastu
-  const btnLimited = document.getElementById('sizeToggleLimited');
-  const btnFull    = document.getElementById('sizeToggleFull');
-  if (!btnLimited || !btnFull) return;
-  if (saved === 'full') {
-    btnFull.classList.add('active-full');
-    btnLimited.classList.remove('active-limited', 'active-full');
-  } else {
-    btnLimited.classList.add('active-limited');
-    btnFull.classList.remove('active-limited', 'active-full');
-  }
+  _personalSizeMode = localStorage.getItem('pb_personal_size') || 'limited';
+  _applySizeToggleUI(_personalSizeMode, false);
 }
 
 async function handleFiles(fileList, reset) {
