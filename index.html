@@ -2200,12 +2200,13 @@ async function startQRScan() {
     });
     const video = document.getElementById('qrVideo');
     video.srcObject = qrStream;
-    await video.play();
 
-    // ── Zoom kamery ───────────────────────────────────────────────
-    // Čárový kód z dálky se čte špatně. Zoom přiblíží obraz, takže
-    // skener vidí kód větší a čitelnější. Uložená preferovaná hodnota
-    // se nastaví automaticky při každém spuštění kamery.
+    // ── Zoom kamery (nastav PŘED přehráním videa) ─────────────────
+    // Když se zoom aplikuje až po video.play(), je vidět skok z
+    // výchozího přiblížení na nastavené (~1 s). Proto ho nastavíme
+    // hned na tr*acku a video krátce skryjeme, dokud zoom nesedí –
+    // technik tak rovnou vidí obraz se správným přiblížením.
+    video.style.visibility = 'hidden';
     try {
       const track = qrStream.getVideoTracks()[0];
       const caps  = track.getCapabilities ? track.getCapabilities() : {};
@@ -2219,12 +2220,12 @@ async function startQRScan() {
         slider.max   = zMax;
         slider.step  = zStep;
 
-        // Preferovaná hodnota z localStorage (0 = bez přiblížení = zMin)
         let pref = parseFloat(localStorage.getItem('pb_cam_zoom') || '');
         if (isNaN(pref)) pref = zMin;
         pref = Math.min(zMax, Math.max(zMin, pref));
         slider.value = pref;
 
+        // Aplikuj zoom JEŠTĚ PŘED video.play()
         await track.applyConstraints({ advanced: [{ zoom: pref }] }).catch(() => {});
         document.getElementById('qrZoomVal').textContent = pref.toFixed(1) + '×';
         zoomWrap.style.display = 'flex';
@@ -2241,6 +2242,11 @@ async function startQRScan() {
         zoomWrap.style.display = 'none';  // kamera zoom nepodporuje
       }
     } catch (_) { /* zoom nepodporován – pokračuj bez něj */ }
+
+    // Teď spusť video (zoom už je nastavený) a zase ho zobraz –
+    // technik rovnou vidí obraz se správným přiblížením, bez skoku.
+    try { await video.play(); } catch (_) {}
+    video.style.visibility = 'visible';
 
     // Pomocná funkce: ořízne video na oblast rámečku (60 % × 60 %, střed)
     // Vrátí canvas s oříznutou oblastí – detekce probíhá jen tam
@@ -2334,6 +2340,11 @@ async function startQRScan() {
       }, 300);
     }
   } catch(err) {
+    // Pojistka: ať video nezůstane skryté kdyby něco selhalo
+    try {
+      const v = document.getElementById('qrVideo');
+      if (v) v.style.visibility = 'visible';
+    } catch (_) {}
     toast('⚠️ Kamera nedostupná: ' + err.message, 'err');
     stopQRScan();
   }
