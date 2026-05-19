@@ -129,9 +129,14 @@
     /* ═══ LOGIN SCREEN ═══ */
     #loginScreen {
       position: fixed; inset: 0; z-index: 9000;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      display: flex; flex-direction: column; align-items: center;
+      /* 'safe center' = vystředit když je místo, ale při nízkém okně
+         zarovnat odshora a nechat scrollovat (nic se neořízne). */
+      justify-content: safe center;
       padding: 24px;
       background: transparent;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     #loginScreen::before {
       content: '';
@@ -682,7 +687,7 @@
 <!-- ═══ LOGIN SCREEN ═══ -->
 <div id="loginScreen">
   <div class="login-logo">
-    <div class="login-logo-icon"><img src="icon_192.png" alt="PhotoBridge" style="width:44px;height:44px;object-fit:contain;border-radius:10px"></div>
+    <div class="login-logo-icon"><img src="icon_192.png" alt="PhotoBridge" onerror="this.replaceWith(document.createTextNode('📷'))" style="width:44px;height:44px;object-fit:contain;border-radius:10px"></div>
     <div class="login-logo-name">Photo<span>Bridge</span></div>
     <div class="login-logo-sub">Firemní foto přenos</div>
   </div>
@@ -768,7 +773,7 @@
 
   <!-- Header -->
   <div class="hdr">
-    <div class="hdr-logo"><span class="logo-icon"><img src="icon_192.png" alt="" style="width:24px;height:24px;object-fit:contain;border-radius:5px;vertical-align:middle"></span>Photo<span class="logo-bridge">Bridge</span></div>
+    <div class="hdr-logo"><span class="logo-icon"><img src="icon_192.png" alt="" onerror="this.replaceWith(document.createTextNode('📷'))" style="width:24px;height:24px;object-fit:contain;border-radius:5px;vertical-align:middle"></span>Photo<span class="logo-bridge">Bridge</span></div>
     <div class="hdr-job" id="hdrJob">—</div>
     <div id="hdrModeBadge" style="
       font-size:10px;font-weight:700;font-family:var(--mono);
@@ -815,6 +820,13 @@
           <div class="qr-frame"></div>
           <div class="qr-scan-line"></div>
         </div>
+      </div>
+
+      <div id="qrZoomWrap" style="display:none;align-items:center;gap:10px;margin:8px 2px 0;">
+        <span style="font-size:12px;opacity:.7;white-space:nowrap;">🔍 Přiblížení</span>
+        <input type="range" id="qrZoomSlider" min="1" max="5" step="0.1" value="1"
+               style="flex:1;accent-color:var(--accent,#3d7fff);" />
+        <span id="qrZoomVal" style="font-size:12px;font-weight:700;min-width:34px;text-align:right;">1.0×</span>
       </div>
 
       <div class="upload-panel">
@@ -1583,6 +1595,35 @@ let pbJobToken = null;
 let qrStream   = null;
 let qrInterval = null;
 
+// Ochrana proti chybnému čtení čárového kódu z dálky/rozmazaně.
+// Skener musí přečíst STEJNOU hodnotu 2× za sebou, než ji přijmeme.
+// Částečné čtení (např. 45182 místo 4516182) se mezi snímky liší,
+// takže neprojde – zatímco správný kód je stabilní.
+let _scanLast  = null;
+let _scanCount = 0;
+function confirmScan(raw) {
+  const val = String(raw == null ? '' : raw).trim();
+  if (!val) return;
+  // Čisté číselné zakázky: vyžaduj rozumnou délku (zakázka má 7 číslic).
+  // Když je hodnota jen číslice a kratší než 6, je to skoro jistě
+  // oříznuté čtení – zahoď a čekej na pořádný sken.
+  if (/^\d+$/.test(val) && val.length < 6) {
+    _scanLast = null; _scanCount = 0;
+    return;
+  }
+  if (val === _scanLast) {
+    _scanCount++;
+  } else {
+    _scanLast  = val;
+    _scanCount = 1;
+  }
+  // Potvrzeno 2× stejně → přijmout
+  if (_scanCount >= 2) {
+    _scanLast = null; _scanCount = 0;
+    parseQRCode(val);
+  }
+}
+
 // ── Upload mód – natvrdo CLOUD (Supabase) ──
 // LOCAL mód byl vyřazen. Aplikace komunikuje výhradně přes Supabase.
 let pbUploadMode = 'cloud';
@@ -1669,9 +1710,77 @@ function readURLParams() {
   }
 }
 
+// ── Demo režim prohlídky (jen pro náhled v PC prohlídce) ──
+// URL ?tourdemo=business|personal → ukáže celou aplikaci s falešným
+// účtem. NIC se neukládá do localStorage ani nevolá Supabase, takže
+// po zavření okna prohlídky demo beze stopy zmizí.
+let _isTourDemo = false;
+function tryTourDemo() {
+  try {
+    const td = new URLSearchParams(window.location.search).get('tourdemo');
+    if (td !== 'business' && td !== 'personal') return false;
+    _isTourDemo = true;
+    pbToken   = 'TOURDEMO';
+    pbRefresh = null;
+    pbUser    = {
+      email: 'demo@firma.cz',
+      user_metadata: {
+        username: 'demo',
+        account_type: (td === 'personal') ? 'personal' : 'business',
+      },
+    };
+    pbJob = null; pbJobToken = null;
+    return true;
+  } catch (_) { return false; }
+}
+
+// Nenápadný proužek "DEMO PROHLÍDKY" nahoře v aplikaci
+function showTourDemoBadge() {
+  if (document.getElementById('tourDemoBadge')) return;
+  const b = document.createElement('div');
+  b.id = 'tourDemoBadge';
+  b.textContent = 'DEMO PROHLÍDKY – ukázkový účet, nic se neukládá';
+  b.style.cssText =
+    'position:fixed;top:0;left:0;right:0;z-index:99999;' +
+    'background:#3d7fff;color:#fff;font-size:10.5px;font-weight:700;' +
+    'letter-spacing:.06em;text-align:center;padding:4px 6px;' +
+    "font-family:var(--font,'Space Grotesk',sans-serif);" +
+    'box-shadow:0 2px 8px rgba(0,0,0,.25)';
+  document.body.appendChild(b);
+}
+
+// ── Řízení náhledu z PC prohlídky ─────────────────────────────
+// Když webapp běží v náhledovém iframu (mobile-preview.html), prohlídka
+// jí přes postMessage říká, kterou obrazovku ukázat – aby technik viděl
+// přihlášení → upload → nastavení přesně podle kroku prohlídky.
+// Funguje jen v demo režimu (jinak by to rušilo normální používání).
+window.addEventListener('message', (ev) => {
+  try {
+    const d = ev.data;
+    if (!d || d.pbtour !== 'screen') return;
+    if (!_isTourDemo) return;            // jen v demu prohlídky
+    const scr = d.screen;
+    if (scr === 'login') {
+      showLogin();
+    } else if (scr === 'app' || scr === 'home') {
+      showApp();
+    } else if (scr === 'upload' || scr === 'qr' || scr === 'settings') {
+      // jistota že je vidět aplikace (ne login), pak přepni záložku
+      showApp();
+      if (typeof showTab === 'function') showTab(scr);
+    }
+  } catch (_) {}
+});
+
 // ── Load session from localStorage ──
 function loadSession() {
   loadProfiles();
+  // Demo prohlídky má přednost – nečteme ani neukládáme nic do localStorage
+  if (tryTourDemo()) {
+    showApp();
+    showTourDemoBadge();
+    return;
+  }
   try {
     // Nový systém profilů
     if (pbProfiles.length > 0 && pbActiveId) {
@@ -1785,7 +1894,7 @@ function showApp() {
   //
   // Voláme to fire-and-forget – nezdržuje načtení UI. Pokud refresh selže
   // (refresh_token expiroval), funkce sama zobrazí přihlášení.
-  if (pbRefresh) {
+  if (pbRefresh && !_isTourDemo) {
     setTimeout(() => {
       tryRefreshTokenOrLogout().catch(err => console.warn('startup refresh err', err));
     }, 200);
@@ -1793,7 +1902,7 @@ function showApp() {
 
   const isPersonal = isPersonalAccount();
   const hasURLJob = new URLSearchParams(window.location.search).get('j');
-  if (!hasURLJob && !isPersonal) {
+  if (!hasURLJob && !isPersonal && !_isTourDemo) {
     setTimeout(() => startQRScan(), 400);
   }
 }
@@ -2076,6 +2185,7 @@ function confirmManualJob() {
 
 // ── QR + Barcode Scanner ──
 async function startQRScan() {
+  _scanLast = null; _scanCount = 0;   // vyčisti potvrzovací buffer
   document.getElementById('qrScanArea').style.display = 'block';
   document.getElementById('btnStartScan').style.display = 'none';
   document.getElementById('btnStopScan').style.display = '';
@@ -2091,6 +2201,46 @@ async function startQRScan() {
     const video = document.getElementById('qrVideo');
     video.srcObject = qrStream;
     await video.play();
+
+    // ── Zoom kamery ───────────────────────────────────────────────
+    // Čárový kód z dálky se čte špatně. Zoom přiblíží obraz, takže
+    // skener vidí kód větší a čitelnější. Uložená preferovaná hodnota
+    // se nastaví automaticky při každém spuštění kamery.
+    try {
+      const track = qrStream.getVideoTracks()[0];
+      const caps  = track.getCapabilities ? track.getCapabilities() : {};
+      const zoomWrap = document.getElementById('qrZoomWrap');
+      if (caps && 'zoom' in caps && zoomWrap) {
+        const zMin  = caps.zoom.min  ?? 1;
+        const zMax  = caps.zoom.max  ?? 5;
+        const zStep = caps.zoom.step ?? 0.1;
+        const slider = document.getElementById('qrZoomSlider');
+        slider.min   = zMin;
+        slider.max   = zMax;
+        slider.step  = zStep;
+
+        // Preferovaná hodnota z localStorage (0 = bez přiblížení = zMin)
+        let pref = parseFloat(localStorage.getItem('pb_cam_zoom') || '');
+        if (isNaN(pref)) pref = zMin;
+        pref = Math.min(zMax, Math.max(zMin, pref));
+        slider.value = pref;
+
+        await track.applyConstraints({ advanced: [{ zoom: pref }] }).catch(() => {});
+        document.getElementById('qrZoomVal').textContent = pref.toFixed(1) + '×';
+        zoomWrap.style.display = 'flex';
+
+        slider.oninput = async () => {
+          const z = parseFloat(slider.value);
+          document.getElementById('qrZoomVal').textContent = z.toFixed(1) + '×';
+          try {
+            await track.applyConstraints({ advanced: [{ zoom: z }] });
+            localStorage.setItem('pb_cam_zoom', String(z));
+          } catch (_) {}
+        };
+      } else if (zoomWrap) {
+        zoomWrap.style.display = 'none';  // kamera zoom nepodporuje
+      }
+    } catch (_) { /* zoom nepodporován – pokračuj bez něj */ }
 
     // Pomocná funkce: ořízne video na oblast rámečku (60 % × 60 %, střed)
     // Vrátí canvas s oříznutou oblastí – detekce probíhá jen tam
@@ -2125,7 +2275,7 @@ async function startQRScan() {
           const bitmap = await createImageBitmap(canvas);
           const codes  = await detector.detect(bitmap);
           bitmap.close();
-          if (codes.length > 0) parseQRCode(codes[0].rawValue);
+          if (codes.length > 0) confirmScan(codes[0].rawValue);
         } catch(_) {}
       }, 300);
 
@@ -2169,7 +2319,7 @@ async function startQRScan() {
             const luminance = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
             const bitmap    = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminance));
             const result    = zxReader.decode(bitmap);
-            if (result?.getText()) { parseQRCode(result.getText()); return; }
+            if (result?.getText()) { confirmScan(result.getText()); return; }
           } catch(e) {
             // NotFoundException = kód nenalezen v tomto snímku → normální stav, pokračuj
           }
@@ -2179,7 +2329,7 @@ async function startQRScan() {
         try {
           const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-          if (code) parseQRCode(code.data);
+          if (code) confirmScan(code.data);
         } catch(_) {}
       }, 300);
     }
@@ -2755,6 +2905,7 @@ async function tryRefreshTokenOrLogout() {
 let _tokenRefreshInterval = null;
 
 function startTokenRefreshTimer() {
+  if (_isTourDemo) return;   // demo prohlídky – žádné Supabase volání
   if (_tokenRefreshInterval) clearInterval(_tokenRefreshInterval);
   _tokenRefreshInterval = setInterval(async () => {
     if (pbRefresh) {
@@ -2823,6 +2974,11 @@ async function doChangePassword() {
 
 // ── Supabase / LOCAL status ──
 async function checkSBStatus() {
+  if (_isTourDemo) {
+    const el = document.getElementById('sbStatus');
+    if (el) { el.textContent = 'Demo režim'; el.style.color = 'var(--accent,#3d7fff)'; }
+    return;
+  }
   if (pbUploadMode === 'local') {
     // LOCAL mód – testuj lokální server, ne Supabase
     if (!pbLocalUrl) {
