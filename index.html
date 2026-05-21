@@ -1011,6 +1011,16 @@
           </div>
           <button class="settings-btn" onclick="clearJob()">Reset</button>
         </div>
+        <div class="settings-row">
+          <div class="settings-icon">📁</div>
+          <div class="settings-info">
+            <div class="settings-title">Ukládat do podsložky zakázky</div>
+            <div class="settings-sub" id="subfolderToggleSub">SD, SDX, VT, SN – do hlavní složky</div>
+          </div>
+          <button id="subfolderToggleBtn" onclick="toggleSubfolder()" class="settings-btn" style="
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+          ">Zapnout</button>
+        </div>
       </div>
 
       <div class="settings-section">
@@ -2154,7 +2164,7 @@ function showTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (tab === 'qr')       { document.getElementById('screenQR').classList.add('active');       document.getElementById('tabQR').classList.add('active'); }
   if (tab === 'upload')   { document.getElementById('screenUpload').classList.add('active');   document.getElementById('tabUpload').classList.add('active'); }
-  if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); initThemeUI(); updateHapticUI(); }
+  if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); initThemeUI(); updateHapticUI(); updateSubfolderUI(); }
   if (tab !== 'qr') stopQRScan();
 }
 
@@ -2679,7 +2689,11 @@ async function uploadFiles(fileList) {
         // seq zachovává pořadí v jednom batchi (paralelní uploady).
         const openPaint = (t !== 'SP' && document.getElementById('openInPaint').checked) ? '_PAINT' : '';
         filename = `${t}_${pbJob}_${batchTs}_${seqStr}${openPaint}.${ext}`;
-        path     = `${userId}/${pbJob}/${filename}`;
+        // Když má fotograf v Nastavení zapnuto „Ukládat do podsložky zakázky",
+        // vložíme do cesty segment `__sub`. PC poller ho detekuje a uloží
+        // fotku do podsložky SAVE_DIR/<job>/ místo přímo do SAVE_DIR.
+        const subSeg = isSubfolderEnabled() ? '/__sub' : '';
+        path     = `${userId}/${pbJob}${subSeg}/${filename}`;
       }
 
       const encodedPath = path.split('/').map(encodeURIComponent).join('/');
@@ -3181,6 +3195,45 @@ function updateHapticUI() {
     btn.style.color        = on ? 'var(--red)'             : 'var(--green)';
   }
   if (sub) sub.textContent = on ? 'Vibrace jsou zapnuté' : 'Vibrace jsou vypnuté';
+}
+
+// ══════════════════════════════════════════════════════════
+// 📁 PODSLOŽKA ZAKÁZKY – přepínač + UI
+// ══════════════════════════════════════════════════════════
+//
+// Stav je uložen v localStorage pod klíčem `pb_save_to_subfolder`.
+// Při uploadu firemní fotky se podle něj rozhodne, zda se do cesty
+// vloží segment `__sub` – PC poller ho detekuje a uloží fotku do
+// podsložky `SAVE_DIR/<job>/`. Bez toho letí fotka přímo do SAVE_DIR.
+//
+// Týká se POUZE firemních zakázek. V osobním účtu se ignoruje.
+
+function isSubfolderEnabled() {
+  return localStorage.getItem('pb_save_to_subfolder') === 'on';
+}
+
+function toggleSubfolder() {
+  const on = isSubfolderEnabled();
+  localStorage.setItem('pb_save_to_subfolder', on ? 'off' : 'on');
+  updateSubfolderUI();
+  haptic([40]);
+}
+
+function updateSubfolderUI() {
+  const on  = isSubfolderEnabled();
+  const btn = document.getElementById('subfolderToggleBtn');
+  const sub = document.getElementById('subfolderToggleSub');
+  if (btn) {
+    btn.textContent = on ? 'Vypnout' : 'Zapnout';
+    btn.style.background   = on ? 'rgba(240,90,90,0.08)' : 'rgba(54,217,102,0.1)';
+    btn.style.borderColor  = on ? 'rgba(240,90,90,0.25)' : 'rgba(54,217,102,0.3)';
+    btn.style.color        = on ? 'var(--red)'           : 'var(--green)';
+  }
+  if (sub) {
+    sub.textContent = on
+      ? 'SD, SDX, VT, SN do podsložky (SP zůstává)'
+      : 'SD, SDX, VT, SN – do hlavní složky';
+  }
 }
 
 // ══════════════════════════════════════════════════════════
