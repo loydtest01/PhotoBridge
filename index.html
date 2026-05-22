@@ -840,9 +840,9 @@
         <div style="display:flex;gap:8px;align-items:center">
           <input class="pb-input" type="text" id="manualJobInput"
             placeholder="např. AB1234567"
-            inputmode="text" maxlength="10"
+            inputmode="text"
             style="flex:1;letter-spacing:0.1em;font-family:var(--mono);font-size:18px;font-weight:700;text-align:center;text-transform:uppercase"
-            oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
+            oninput="this.value=this.value.toUpperCase().replace(/ /g,'_').replace(/[^A-Z0-9_]/g,'')"
             onkeydown="if(event.key==='Enter') confirmManualJob()">
           <button class="btn-full btn-primary" onclick="confirmManualJob()"
             style="width:auto;padding:13px 20px;white-space:nowrap;flex-shrink:0">✓ Potvrdit</button>
@@ -2173,11 +2173,11 @@ function showTab(tab) {
 function confirmManualJob() {
   const inp = document.getElementById('manualJobInput');
   const errEl = document.getElementById('manualJobErr');
-  const job = (inp.value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const job = (inp.value || '').trim().toUpperCase().replace(/ /g, '_').replace(/[^A-Z0-9_]/g, '');
   errEl.style.display = 'none';
 
-  if (job.length < 1 || job.length > 10) {
-    errEl.textContent = '⚠️ Zakázka musí mít 1–10 znaků';
+  if (job.length < 1) {
+    errEl.textContent = '⚠️ Zadej název zakázky';
     errEl.style.display = 'block';
     inp.focus();
     return;
