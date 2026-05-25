@@ -3298,9 +3298,25 @@ function renderJobHistory() {
 }
 
 function loadJobFromHistory(job) {
+  // Předvyplň manuální input – uživatel vidí, že se zakázka načetla
+  const inp = document.getElementById('manualJobInput');
+  if (inp) inp.value = job;
+  // Skryj případnou error hlášku
+  const errEl = document.getElementById('manualJobErr');
+  if (errEl) errEl.style.display = 'none';
+  // Zkontroluj přihlášení – stejně jako confirmManualJob
+  if (!pbToken && !pbUser) {
+    if (errEl) {
+      errEl.textContent = '⚠️ Nejdřív se přihlas';
+      errEl.style.display = 'block';
+    }
+    return;
+  }
+  // Nastav zakázku a přepni na Upload (setJob přepne tab sám)
   setJob(job, null);
-  toast('📁 Zakázka: ' + job, 'ok');
+  if (inp) inp.value = '';   // vyčisti input po nastavení
   haptic([50, 30, 80]);
+  toast('📁 Zakázka načtena: ' + job, 'ok');
 }
 
 // ══════════════════════════════════════════════════════════
