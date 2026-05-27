@@ -2203,10 +2203,10 @@ function bindSwipeGestures() {
       _swipeValid = false;
       return;
     }
-    // Ignoruj pokud se dotyk stal na scrollable elementu kde uživatel pravděpodobně scrolluje
-    // (input, textarea, button atd. nás nezajímají - body jako celek je OK)
+    // Ignoruj jen na elementech kde swipe znamená něco jiného (zápis textu, klik tlačítka)
     const target = e.target;
-    if (target.closest('input, textarea, select, video, canvas[id="qr-canvas"], button.tab-btn')) {
+    if (target.closest('input, textarea, select, button:not(.tab-btn), .tab-btn')) {
+      // tab-btn taky vyjmuto - na něm klik znamená přepnutí, ne swipe
       _swipeValid = false;
       return;
     }
@@ -3372,15 +3372,18 @@ function renderJobHistory() {
   const hist = _loadJobHist();
   if (!hist.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
-  chips.innerHTML = hist.map(job => `
-    <button onclick="loadJobFromHistory(${JSON.stringify(job)})" style="
-      padding:7px 14px; border-radius:20px; cursor:pointer; font-family:var(--mono);
-      font-size:14px; font-weight:700; letter-spacing:0.05em;
-      background:rgba(61,127,255,0.12); border:1.5px solid rgba(61,127,255,0.3);
-      color:var(--accent2); transition:all 0.15s;
-    " onmouseover="this.style.background='rgba(61,127,255,0.22)'"
-       onmouseout="this.style.background='rgba(61,127,255,0.12)'">${job}</button>
-  `).join('');
+  // Použijeme escaped job v data atributu (textContent místo HTML render)
+  chips.innerHTML = '';
+  hist.forEach(job => {
+    const btn = document.createElement('button');
+    btn.textContent = job;
+    btn.dataset.job = job;
+    btn.style.cssText = 'padding:7px 14px; border-radius:20px; cursor:pointer; font-family:var(--mono); font-size:14px; font-weight:700; letter-spacing:0.05em; background:rgba(61,127,255,0.12); border:1.5px solid rgba(61,127,255,0.3); color:var(--accent2); transition:all 0.15s;';
+    btn.addEventListener('click', () => loadJobFromHistory(job));
+    btn.addEventListener('mouseover', () => { btn.style.background = 'rgba(61,127,255,0.22)'; });
+    btn.addEventListener('mouseout', () => { btn.style.background = 'rgba(61,127,255,0.12)'; });
+    chips.appendChild(btn);
+  });
 }
 
 function loadJobFromHistory(job) {
