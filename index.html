@@ -2183,8 +2183,10 @@ let _swipeStartT = 0;
 let _swipeValid = false;
 
 function getCurrentTab() {
+  // Explicitní mapování: tab name → element ID (kvůli case-sensitivity, "QR" vs "Qr")
+  const TAB_IDS = { qr: 'screenQR', upload: 'screenUpload', settings: 'screenSettings' };
   for (const t of TAB_ORDER) {
-    const screen = document.getElementById('screen' + t.charAt(0).toUpperCase() + t.slice(1));
+    const screen = document.getElementById(TAB_IDS[t]);
     if (screen && screen.classList.contains('active')) return t;
   }
   return null;
