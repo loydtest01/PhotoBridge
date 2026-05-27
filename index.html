@@ -2168,6 +2168,90 @@ function showTab(tab) {
   if (tab !== 'qr') stopQRScan();
 }
 
+// ── Swipe gesta pro přepínání tabů ──
+// Pořadí tabů: qr → upload → settings
+// Swipe doleva = další tab, swipe doprava = předchozí
+const TAB_ORDER = ['qr', 'upload', 'settings'];
+const SWIPE_MIN_DISTANCE = 80;   // px – minimální vzdálenost pro swipe
+const SWIPE_MAX_VERTICAL = 60;   // px – max vertikální drift, jinak to není swipe
+const SWIPE_EDGE_BUFFER = 30;    // px – pásmo u krajů obrazovky kde gesta NEpouštíme
+                                  // (aby se nepletly s back-swipem v telefonu/prohlížeči)
+
+let _swipeStartX = 0;
+let _swipeStartY = 0;
+let _swipeStartT = 0;
+let _swipeValid = false;
+
+function getCurrentTab() {
+  for (const t of TAB_ORDER) {
+    const screen = document.getElementById('screen' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (screen && screen.classList.contains('active')) return t;
+  }
+  return null;
+}
+
+function bindSwipeGestures() {
+  // Body listener - chytá gesta na celé stránce
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const w = window.innerWidth;
+    // Ignoruj gesta příliš blízko krajů (kvůli system back-gesture)
+    if (t.clientX < SWIPE_EDGE_BUFFER || t.clientX > w - SWIPE_EDGE_BUFFER) {
+      _swipeValid = false;
+      return;
+    }
+    // Ignoruj pokud se dotyk stal na scrollable elementu kde uživatel pravděpodobně scrolluje
+    // (input, textarea, button atd. nás nezajímají - body jako celek je OK)
+    const target = e.target;
+    if (target.closest('input, textarea, select, video, canvas[id="qr-canvas"], button.tab-btn')) {
+      _swipeValid = false;
+      return;
+    }
+    _swipeStartX = t.clientX;
+    _swipeStartY = t.clientY;
+    _swipeStartT = Date.now();
+    _swipeValid = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if (!_swipeValid) return;
+    _swipeValid = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - _swipeStartX;
+    const dy = t.clientY - _swipeStartY;
+    const dt = Date.now() - _swipeStartT;
+    // Musí být horizontální (víc X než Y), dost dlouhý, ne příliš pomalý
+    if (Math.abs(dx) < SWIPE_MIN_DISTANCE) return;
+    if (Math.abs(dy) > SWIPE_MAX_VERTICAL) return;
+    if (dt > 600) return;   // pomalé "swipe" jsou pravděpodobně náhodné drag
+    // Provedení přepnutí
+    const current = getCurrentTab();
+    if (!current) return;
+    const idx = TAB_ORDER.indexOf(current);
+    if (idx < 0) return;
+    let newIdx;
+    if (dx < 0) {
+      // Swipe doleva = další (qr → upload → settings)
+      newIdx = idx + 1;
+      if (newIdx >= TAB_ORDER.length) return;   // už jsme na konci
+    } else {
+      // Swipe doprava = předchozí
+      newIdx = idx - 1;
+      if (newIdx < 0) return;   // už jsme na začátku
+    }
+    showTab(TAB_ORDER[newIdx]);
+    haptic([30]);
+  }, { passive: true });
+}
+
+// Aktivuj při startu
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bindSwipeGestures);
+} else {
+  bindSwipeGestures();
+}
+
 
 // ── Ruční zadání čísla zakázky ──
 function confirmManualJob() {
