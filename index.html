@@ -1723,10 +1723,10 @@ async function ocrJobNumber() {
 
     const cap = document.createElement('canvas');
     const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
-    const sc = Math.min(1024 / vw, 1024 / vh, 1);
+    const sc = Math.min(1280 / vw, 1280 / vh, 1);
     cap.width = Math.round(vw * sc); cap.height = Math.round(vh * sc);
     cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height);
-    const dataUrl = cap.toDataURL('image/jpeg', 0.85);
+    const dataUrl = cap.toDataURL('image/jpeg', 0.9);
 
     const key = await getOcrGroqKey();
     if (!key) { toast('❌ AI klíč není dostupný', 'err'); return; }
@@ -1739,7 +1739,7 @@ async function ocrJobNumber() {
         messages: [{
           role: 'user',
           content: [
-            { type: 'text', text: 'Look at this photo of a work order / repair ticket. Find the ORDER NUMBER (číslo zakázky) - usually a 6-8 digit number, often near a barcode or labeled "Zakázka". Respond ONLY with the digits of the order number, nothing else. If you see multiple numbers, pick the most likely order number (longest standalone number near a barcode). If no number is visible, respond "NONE".' },
+            { type: 'text', text: 'This is a photo of a computer screen showing a service repair application (Czech "servisní zakázka"). Find the SERVICE ORDER NUMBER. It is the SINGLE LARGEST number on the screen, shown in big bold font as a title in the TOP-LEFT area (much bigger than all other text), and it is exactly 7 digits, typically starting with 45 (e.g. 4516564). CRITICAL: Do NOT return any of these - IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, or the small field labeled "Zakázka" in the form body (that is a different reference). ONLY the big bold title number counts. Respond with ONLY those 7 digits and nothing else. If no large bold 7-digit title number is visible, respond "NONE".' },
             { type: 'image_url', image_url: { url: dataUrl } },
           ],
         }],
@@ -1757,8 +1757,14 @@ async function ocrJobNumber() {
     }
     const jobNum = m[0];
     if (startedHere) stopQRScan();
-    toast('✅ Přečteno: ' + jobNum, 'ok');
-    parseQRCode(jobNum);
+    // Předvyplň pole pro ruční zadání – technik zkontroluje a potvrdí (OCR nemusí být přesné)
+    const inp = document.getElementById('manualJobInput');
+    if (inp) {
+      inp.value = jobNum;
+      inp.focus();
+      try { inp.select(); } catch(_){}
+    }
+    toast('🤖 Přečteno: ' + jobNum + ' — zkontroluj a potvrď', 'ok');
   } catch (e) {
     toast('❌ Čtení selhalo: ' + e.message, 'err');
   } finally {
