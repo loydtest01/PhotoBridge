@@ -2,8 +2,9 @@
   "name": "PhotoBridge",
   "short_name": "PhotoBridge",
   "description": "Firemní foto přenos",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "start_url": "/PhotoBridge/",
+  "scope": "/PhotoBridge/",
   "display": "standalone",
   "background_color": "#0b0d14",
   "theme_color": "#0b0d14",
@@ -21,5 +22,21 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/PhotoBridge/share-target.html",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "photos",
+          "accept": ["image/*"]
+        }
+      ]
+    }
+  }
 }

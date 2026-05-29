@@ -1,7 +1,8 @@
 // ═══ PhotoBridge Service Worker ═══
 // Bump CACHE_VERSION při každém deployi (nebo ho generuj automaticky z daty)
-const CACHE_VERSION = 'pb-v1.0.4';
+const CACHE_VERSION = 'pb-v1.0.5';
 const CACHE_NAME    = CACHE_VERSION;
+const SHARE_CACHE   = 'pb-share-v1';   // dočasné úložiště fotek sdílených z galerie
 
 // Soubory které chceme cachovat při instalaci
 const PRECACHE_URLS = [
@@ -32,7 +33,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(key => key !== CACHE_NAME)
+          .filter(key => key !== CACHE_NAME && key !== SHARE_CACHE)
           .map(key => {
             console.log('[SW] Mazám starou cache:', key);
             return caches.delete(key);
@@ -49,6 +50,29 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // ── Sdílení z galerie (Web Share Target): zachyť POST na share-target.html ──
+  if (request.method === 'POST' && url.pathname.endsWith('/share-target.html')) {
+    event.respondWith((async () => {
+      try {
+        const formData = await request.formData();
+        const files = formData.getAll('photos').filter(f => f && f.size > 0);
+        const cache = await caches.open(SHARE_CACHE);
+        const meta = [];
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          const key = `shared-${Date.now()}-${i}`;
+          await cache.put(key, new Response(f, { headers: { 'Content-Type': f.type || 'image/jpeg' } }));
+          meta.push({ key, name: f.name || `foto-${i}.jpg`, type: f.type || 'image/jpeg' });
+        }
+        await cache.put('shared-meta', new Response(JSON.stringify(meta), { headers: { 'Content-Type': 'application/json' } }));
+        return Response.redirect('./index.html?shared=1', 303);
+      } catch (e) {
+        return Response.redirect('./index.html?shared=err', 303);
+      }
+    })());
+    return;
+  }
 
   // Přeskočit non-GET requesty a cross-origin (Supabase API, CDN fonts…)
   if (request.method !== 'GET') return;

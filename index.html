@@ -1813,6 +1813,20 @@ if (window.PB_QR && window.PB_QR.job) {
 
 // ── On load ──
 window.addEventListener('DOMContentLoaded', () => {
+  // ── Service worker (kvůli sdílení fotek z galerie – Web Share Target) ──
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+  // ── Sdílené fotky z galerie (po přesměrování ze share-target) ──
+  const sp = new URLSearchParams(window.location.search);
+  if (sp.get('shared') === '1') {
+    // Vyčisti URL ať se to nespustí znovu po refreshi
+    history.replaceState(null, '', window.location.pathname);
+    handleSharedPhotos();
+  } else if (sp.get('shared') === 'err') {
+    history.replaceState(null, '', window.location.pathname);
+    setTimeout(() => { try { toast('❌ Sdílení fotek selhalo, zkus to znovu', 'err'); } catch(_){} }, 800);
+  }
   // ── Zpracování potvrzovacího linku z emailu (Supabase hash) ──
   const hash = window.location.hash;
   if (hash && hash.includes('type=signup') || hash.includes('type=recovery')) {
@@ -2666,6 +2680,13 @@ function setJob(job, token) {
   renderJobHistory();
   updateJobUI();
   showTab('upload');
+  // Pokud čekají sdílené fotky z galerie, nahraj je teď když máme zakázku
+  if (_pendingSharedFiles && _pendingSharedFiles.length) {
+    const f = _pendingSharedFiles;
+    _pendingSharedFiles = null;
+    toast(`📷 Nahrávám ${f.length} sdílené foto…`, 'ok');
+    uploadFiles(f);
+  }
 }
 
 function clearJob() {
@@ -2803,6 +2824,59 @@ async function handleFiles(fileList, reset) {
   reset();
   await uploadFiles(files);
 }
+
+// Vyzvedne fotky sdílené z galerie (uložené service workerem v cache) a nahraje je
+async function handleSharedPhotos() {
+  try {
+    const cache = await caches.open('pb-share-v1');
+    const metaResp = await cache.match('shared-meta');
+    if (!metaResp) return;
+    const meta = await metaResp.json();
+    if (!meta || !meta.length) return;
+
+    const files = [];
+    for (const m of meta) {
+      const r = await cache.match(m.key);
+      if (r) {
+        const blob = await r.blob();
+        files.push(new File([blob], m.name, { type: m.type }));
+      }
+      await cache.delete(m.key);
+    }
+    await cache.delete('shared-meta');
+    if (!files.length) return;
+
+    // Počkej až je appka přihlášená a zobrazená
+    const waitReady = () => new Promise(res => {
+      let tries = 0;
+      const iv = setInterval(() => {
+        tries++;
+        if (window.pbToken || tries > 20) { clearInterval(iv); res(); }
+      }, 250);
+    });
+    await waitReady();
+
+    if (!window.pbToken) {
+      toast('Přihlas se a zkus sdílení znovu', 'info');
+      return;
+    }
+    // Firemní účet potřebuje zakázku
+    if (!isPersonalAccount() && !pbJob) {
+      showTab('qr');
+      toast(`📷 ${files.length} foto připraveno – naskenuj/zadej zakázku`, 'info');
+      _pendingSharedFiles = files;
+      return;
+    }
+    showTab('upload');
+    toast(`📷 Sdíleno ${files.length} foto – nahrávám…`, 'ok');
+    await uploadFiles(files);
+  } catch (e) {
+    try { toast('❌ Chyba sdílení: ' + e.message, 'err'); } catch(_){}
+  }
+}
+
+// Fotky čekající na zadání zakázky (firemní účet)
+let _pendingSharedFiles = null;
 
 // ── Image optimization ──
 async function optimizeImage(file) {
