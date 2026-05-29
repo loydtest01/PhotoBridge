@@ -871,6 +871,7 @@
         <div class="section-label">Naskenovat QR / čárový kód</div>
         <button class="btn-full btn-primary" id="btnStartScan" onclick="startQRScan()">📷 Spustit kameru</button>
         <button class="btn-full" id="btnStopScan" onclick="stopQRScan()" style="display:none; background:rgba(240,90,90,0.1);border:1.5px solid rgba(240,90,90,0.3);color:var(--red);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">✖ Zastavit kameru</button>
+        <button class="btn-full" id="btnOcrJob" onclick="ocrJobNumber()" style="display:none;margin-top:8px; background:rgba(61,127,255,0.08);border:1.5px solid rgba(61,127,255,0.3);color:var(--accent,#3d7fff);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">🤖 Přečíst číslo zakázky fotoaparátem</button>
       </div>
 
       <div class="upload-panel" id="manualJobSection">
@@ -1013,6 +1014,16 @@
           <button id="hapticToggleBtn" onclick="toggleHaptic()" class="settings-btn" style="
             transition: background 0.2s, border-color 0.2s, color 0.2s;
           ">Vypnout</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-icon">🤖</div>
+          <div class="settings-info">
+            <div class="settings-title">AI čtení čísla zakázky</div>
+            <div class="settings-sub" id="ocrToggleSub">Čtení čísla fotoaparátem je vypnuté</div>
+          </div>
+          <button id="ocrToggleBtn" onclick="toggleOcr()" class="settings-btn" style="
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+          ">Zapnout</button>
         </div>
         <div class="settings-row">
           <div class="settings-icon">📲</div>
@@ -1656,6 +1667,105 @@ let qrInterval = null;
 // takže neprojde – zatímco správný kód je stabilní.
 let _scanLast  = null;
 let _scanCount = 0;
+
+// ── AI OCR: přečtení čísla zakázky z fotoaparátu ──────────────
+let _ocrGroqKey = null;
+let _ocrGroqKeyTime = 0;
+
+// Načte sdílený Groq klíč ze Supabase pb_settings (cache 30 min)
+async function getOcrGroqKey() {
+  const now = Date.now();
+  if (_ocrGroqKey && (now - _ocrGroqKeyTime) < 30*60*1000) return _ocrGroqKey;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.groq_api_key&select=value`, {
+      headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` },
+    });
+    if (r.ok) {
+      const rows = await r.json();
+      if (rows && rows[0] && rows[0].value) {
+        _ocrGroqKey = rows[0].value;
+        _ocrGroqKeyTime = now;
+        return _ocrGroqKey;
+      }
+    }
+  } catch (e) { console.warn('[PB] OCR klíč:', e); }
+  return null;
+}
+
+// Vyfotí jeden snímek z kamery a pošle do AI na přečtení čísla zakázky
+async function ocrJobNumber() {
+  if (localStorage.getItem('pb_ocr') !== 'on') {
+    toast('AI čtení je vypnuté – zapni ho v Nastavení', 'info');
+    return;
+  }
+  const btn = document.getElementById('btnOcrJob');
+  try {
+    let video = document.getElementById('qrVideo');
+    let startedHere = false;
+    if (!qrStream) {
+      toast('📷 Spouštím kameru…', 'info');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }, audio: false,
+      });
+      qrStream = stream;
+      video.srcObject = stream;
+      document.getElementById('qrScanArea').style.display = 'block';
+      video.style.visibility = 'visible';
+      await video.play().catch(()=>{});
+      await new Promise(r => setTimeout(r, 800));
+      startedHere = true;
+    }
+    if (video.readyState < video.HAVE_CURRENT_DATA) {
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = '🤖 Čtu číslo…'; }
+
+    const cap = document.createElement('canvas');
+    const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+    const sc = Math.min(1024 / vw, 1024 / vh, 1);
+    cap.width = Math.round(vw * sc); cap.height = Math.round(vh * sc);
+    cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height);
+    const dataUrl = cap.toDataURL('image/jpeg', 0.85);
+
+    const key = await getOcrGroqKey();
+    if (!key) { toast('❌ AI klíč není dostupný', 'err'); return; }
+
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Look at this photo of a work order / repair ticket. Find the ORDER NUMBER (číslo zakázky) - usually a 6-8 digit number, often near a barcode or labeled "Zakázka". Respond ONLY with the digits of the order number, nothing else. If you see multiple numbers, pick the most likely order number (longest standalone number near a barcode). If no number is visible, respond "NONE".' },
+            { type: 'image_url', image_url: { url: dataUrl } },
+          ],
+        }],
+        max_tokens: 30,
+        temperature: 0,
+      }),
+    });
+    if (!resp.ok) throw new Error('Groq ' + resp.status);
+    const data = await resp.json();
+    let text = (data.choices?.[0]?.message?.content || '').trim();
+    const m = text.match(/\d{4,}/);
+    if (!m || /NONE/i.test(text)) {
+      toast('⚠️ Číslo zakázky nenalezeno, zkus to znovu nebo zadej ručně', 'err');
+      return;
+    }
+    const jobNum = m[0];
+    if (startedHere) stopQRScan();
+    toast('✅ Přečteno: ' + jobNum, 'ok');
+    parseQRCode(jobNum);
+  } catch (e) {
+    toast('❌ Čtení selhalo: ' + e.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 Přečíst číslo zakázky fotoaparátem'; }
+  }
+}
+
 function confirmScan(raw) {
   const val = String(raw == null ? '' : raw).trim();
   if (!val) return;
@@ -2209,7 +2319,7 @@ function showTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (tab === 'qr')       { document.getElementById('screenQR').classList.add('active');       document.getElementById('tabQR').classList.add('active'); }
   if (tab === 'upload')   { document.getElementById('screenUpload').classList.add('active');   document.getElementById('tabUpload').classList.add('active'); }
-  if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); initThemeUI(); updateHapticUI(); updateSubfolderUI(); }
+  if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); initThemeUI(); updateHapticUI(); updateOcrUI(); updateSubfolderUI(); }
   if (tab !== 'qr') stopQRScan();
 }
 
@@ -3334,6 +3444,7 @@ function toggleHaptic() {
   const on = localStorage.getItem('pb_haptic') === 'on';
   localStorage.setItem('pb_haptic', on ? 'off' : 'on');
   updateHapticUI();
+  updateOcrUI();
   if (!on) haptic([60]); // ukázková vibrace při zapnutí
 }
 
@@ -3348,6 +3459,29 @@ function updateHapticUI() {
     btn.style.color        = on ? 'var(--red)'             : 'var(--green)';
   }
   if (sub) sub.textContent = on ? 'Vibrace jsou zapnuté' : 'Vibrace jsou vypnuté';
+}
+
+// AI OCR čtení čísla zakázky – přepínač (default vypnuto kvůli šetření tokenů)
+function toggleOcr() {
+  const on = localStorage.getItem('pb_ocr') === 'on';
+  localStorage.setItem('pb_ocr', on ? 'off' : 'on');
+  updateOcrUI();
+}
+
+function updateOcrUI() {
+  const on  = localStorage.getItem('pb_ocr') === 'on';
+  const btn = document.getElementById('ocrToggleBtn');
+  const sub = document.getElementById('ocrToggleSub');
+  if (btn) {
+    btn.textContent = on ? 'Vypnout' : 'Zapnout';
+    btn.style.background   = on ? 'rgba(240,90,90,0.08)'   : 'rgba(54,217,102,0.1)';
+    btn.style.borderColor  = on ? 'rgba(240,90,90,0.25)'   : 'rgba(54,217,102,0.3)';
+    btn.style.color        = on ? 'var(--red)'             : 'var(--green)';
+  }
+  if (sub) sub.textContent = on ? 'Čtení čísla fotoaparátem je zapnuté' : 'Čtení čísla fotoaparátem je vypnuté';
+  // Zobraz/skryj tlačítko OCR na QR obrazovce
+  const ocrBtn = document.getElementById('btnOcrJob');
+  if (ocrBtn) ocrBtn.style.display = on ? '' : 'none';
 }
 
 // ══════════════════════════════════════════════════════════
