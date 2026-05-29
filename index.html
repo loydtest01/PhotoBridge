@@ -680,6 +680,44 @@
       line-height: 1.4;
     }
     .size-toggle-sub { display: none; }
+
+    /* ═══ UPLOAD STATUS BAR (nad záložkami) ═══ */
+    #uploadStatusBar {
+      display: none;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 14px;
+      flex-shrink: 0;
+      border-top: 1.5px solid;
+      animation: statusSlideUp 0.22s ease;
+    }
+    @keyframes statusSlideUp {
+      from { transform: translateY(8px); opacity: 0; }
+      to   { transform: translateY(0);   opacity: 1; }
+    }
+    #uploadStatusBar.ok {
+      background: rgba(38,216,130,0.09);
+      border-color: rgba(38,216,130,0.32);
+      color: var(--pb-ok);
+    }
+    #uploadStatusBar.err {
+      background: rgba(240,96,96,0.09);
+      border-color: rgba(240,96,96,0.32);
+      color: var(--pb-err);
+    }
+    #uploadStatusIcon { font-size: 17px; flex-shrink: 0; line-height: 1; }
+    #uploadStatusText {
+      flex: 1; font-size: 12px; font-weight: 600;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      line-height: 1.35;
+    }
+    #uploadStatusClose {
+      background: none; color: inherit; opacity: 0.45;
+      font-size: 15px; padding: 2px 5px; flex-shrink: 0;
+      border-radius: 5px; line-height: 1;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    #uploadStatusClose:hover { opacity: 1; background: rgba(255,255,255,0.08); }
   </style>
 </head>
 <body>
@@ -1137,6 +1175,13 @@
       </div>
 
     </div>
+  </div>
+
+  <!-- ═══ UPLOAD STATUS BAR ═══ -->
+  <div id="uploadStatusBar">
+    <span id="uploadStatusIcon"></span>
+    <span id="uploadStatusText"></span>
+    <button id="uploadStatusClose" onclick="closeUploadStatus()" title="Zavřít">✕</button>
   </div>
 
   <!-- Tab bar -->
@@ -2723,6 +2768,7 @@ async function uploadFiles(fileList) {
   const btns  = ['btnPhoto','btnVideo','btnPick'];
 
   btns.forEach(id => document.getElementById(id).disabled = true);
+  closeUploadStatus();
   wrap.style.display = '';
   fill.style.width = '0%';
   text.textContent = '⏳ Připravuji…';
@@ -2902,18 +2948,39 @@ async function uploadFiles(fileList) {
     // Reset paint checkbox after success
     if (t !== 'SP') document.getElementById('openInPaint').checked = false;
 
-    const okCount = results.filter(r => r && r.ok).length;
+    const okCount   = results.filter(r => r && r.ok).length;
+    const failCount = total - okCount;
     text.textContent = isPersonal
       ? `✅ Nahráno ${okCount} soubor${okCount === 1 ? '' : okCount < 5 ? 'y' : 'ů'}`
       : `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'} → ${pbJob}`;
     toast(`✅ ${done} soubor${done === 1 ? '' : 's'} nahrán`, 'ok');
     haptic([40, 30, 40, 30, 80]);
 
+    // ── Stavový pruh nad záložkami ──
+    if (failCount === 0) {
+      let statusMsg;
+      if (fileList.length === 1) {
+        const origName = fileList[0].name || '';
+        statusMsg = origName
+          ? `Soubor „${origName}" byl úspěšně nahrán`
+          : `${okCount} soubor byl úspěšně nahrán`;
+      } else {
+        statusMsg = `Nahráno ${okCount} soubor${okCount < 5 ? 'y' : 'ů'} úspěšně`;
+      }
+      setUploadStatus('ok', statusMsg);
+    } else if (okCount === 0) {
+      const firstErr = results.find(r => !r || !r.ok)?.error || 'Neznámá chyba';
+      setUploadStatus('err', `Upload se nezdařil – ${firstErr}`);
+    } else {
+      setUploadStatus('err', `Nahráno ${okCount} z ${total} – ${failCount} soubor${failCount < 5 ? 'y' : 'ů'} selhaly`);
+    }
+
     setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 3000);
 
   } catch(err) {
     text.textContent = '❌ ' + err.message;
     toast('❌ ' + err.message, 'err');
+    setUploadStatus('err', err.message);
     setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 5000);
   }
 
@@ -3528,6 +3595,29 @@ function initOfflineDetection() {
     updateOfflineBanner();
     toast('📵 Bez připojení – soubory se uloží lokálně', 'err');
   });
+}
+
+// ══════════════════════════════════════════════════════════
+// 📊 STAVOVÝ PRUH NAD ZÁLOŽKAMI
+// ══════════════════════════════════════════════════════════
+function setUploadStatus(type, text) {
+  const bar  = document.getElementById('uploadStatusBar');
+  const icon = document.getElementById('uploadStatusIcon');
+  const txt  = document.getElementById('uploadStatusText');
+  if (!bar) return;
+  // Restartuj animaci
+  bar.style.display = 'none';
+  // eslint-disable-next-line no-unused-expressions
+  bar.offsetHeight; // reflow
+  bar.className = type;           // 'ok' nebo 'err'
+  icon.textContent = type === 'ok' ? '✅' : '❌';
+  txt.textContent  = text;
+  bar.style.display = 'flex';
+}
+
+function closeUploadStatus() {
+  const bar = document.getElementById('uploadStatusBar');
+  if (bar) bar.style.display = 'none';
 }
 
 // ══════════════════════════════════════════════════════════
