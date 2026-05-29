@@ -869,9 +869,9 @@
 
       <div class="upload-panel">
         <div class="section-label">Naskenovat QR / čárový kód</div>
+        <button class="btn-full btn-primary" id="btnOcrJob" onclick="ocrJobNumber()" style="display:none; margin-bottom:8px;">🤖 Přečíst číslo zakázky (AI)</button>
         <button class="btn-full btn-primary" id="btnStartScan" onclick="startQRScan()">📷 Spustit kameru</button>
         <button class="btn-full" id="btnStopScan" onclick="stopQRScan()" style="display:none; background:rgba(240,90,90,0.1);border:1.5px solid rgba(240,90,90,0.3);color:var(--red);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">✖ Zastavit kameru</button>
-        <button class="btn-full" id="btnOcrJob" onclick="ocrJobNumber()" style="display:none;margin-top:8px; background:rgba(61,127,255,0.08);border:1.5px solid rgba(61,127,255,0.3);color:var(--accent,#3d7fff);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">🤖 Přečíst číslo zakázky fotoaparátem</button>
       </div>
 
       <div class="upload-panel" id="manualJobSection">
@@ -1768,7 +1768,7 @@ async function ocrJobNumber() {
   } catch (e) {
     toast('❌ Čtení selhalo: ' + e.message, 'err');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🤖 Přečíst číslo zakázky fotoaparátem'; }
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 Přečíst číslo zakázky (AI)'; }
   }
 }
 
@@ -3066,19 +3066,25 @@ async function uploadFiles(fileList) {
 
     const okCount   = results.filter(r => r && r.ok).length;
     const failCount = total - okCount;
+    const plural = n => n === 1 ? '' : n < 5 ? 'y' : 'ů';
     text.textContent = isPersonal
-      ? `✅ Nahráno ${okCount} soubor${okCount === 1 ? '' : okCount < 5 ? 'y' : 'ů'}`
-      : `✅ Nahráno ${done} soubor${done === 1 ? '' : done < 5 ? 'y' : 'ů'} → ${pbJob}`;
-    toast(`✅ ${done} soubor${done === 1 ? '' : 's'} nahrán`, 'ok');
+      ? `✅ Nahráno ${okCount} soubor${plural(okCount)}`
+      : `✅ Nahráno ${done} soubor${plural(done)} → ${pbJob}`;
+    // Toast: u firemního účtu ukáže typ + zakázku (SP_4516564), u osobního jen počet
+    toast(isPersonal
+      ? `✅ Nahráno ${done} soubor${plural(done)}`
+      : `✅ ${t}_${pbJob} – nahráno ${done} soubor${plural(done)}`, 'ok');
     haptic([40, 30, 40, 30, 80]);
 
     // ── Stavový pruh nad záložkami ──
     if (failCount === 0) {
       let statusMsg;
       if (fileList.length === 1) {
-        const origName = fileList[0].name || '';
-        statusMsg = origName
-          ? `Soubor „${origName}" byl úspěšně nahrán`
+        // Použij FINÁLNÍ název (SP_/SD_ + zakázka), ne původní název z foťáku.
+        const okRes = results.find(r => r && r.ok);
+        const finalName = okRes && okRes.path ? okRes.path.split('/').pop() : '';
+        statusMsg = finalName
+          ? `Soubor „${finalName}" byl úspěšně nahrán`
           : `${okCount} soubor byl úspěšně nahrán`;
       } else {
         statusMsg = `Nahráno ${okCount} soubor${okCount < 5 ? 'y' : 'ů'} úspěšně`;
