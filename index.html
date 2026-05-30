@@ -718,6 +718,29 @@
       transition: opacity 0.15s, background 0.15s;
     }
     #uploadStatusClose:hover { opacity: 1; background: rgba(255,255,255,0.08); }
+
+    /* ═══ FRONTA – karta select + paint ═══ */
+    #screenQueue select option {
+      background: var(--pb-bg-fallback);
+      color: var(--pb-text);
+    }
+    #screenQueue select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236070a0' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px !important;
+    }
+    #screenQueue select:focus {
+      border-color: var(--pb-input-border-focus);
+      box-shadow: 0 0 0 3px var(--pb-input-ring);
+      outline: none;
+    }
+    /* Paint label – highlight když zaškrtnuto */
+    #screenQueue label[id^="qlabel_paint_"]:has(input:checked) {
+      border-color: var(--accent2);
+      background: rgba(100,135,255,0.12);
+      color: var(--accent2);
+    }
   </style>
 </head>
 <body>
@@ -974,6 +997,119 @@
 
     </div>
 
+    <!-- Queue Screen -->
+    <div class="screen" id="screenQueue">
+
+      <!-- Hlavička: jméno + zakázka -->
+      <div style="
+        background:var(--surface);border:1px solid var(--border);border-radius:14px;
+        padding:14px 16px;display:flex;flex-direction:column;gap:0;
+      ">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="queueAccountName" style="font-size:15px;font-weight:700;color:var(--text);flex:1">—</span>
+          <span id="queueStatusDot" style="font-size:11px;color:var(--muted);font-weight:600"></span>
+        </div>
+        <!-- Zakázka – jen u firemního -->
+        <div id="queueJobRow" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px">Zakázka</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="queueJobName" style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--warn);flex:1;letter-spacing:.04em">—</div>
+            <button onclick="showTab('qr')" style="
+              padding:6px 12px;border-radius:8px;cursor:pointer;flex-shrink:0;
+              background:rgba(61,127,255,0.12);border:1.5px solid rgba(61,127,255,0.3);
+              color:var(--accent2);font-size:12px;font-weight:700;font-family:var(--font)
+            ">🔲 Změnit</button>
+          </div>
+          <div id="queueNoJobWarn" style="display:none;margin-top:6px;padding:8px 10px;
+            background:rgba(240,168,48,0.12);border:1px solid rgba(240,168,48,0.35);
+            border-radius:8px;font-size:12px;color:var(--warn);line-height:1.5">
+            ⚠️ Zadej nebo naskenuj zakázku před odesláním
+          </div>
+        </div>
+      </div>
+
+      <!-- Hromadný výběr typu – jen u firemního -->
+      <div id="queueBulkTypePanel" style="display:none;
+        background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;
+      ">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">
+          Hromadně nastavit typ pro všechny soubory:
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px" id="queueBulkTypes">
+          <label class="type-label sp-type" style="padding:9px 12px">
+            <input type="radio" name="qtyp" value="SP" onchange="applyBulkType('SP')">
+            <div class="type-text"><div class="code">SP_</div><div class="desc">Scan poškození</div></div>
+          </label>
+          <label class="type-label" style="padding:9px 12px">
+            <input type="radio" name="qtyp" value="SD" onchange="applyBulkType('SD')">
+            <div class="type-text"><div class="code">SD_</div><div class="desc">Scan dokumentace</div></div>
+          </label>
+          <label class="type-label" style="padding:9px 12px">
+            <input type="radio" name="qtyp" value="SDX" onchange="applyBulkType('SDX')">
+            <div class="type-text"><div class="code">SD_X</div><div class="desc">Scan baterie</div></div>
+          </label>
+          <label class="type-label" style="padding:9px 12px">
+            <input type="radio" name="qtyp" value="VT" onchange="applyBulkType('VT')">
+            <div class="type-text"><div class="code">VT_</div><div class="desc">Výsledek testu</div></div>
+          </label>
+          <label class="type-label" style="padding:9px 12px">
+            <input type="radio" name="qtyp" value="SN" onchange="applyBulkType('SN')">
+            <div class="type-text"><div class="code">SN_</div><div class="desc">Scan S/N</div></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Tlačítko odeslat vše -->
+      <button id="queueSendBtn" onclick="sendQueueNow()" style="
+        width:100%;padding:15px;border-radius:12px;cursor:pointer;
+        background:linear-gradient(135deg,var(--accent),#9050e0);
+        border:none;color:#fff;font-size:15px;font-weight:700;font-family:var(--font);
+        display:flex;align-items:center;justify-content:center;gap:10px;
+        box-shadow:0 6px 20px rgba(86,104,232,0.35);
+        transition:opacity 0.15s,transform 0.1s;
+      ">
+        <span style="font-size:20px">📤</span>
+        <span id="queueSendBtnTxt">Odeslat vše</span>
+      </button>
+
+      <!-- Celková velikost fronty -->
+      <div id="queueSizeInfo" style="
+        display:none;text-align:center;font-size:12px;font-weight:600;
+        color:var(--muted);margin-top:-4px;letter-spacing:.02em;
+      "></div>
+
+      <!-- Progress při odesílání -->
+      <div id="queueProgressWrap" style="display:none;flex-direction:column;gap:6px">
+        <div style="
+          background:var(--surface);border:1px solid var(--border);
+          border-radius:10px;padding:10px 14px;
+          display:flex;align-items:center;gap:10px;
+        ">
+          <div style="flex:1">
+            <div id="queueProgressTxt" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Odesílám…</div>
+            <div style="background:var(--card);border-radius:99px;height:6px;overflow:hidden">
+              <div id="queueProgressBar" style="
+                height:100%;border-radius:99px;width:0%;
+                background:linear-gradient(90deg,var(--accent),#9050e0);
+                transition:width 0.3s ease;
+              "></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seznam čekajících souborů -->
+      <div id="queueList" style="display:flex;flex-direction:column;gap:8px"></div>
+
+      <!-- Prázdný stav -->
+      <div id="queueEmpty" style="display:none;text-align:center;padding:40px 20px;color:var(--muted)">
+        <div style="font-size:48px;margin-bottom:12px">✅</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Fronta je prázdná</div>
+        <div style="font-size:13px;line-height:1.6">Všechny soubory byly úspěšně odeslány</div>
+      </div>
+
+    </div>
+
     <!-- Settings Screen -->
     <div class="screen" id="screenSettings">
 
@@ -1202,6 +1338,17 @@
     </button>
     <button class="tab-btn" id="tabUpload" onclick="showTab('upload')">
       <span class="tab-icon">📤</span><span>Upload</span>
+    </button>
+    <button class="tab-btn" id="tabQueue" onclick="showTab('queue')" style="display:none;position:relative">
+      <span class="tab-icon">⏳</span><span>Fronta</span>
+      <span id="tabQueueBadge" style="
+        position:absolute;top:6px;right:calc(50% - 22px);
+        min-width:18px;height:18px;border-radius:9px;
+        background:var(--err);color:#fff;
+        font-size:10px;font-weight:700;font-family:var(--mono);
+        display:none;align-items:center;justify-content:center;
+        padding:0 4px;line-height:1;
+      "></span>
     </button>
     <button class="tab-btn" id="tabSettings" onclick="showTab('settings')">
       <span class="tab-icon">⚙️</span><span>Nastavení</span>
@@ -2068,6 +2215,7 @@ function showApp() {
   readURLParams();
   showPwaInstall();
   initOfflineDetection();
+  initQueueNotifications();
   cleanJobHistory();   // vymaže [object Object] záznamy z localStorage hned při startu
   renderJobHistory();
 
@@ -2339,14 +2487,21 @@ function showTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (tab === 'qr')       { document.getElementById('screenQR').classList.add('active');       document.getElementById('tabQR').classList.add('active'); }
   if (tab === 'upload')   { document.getElementById('screenUpload').classList.add('active');   document.getElementById('tabUpload').classList.add('active'); }
+  if (tab === 'queue')    { document.getElementById('screenQueue').classList.add('active');    document.getElementById('tabQueue').classList.add('active'); renderQueueScreen(); }
   if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); initThemeUI(); updateHapticUI(); updateOcrUI(); updateSubfolderUI(); }
   if (tab !== 'qr') stopQRScan();
 }
 
 // ── Swipe gesta pro přepínání tabů ──
-// Pořadí tabů: qr → upload → settings
+// Pořadí tabů: qr → upload → [queue pokud viditelná] → settings
 // Swipe doleva = další tab, swipe doprava = předchozí
-const TAB_ORDER = ['qr', 'upload', 'settings'];
+const TAB_ORDER_BASE = ['qr', 'upload', 'settings'];
+let TAB_ORDER = [...TAB_ORDER_BASE];
+
+function rebuildTabOrder() {
+  const queueVisible = document.getElementById('tabQueue')?.style.display !== 'none';
+  TAB_ORDER = queueVisible ? ['qr', 'upload', 'queue', 'settings'] : ['qr', 'upload', 'settings'];
+}
 const SWIPE_MIN_DISTANCE = 80;   // px – minimální vzdálenost pro swipe
 const SWIPE_MAX_VERTICAL = 60;   // px – max vertikální drift, jinak to není swipe
 const SWIPE_EDGE_BUFFER = 30;    // px – pásmo u krajů obrazovky kde gesta NEpouštíme
@@ -2680,13 +2835,22 @@ function setJob(job, token) {
   renderJobHistory();
   updateJobUI();
   showTab('upload');
+  // Skryj pending share banner pokud byl zobrazen (zakázka zadána přes QR nebo ručně)
+  const pb = document.getElementById('pendingShareBanner');
+  if (pb) pb.remove();
   // Pokud čekají sdílené fotky z galerie, nahraj je teď když máme zakázku
   if (_pendingSharedFiles && _pendingSharedFiles.length) {
     const f = _pendingSharedFiles;
     _pendingSharedFiles = null;
+    // Vyber výchozí typ dokumentu pokud žádný není vybraný
+    if (!getType()) {
+      const firstRadio = document.querySelector('input[name=typ]');
+      if (firstRadio) { firstRadio.checked = true; updatePaintOption(); }
+    }
     toast(`📷 Nahrávám ${f.length} sdílené foto…`, 'ok');
-    uploadFiles(f);
+    uploadFiles(f).then(() => updateQueueTab());
   }
+  updateQueueTab();
 }
 
 function clearJob() {
@@ -2834,6 +2998,7 @@ async function handleSharedPhotos() {
     const meta = await metaResp.json();
     if (!meta || !meta.length) return;
 
+    // Načti soubory z cache do paměti (ale cache NEmaž hned – smažeme až po zpracování)
     const files = [];
     for (const m of meta) {
       const r = await cache.match(m.key);
@@ -2841,38 +3006,136 @@ async function handleSharedPhotos() {
         const blob = await r.blob();
         files.push(new File([blob], m.name, { type: m.type }));
       }
-      await cache.delete(m.key);
     }
-    await cache.delete('shared-meta');
-    if (!files.length) return;
+    if (!files.length) {
+      // Nic nenačteno – vyčisti cache a skonči
+      for (const m of meta) await cache.delete(m.key);
+      await cache.delete('shared-meta');
+      return;
+    }
 
-    // Počkej až je appka přihlášená a zobrazená
+    // Počkej až je appka přihlášená – bez časového limitu (uživatel může psát heslo)
+    // Max 5 minut (1200 × 250 ms), pak vzdej
     const waitReady = () => new Promise(res => {
       let tries = 0;
       const iv = setInterval(() => {
         tries++;
-        if (window.pbToken || tries > 20) { clearInterval(iv); res(); }
+        if (window.pbToken || tries > 1200) { clearInterval(iv); res(); }
       }, 250);
     });
     await waitReady();
 
+    // Teprve teď vymaž z cache (soubory máme v paměti v `files`)
+    for (const m of meta) await cache.delete(m.key);
+    await cache.delete('shared-meta');
+
     if (!window.pbToken) {
-      toast('Přihlas se a zkus sdílení znovu', 'info');
+      // Uživatel se nepřihlásil ani za 5 minut – zobraz info
+      toast('⚠️ Přihlas se a sdílej fotky znovu', 'err');
       return;
     }
-    // Firemní účet potřebuje zakázku
+    // Vždy přidej do fronty (akumuluj) – ať je firemní nebo osobní
+    // Tak lze sdílet z galerie 3 fotky, vrátit se, sdílet 2 další → fronta má 5
+    _pendingSharedFiles = [...(_pendingSharedFiles || []), ...files];
+    const totalNow = _pendingSharedFiles.length;
+    if (!localStorage.getItem('pb_queue_since')) localStorage.setItem('pb_queue_since', Date.now());
+    navigator.setAppBadge?.(totalNow).catch(()=>{});
+    await updateQueueTab();
+    showTab('queue');
     if (!isPersonalAccount() && !pbJob) {
-      showTab('qr');
-      toast(`📷 ${files.length} foto připraveno – naskenuj/zadej zakázku`, 'info');
-      _pendingSharedFiles = files;
-      return;
+      toast(`📷 ${files.length} foto přidáno (celkem ${totalNow}) – zadej zakázku`, 'ok');
+    } else {
+      toast(`📷 ${files.length} foto přidáno${totalNow > files.length ? ' – celkem ' + totalNow + ' ve frontě' : ' – připraveno k odeslání'}`, 'ok');
     }
-    showTab('upload');
-    toast(`📷 Sdíleno ${files.length} foto – nahrávám…`, 'ok');
-    await uploadFiles(files);
   } catch (e) {
     try { toast('❌ Chyba sdílení: ' + e.message, 'err'); } catch(_){}
   }
+}
+
+// Zobrazí banner v Upload záložce s výzvou zadat zakázku (firemní účet, čekající sdílení)
+function showPendingShareBanner(count) {
+  // Pokud banner už existuje, jen aktualizuj počet
+  let banner = document.getElementById('pendingShareBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'pendingShareBanner';
+    banner.style.cssText = `
+      background: linear-gradient(135deg, rgba(240,168,48,0.18) 0%, rgba(61,127,255,0.12) 100%);
+      border: 2px solid rgba(240,168,48,0.55);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 2px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      animation: statusSlideUp 0.25s ease;
+    `;
+    // Vlož na začátek screenUpload, před job banner
+    const screenUpload = document.getElementById('screenUpload');
+    screenUpload.insertBefore(banner, screenUpload.firstChild);
+  }
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:28px">📷</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:var(--warn)">
+          ${count} foto čeká na odeslání
+        </div>
+        <div style="font-size:12px;color:var(--muted2);margin-top:2px;line-height:1.4">
+          Zadej nebo naskenuj číslo zakázky a foto se automaticky odešle
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input class="pb-input" type="text" id="pendingShareJobInput"
+        placeholder="např. AB1234567"
+        inputmode="text"
+        style="flex:1;letter-spacing:0.08em;font-family:var(--mono);font-size:16px;font-weight:700;text-align:center;text-transform:uppercase"
+        oninput="this.value=this.value.toUpperCase().replace(/ /g,'_').replace(/[^A-Z0-9_]/g,'')"
+        onkeydown="if(event.key==='Enter') confirmPendingShareJob()">
+      <button onclick="confirmPendingShareJob()" style="
+        padding:12px 16px;border-radius:10px;cursor:pointer;white-space:nowrap;flex-shrink:0;
+        background:var(--warn);border:none;color:#000;font-size:13px;font-weight:700;font-family:var(--font);
+        transition:opacity 0.15s;
+      ">✓ Potvrdit</button>
+    </div>
+    <button onclick="showTab('qr');document.getElementById('pendingShareBanner').style.display='none'" style="
+      width:100%;padding:10px;border-radius:9px;cursor:pointer;
+      background:rgba(61,127,255,0.12);border:1.5px solid rgba(61,127,255,0.3);
+      color:var(--accent2);font-size:13px;font-weight:700;font-family:var(--font);
+    ">🔲 Naskenovat QR kód</button>
+    <button onclick="cancelPendingShare()" style="
+      width:100%;padding:8px;border-radius:9px;cursor:pointer;
+      background:transparent;border:1px solid rgba(240,90,90,0.3);
+      color:var(--err);font-size:12px;font-weight:600;font-family:var(--font);
+    ">✕ Zrušit sdílení</button>
+  `;
+  // Focus na pole pro zadání zakázky
+  setTimeout(() => {
+    const inp = document.getElementById('pendingShareJobInput');
+    if (inp) inp.focus();
+  }, 400);
+}
+
+function confirmPendingShareJob() {
+  const inp = document.getElementById('pendingShareJobInput');
+  if (!inp) return;
+  const job = inp.value.trim().toUpperCase().replace(/ /g,'_').replace(/[^A-Z0-9_]/g,'');
+  if (!job) { toast('⚠️ Zadej číslo zakázky', 'err'); inp.focus(); return; }
+  // Skryj banner
+  const banner = document.getElementById('pendingShareBanner');
+  if (banner) banner.remove();
+  // Nastav zakázku – setJob() automaticky odešle _pendingSharedFiles
+  setJob(job, null);
+  haptic([80]);
+  toast('📁 Zakázka: ' + job + ' – odesílám foto…', 'ok');
+}
+
+function cancelPendingShare() {
+  _pendingSharedFiles = null;
+  const banner = document.getElementById('pendingShareBanner');
+  if (banner) banner.remove();
+  toast('✕ Sdílení zrušeno');
 }
 
 // Fotky čekající na zadání zakázky (firemní účet)
@@ -3726,7 +3989,11 @@ async function saveToOfflineQueue(file, job, type, isPersonal) {
       profileId: pbActiveId || null,
       ts: Date.now()
     });
-    return new Promise((res, rej) => { tx.oncomplete = () => res(true); tx.onerror = () => rej(tx.error); });
+    if (!localStorage.getItem('pb_queue_since')) localStorage.setItem('pb_queue_since', Date.now());
+    const ok = await new Promise((res, rej) => { tx.oncomplete = () => res(true); tx.onerror = () => rej(tx.error); });
+    // Ukázat záložku Fronta s počtem
+    await updateQueueTab();
+    return ok;
   } catch(e) {
     console.warn('IDB save error:', e);
     return false;
@@ -3801,18 +4068,658 @@ async function processOfflineQueue() {
     }
   }
   await updateOfflineBanner();
+  await updateQueueTab();
+  // Pokud fronta prázdná a záložka Fronta je aktivní, přepni na Upload
+  const remaining = await getOfflineQueueCount();
+  const pendRemain = (_pendingSharedFiles && _pendingSharedFiles.length) || 0;
+  if (remaining + pendRemain === 0) {
+    const queueTab = document.getElementById('tabQueue');
+    if (queueTab && queueTab.classList.contains('active')) {
+      showTab('upload');
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// 📋 ZÁLOŽKA FRONTA – centrální správa čekajících souborů
+// ══════════════════════════════════════════════════════════
+
+// Fronta se skládá ze dvou zdrojů:
+//  1. IDB offline queue (soubory uložené při výpadku sítě)
+//  2. _pendingSharedFiles (soubory sdílené z galerie čekající na přihlášení nebo zakázku)
+
+// Zobrazí/skryje záložku Fronta + aktualizuje badge s počtem
+async function updateQueueTab() {
+  const offlineCount  = await getOfflineQueueCount();
+  const pendingCount  = (_pendingSharedFiles && _pendingSharedFiles.length) ? _pendingSharedFiles.length : 0;
+  const total         = offlineCount + pendingCount;
+
+  const tab   = document.getElementById('tabQueue');
+  const badge = document.getElementById('tabQueueBadge');
+  if (!tab) return;
+
+  if (total > 0) {
+    tab.style.display = '';
+    if (badge) {
+      badge.textContent = total > 99 ? '99+' : String(total);
+      badge.style.display = 'flex';
+    }
+  } else {
+    // Skrýt záložku – ale jen pokud není právě aktivní
+    const isActive = tab.classList.contains('active');
+    if (!isActive) {
+      tab.style.display = 'none';
+      if (badge) badge.style.display = 'none';
+    } else {
+      // Záložka je otevřená a je prázdná – zobraz prázdný stav, badge skryj
+      if (badge) badge.style.display = 'none';
+    }
+  }
+  rebuildTabOrder();
+}
+
+// Renderuje obsah záložky Fronta
+async function renderQueueScreen() {
+  await updateQueueTab();
+
+  const isPersonal = isPersonalAccount();
+
+  // --- Hlavička: jméno ---
+  const nameEl     = document.getElementById('queueAccountName');
+  const jobRow     = document.getElementById('queueJobRow');
+  const jobNameEl  = document.getElementById('queueJobName');
+  const noJobWarn  = document.getElementById('queueNoJobWarn');
+  const statusDot  = document.getElementById('queueStatusDot');
+  const bulkPanel  = document.getElementById('queueBulkTypePanel');
+
+  if (nameEl) {
+    const displayName = getDisplayName(pbProfiles.find(p => p.id === pbActiveId), pbUser);
+    nameEl.textContent = displayName;
+  }
+  if (statusDot) statusDot.textContent = navigator.onLine ? '🟢 Online' : '🔴 Offline';
+
+  // Hromadný panel typů – jen u firemního
+  if (bulkPanel) bulkPanel.style.display = isPersonal ? 'none' : '';
+
+  if (jobRow) {
+    jobRow.style.display = isPersonal ? 'none' : '';
+    if (!isPersonal && jobNameEl) {
+      if (pbJob) {
+        jobNameEl.textContent = pbJob;
+        jobNameEl.style.color = 'var(--warn)';
+        if (noJobWarn) noJobWarn.style.display = 'none';
+      } else {
+        jobNameEl.textContent = 'Není zadána';
+        jobNameEl.style.color = 'var(--err)';
+        if (noJobWarn) noJobWarn.style.display = '';
+      }
+    }
+  }
+
+  // --- Načti položky ---
+  const offlineItems  = await getAllOfflineItems();
+  const offlineCount  = offlineItems.length;
+  const pendingCount  = (_pendingSharedFiles && _pendingSharedFiles.length) || 0;
+  const total         = offlineCount + pendingCount;
+
+  const listEl        = document.getElementById('queueList');
+  const emptyEl       = document.getElementById('queueEmpty');
+  const sendBtn       = document.getElementById('queueSendBtn');
+  const sendTxt       = document.getElementById('queueSendBtnTxt');
+  const sizeInfoEl    = document.getElementById('queueSizeInfo');
+  const progressWrap  = document.getElementById('queueProgressWrap');
+
+  // Celková velikost
+  let totalBytes = 0;
+  (_pendingSharedFiles || []).forEach(f => { if (f?.size) totalBytes += f.size; });
+  offlineItems.forEach(item => { if (item.file?.size) totalBytes += item.file.size; });
+  const fmtSize = b => b > 1048576 ? (b/1048576).toFixed(1) + ' MB' : Math.round(b/1024) + ' kB';
+  if (sizeInfoEl) {
+    if (total > 0) {
+      const netIcon = navigator.onLine ? '🟢' : '📵';
+      sizeInfoEl.textContent = `${netIcon} ${total} ${total===1?'soubor':total<5?'soubory':'souborů'} · ${fmtSize(totalBytes)}`;
+      sizeInfoEl.style.display = '';
+    } else {
+      sizeInfoEl.style.display = 'none';
+    }
+  }
+  // Skryj progress wrap při překreslení mimo odesílání
+  if (progressWrap && progressWrap.dataset.sending !== '1') progressWrap.style.display = 'none';
+
+  // Tlačítko odeslat
+  const canSend = navigator.onLine && (isPersonal || !!pbJob);
+  if (sendBtn) {
+    sendBtn.disabled      = !canSend;
+    sendBtn.style.opacity = canSend ? '1' : '0.45';
+    sendBtn.style.cursor  = canSend ? 'pointer' : 'not-allowed';
+  }
+  if (sendTxt) {
+    if (!navigator.onLine)             sendTxt.textContent = '📵 Offline – nelze odeslat';
+    else if (!isPersonal && !pbJob)    sendTxt.textContent = '⚠️ Zadej zakázku pro odeslání';
+    else                               sendTxt.textContent = `Odeslat vše (${total})`;
+  }
+
+  // Prázdný stav
+  if (listEl) listEl.innerHTML = '';
+  if (total === 0) {
+    if (emptyEl) emptyEl.style.display = '';
+    if (listEl)  listEl.style.display  = 'none';
+    if (sendBtn) sendBtn.style.display = 'none';
+    if (bulkPanel) bulkPanel.style.display = 'none';
+    if (sizeInfoEl) sizeInfoEl.style.display = 'none';
+    // Fronta prázdná – vymaž timestamp notifikace a odznak
+    localStorage.removeItem('pb_queue_since');
+    navigator.clearAppBadge?.();
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (listEl)  listEl.style.display  = 'flex';
+  if (sendBtn) sendBtn.style.display = '';
+
+  // --- Karty ---
+  const cards = [];
+
+  // Revoke staré object URL (čistíme paměť před novým renderem)
+  if (window._queueThumbUrls) {
+    Object.values(window._queueThumbUrls).forEach(u => URL.revokeObjectURL(u));
+  }
+  window._queueThumbUrls = {};
+
+  if (_pendingSharedFiles && _pendingSharedFiles.length) {
+    _pendingSharedFiles.forEach((f, i) => {
+      const cardId = 'pending_' + i;
+      let thumbUrl = null;
+      if (f && f.type && f.type.startsWith('image/')) {
+        thumbUrl = URL.createObjectURL(f);
+        window._queueThumbUrls[cardId] = thumbUrl;
+      }
+      cards.push(buildQueueCard({
+        cardId,
+        filename: f.name,
+        size: f.size,
+        savedType: null,
+        isPersonal,
+        source: 'shared',
+        thumbUrl,
+      }));
+    });
+  }
+
+  offlineItems.forEach(item => {
+    const cardId = 'idb_' + item.id;
+    let thumbUrl = null;
+    if (item.file && item.file.type && item.file.type.startsWith('image/')) {
+      thumbUrl = URL.createObjectURL(item.file);
+      window._queueThumbUrls[cardId] = thumbUrl;
+    }
+    cards.push(buildQueueCard({
+      cardId,
+      filename: item.file?.name || '?',
+      size: item.file?.size,
+      savedType: item.type || null,
+      isPersonal: item.isPersonal,
+      source: 'offline',
+      thumbUrl,
+    }));
+  });
+
+  if (listEl) listEl.innerHTML = cards.join('');
+}
+
+// Typy dokumentů – centrální definice
+const DOC_TYPES = [
+  { value: 'SP',  code: 'SP_',  desc: 'Scan poškození' },
+  { value: 'SD',  code: 'SD_',  desc: 'Scan dokumentace' },
+  { value: 'SDX', code: 'SD_X', desc: 'Scan baterie' },
+  { value: 'VT',  code: 'VT_',  desc: 'Výsledek testu' },
+  { value: 'SN',  code: 'SN_',  desc: 'Scan S/N' },
+];
+
+function buildQueueCard({ cardId, filename, size, savedType, isPersonal, source, thumbUrl }) {
+  const sizeStr = size
+    ? (size > 1048576 ? (size/1048576).toFixed(1) + ' MB' : Math.round(size/1024) + ' kB')
+    : '';
+
+  const sourceBg     = source === 'shared' ? 'rgba(144,80,224,0.08)' : 'rgba(240,168,48,0.08)';
+  const sourceBorder = source === 'shared' ? 'rgba(144,80,224,0.28)' : 'rgba(240,168,48,0.28)';
+  const sourceIcon   = source === 'shared' ? '📱' : '📵';
+  const sourceLabel  = source === 'shared' ? 'Sdíleno z galerie' : 'Uloženo offline';
+
+  const deleteAttr = source === 'offline'
+    ? `onclick="deleteQueueItem('${cardId.replace('idb_','')}')" `
+    : `onclick="deletePendingItem('${cardId}')" `;
+
+  // Rozevírací select typů – jen u firemního
+  const typeSelect = isPersonal ? '' : `
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+      <select id="qtype_${cardId}" onchange="onCardTypeChange('${cardId}',this.value)"
+        style="
+          flex:1;padding:7px 10px;border-radius:9px;
+          background:var(--card);border:1.5px solid var(--pb-input-border);
+          color:var(--text);font-size:13px;font-weight:700;font-family:var(--mono);
+          cursor:pointer;outline:none;
+          -webkit-appearance:none;appearance:none;
+        ">
+        <option value="" style="font-family:var(--mono)">— vyber typ —</option>
+        ${DOC_TYPES.map(t =>
+          `<option value="${t.value}" ${savedType === t.value ? 'selected' : ''}
+            style="font-family:var(--mono)">${t.code}</option>`
+        ).join('')}
+      </select>
+      <label id="qlabel_paint_${cardId}" style="display:${savedType && savedType !== 'SP' ? 'flex' : 'none'};align-items:center;gap:5px;cursor:pointer;flex-shrink:0;
+        padding:6px 9px;border-radius:9px;
+        background:var(--card);border:1.5px solid var(--border2);
+        font-size:16px;line-height:1;
+        transition:border-color 0.15s,background 0.15s;
+      ">
+        <input type="checkbox" id="qpaint_${cardId}"
+          style="width:15px;height:15px;accent-color:var(--accent2);cursor:pointer;margin:0">
+        🎨
+      </label>
+    </div>`;
+
+  const failed   = (window._queueFailedIds || new Set()).has(cardId);
+  const failedBg = failed ? 'rgba(240,96,96,0.10)' : sourceBg;
+  const failedBd = failed ? 'rgba(240,96,96,0.40)' : sourceBorder;
+
+  const thumbHtml = thumbUrl ? `
+    <div onclick="openQueueThumb('${cardId}')" style="
+      flex-shrink:0;width:62px;height:62px;border-radius:9px;overflow:hidden;
+      cursor:zoom-in;position:relative;border:1.5px solid ${failed ? 'rgba(240,96,96,0.40)' : sourceBorder};
+    ">
+      <img src="${thumbUrl}" style="width:100%;height:100%;object-fit:cover;display:block">
+      ${failed ? '<div style="position:absolute;inset:0;background:rgba(240,60,60,0.35);display:flex;align-items:center;justify-content:center;font-size:20px">⚠️</div>' : ''}
+    </div>` : '';
+
+  const failedRow = failed ? `
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;
+      padding:7px 10px;border-radius:8px;
+      background:rgba(240,96,96,0.10);border:1px solid rgba(240,96,96,0.30);">
+      <span style="font-size:12px;color:var(--err);font-weight:700;flex:1">⚠️ Odeslání selhalo</span>
+      <button onclick="retryQueueItem('${cardId}')" style="
+        padding:5px 12px;border-radius:7px;cursor:pointer;white-space:nowrap;
+        background:rgba(240,96,96,0.15);border:1.5px solid rgba(240,96,96,0.45);
+        color:var(--err);font-size:12px;font-weight:700;font-family:var(--font);
+      ">↺ Zkusit znovu</button>
+    </div>` : '';
+
+  return `
+    <div id="qcard_${cardId}" style="
+      padding:11px 13px;border-radius:12px;
+      background:${failedBg};border:1.5px solid ${failedBd};
+    ">
+      <div style="display:flex;gap:10px;align-items:center">
+        ${thumbHtml}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--text);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${filename}
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">
+            ${sourceIcon} ${sourceLabel}${sizeStr ? ' · ' + sizeStr : ''}
+          </div>
+        </div>
+        <button ${deleteAttr}title="Odebrat" style="
+          flex-shrink:0;padding:5px 8px;border-radius:8px;cursor:pointer;
+          background:rgba(240,90,90,0.1);border:1px solid rgba(240,90,90,0.3);
+          color:var(--err);font-size:14px;line-height:1;font-family:var(--font);
+        ">✕</button>
+      </div>
+      ${typeSelect}
+      ${failedRow}
+    </div>`;
+}
+
+// Retry jednoho selhavšího souboru z fronty
+async function retryQueueItem(cardId) {
+  const isPersonal = isPersonalAccount();
+  if (!navigator.onLine) { toast('📵 Nejsi online', 'err'); return; }
+
+  window._queueFailedIds = window._queueFailedIds || new Set();
+  window._queueFailedIds.delete(cardId);
+
+  const { type, paint } = isPersonal ? { type: null, paint: false } : getCardMeta(cardId);
+
+  const setType = () => {
+    if (!type) return;
+    const radio = document.querySelector(`input[name=typ][value="${type}"]`);
+    if (radio) { radio.checked = true; updatePaintOption(); }
+    const paintCb = document.getElementById('openInPaint');
+    if (paintCb) paintCb.checked = !!paint;
+  };
+
+  try {
+    if (cardId.startsWith('pending_')) {
+      const idx = parseInt(cardId.replace('pending_', ''));
+      const file = (_pendingSharedFiles || [])[idx];
+      if (!file) { toast('❌ Soubor nenalezen', 'err'); return; }
+      setType();
+      const savedJob = pbJob;
+      await uploadFiles([file]);
+      pbJob = savedJob;
+      // Odeber z pending
+      _pendingSharedFiles.splice(idx, 1);
+      if (_pendingSharedFiles.length === 0) _pendingSharedFiles = null;
+      toast('✅ Soubor odeslán', 'ok');
+    } else {
+      const id = Number(cardId.replace('idb_', ''));
+      const all = await getAllOfflineItems();
+      const item = all.find(x => x.id === id);
+      if (!item) { toast('❌ Soubor nenalezen', 'err'); return; }
+      setType();
+      const savedJob = pbJob;
+      if (item.job && !pbJob) pbJob = item.job;
+      await uploadFiles([item.file]);
+      await deleteOfflineItem(item.id);
+      pbJob = savedJob;
+      toast('✅ Soubor odeslán', 'ok');
+    }
+  } catch(e) {
+    window._queueFailedIds.add(cardId);
+    toast('❌ Znovu selhalo: ' + (e.message || ''), 'err');
+  }
+
+  await updateQueueTab();
+  const remaining  = await getOfflineQueueCount();
+  const pendRemain = (_pendingSharedFiles && _pendingSharedFiles.length) || 0;
+  if (remaining + pendRemain === 0) {
+    localStorage.removeItem('pb_queue_since');
+    navigator.clearAppBadge?.();
+    setTimeout(() => showTab('upload'), 400);
+  } else {
+    await renderQueueScreen();
+  }
+}
+
+// Lightbox – zvětšení miniatury z fronty
+function openQueueThumb(cardId) {
+  const url = (window._queueThumbUrls || {})[cardId];
+  if (!url) return;
+  let lb = document.getElementById('queueLightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'queueLightbox';
+    lb.style.cssText = [
+      'position:fixed;inset:0;z-index:9999;',
+      'background:rgba(0,0,0,0.93);',
+      'display:flex;align-items:center;justify-content:center;',
+      'cursor:zoom-out;animation:lbFadeIn .15s ease;',
+    ].join('');
+    lb.onclick = e => { if (e.target === lb || e.target.tagName === 'IMG') lb.style.display = 'none'; };
+    document.body.appendChild(lb);
+    // Přidej animaci
+    if (!document.getElementById('lbStyle')) {
+      const s = document.createElement('style');
+      s.id = 'lbStyle';
+      s.textContent = '@keyframes lbFadeIn{from{opacity:0}to{opacity:1}}';
+      document.head.appendChild(s);
+    }
+  }
+  lb.innerHTML = `
+    <button onclick="document.getElementById('queueLightbox').style.display='none'" style="
+      position:absolute;top:14px;right:14px;z-index:1;
+      background:rgba(255,255,255,0.13);backdrop-filter:blur(6px);
+      border:1px solid rgba(255,255,255,0.18);color:#fff;
+      font-size:20px;width:40px;height:40px;border-radius:50%;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      font-family:var(--font);line-height:1;
+    ">✕</button>
+    <img src="${url}" style="
+      max-width:96vw;max-height:92vh;object-fit:contain;
+      border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.6);
+    ">`;
+  lb.style.display = 'flex';
+}
+
+// Změna typu na jednotlivé kartě → odhal/skryj checkbox malování
+function onCardTypeChange(cardId, val) {
+  const paintLabel = document.getElementById('qlabel_paint_' + cardId);
+  if (paintLabel) {
+    paintLabel.style.display = (val && val !== 'SP') ? 'flex' : 'none';
+  }
+  // Pokud je vybraný SP, odebrat check malování
+  if (val === 'SP') {
+    const cb = document.getElementById('qpaint_' + cardId);
+    if (cb) cb.checked = false;
+  }
+}
+
+// Hromadné nastavení typu pro všechny karty
+function applyBulkType(val) {
+  document.querySelectorAll('[id^="qtype_"]').forEach(sel => {
+    sel.value = val;
+    const cardId = sel.id.replace('qtype_', '');
+    onCardTypeChange(cardId, val);
+  });
+}
+
+// Přečte typ a paint flag z karty (pro odeslání)
+function getCardMeta(cardId) {
+  const sel   = document.getElementById('qtype_' + cardId);
+  const paint = document.getElementById('qpaint_' + cardId);
+  return {
+    type:  sel   ? (sel.value   || null) : null,
+    paint: paint ? paint.checked         : false,
+  };
+}
+
+
+
+async function deleteQueueItem(idbId) {
+  await deleteOfflineItem(Number(idbId));
+  await updateQueueTab();
+  await renderQueueScreen();
+  // Pokud fronta prázdná, zavři záložku
+  const cnt = await getOfflineQueueCount();
+  const pendCnt = (_pendingSharedFiles && _pendingSharedFiles.length) || 0;
+  if (cnt + pendCnt === 0) showTab('upload');
+}
+
+function deletePendingItem(cardId) {
+  // cardId = 'pending_0', 'pending_1', …
+  const idx = parseInt(cardId.replace('pending_', ''));
+  if (!isNaN(idx) && _pendingSharedFiles) {
+    _pendingSharedFiles.splice(idx, 1);
+    if (_pendingSharedFiles.length === 0) _pendingSharedFiles = null;
+  }
+  updateQueueTab().then(() => renderQueueScreen()).then(async () => {
+    const cnt = await getOfflineQueueCount();
+    const pendCnt = (_pendingSharedFiles && _pendingSharedFiles.length) || 0;
+    if (cnt + pendCnt === 0) showTab('upload');
+  });
+}
+
+// Odešle vše z fronty – typ čte z každé karty individuálně
+async function sendQueueNow() {
+  const isPersonal = isPersonalAccount();
+  if (!navigator.onLine) { toast('📵 Nejsi online', 'err'); return; }
+  if (!isPersonal && !pbJob) {
+    toast('⚠️ Nejprve zadej nebo naskenuj zakázku', 'err');
+    showTab('qr');
+    return;
+  }
+
+  // Validace: firemní účet – každá karta musí mít typ
+  if (!isPersonal) {
+    const missingType = document.querySelectorAll('[id^="qtype_"]');
+    let hasEmpty = false;
+    missingType.forEach(sel => { if (!sel.value) hasEmpty = true; });
+    if (hasEmpty) {
+      toast('⚠️ Vyber typ dokumentu pro každý soubor (nebo hromadně)', 'err');
+      return;
+    }
+  }
+
+  const sendBtn      = document.getElementById('queueSendBtn');
+  const sendTxt      = document.getElementById('queueSendBtnTxt');
+  const progressWrap = document.getElementById('queueProgressWrap');
+  const progressBar  = document.getElementById('queueProgressBar');
+  const progressTxt  = document.getElementById('queueProgressTxt');
+
+  // Spočítej celkový počet pro progress
+  const pendingFiles  = _pendingSharedFiles ? [..._pendingSharedFiles] : [];
+  const idbItems      = await getAllOfflineItems();
+  const totalFiles    = pendingFiles.length + idbItems.length;
+
+  if (sendBtn)      sendBtn.disabled = true;
+  if (sendTxt)      sendTxt.textContent = '⏳ Odesílám…';
+  if (progressWrap) { progressWrap.style.display = 'flex'; progressWrap.dataset.sending = '1'; }
+  if (progressBar)  progressBar.style.width = '0%';
+  if (progressTxt)  progressTxt.textContent = `0 / ${totalFiles}`;
+
+  // Reset neúspěšných z minulého pokusu
+  window._queueFailedIds = window._queueFailedIds || new Set();
+  window._queueFailedIds.clear();
+
+  let sentOk = 0, sentErr = 0, done = 0;
+
+  const updateProgress = () => {
+    done++;
+    const pct = totalFiles > 0 ? Math.round((done / totalFiles) * 100) : 100;
+    if (progressBar) progressBar.style.width = pct + '%';
+    if (progressTxt) progressTxt.textContent = `${done} / ${totalFiles}`;
+  };
+
+  // --- 1. Sdílené soubory z galerie (_pendingSharedFiles) ---
+  if (pendingFiles.length) {
+    _pendingSharedFiles = null;
+
+    for (let i = 0; i < pendingFiles.length; i++) {
+      const cardId = 'pending_' + i;
+      const { type, paint } = isPersonal ? { type: null, paint: false } : getCardMeta(cardId);
+
+      if (type) {
+        const radio = document.querySelector(`input[name=typ][value="${type}"]`);
+        if (radio) { radio.checked = true; updatePaintOption(); }
+        const paintCb = document.getElementById('openInPaint');
+        if (paintCb) paintCb.checked = paint;
+      }
+
+      try {
+        const savedJob = pbJob;
+        await uploadFiles([pendingFiles[i]]);
+        pbJob = savedJob;
+        sentOk++;
+      } catch(e) {
+        sentErr++;
+        console.warn('Queue shared send err:', e);
+        _pendingSharedFiles = _pendingSharedFiles || [];
+        _pendingSharedFiles.push(pendingFiles[i]);
+        window._queueFailedIds.add('pending_' + (_pendingSharedFiles.length - 1));
+      }
+      updateProgress();
+    }
+  }
+
+  // --- 2. Offline IDB soubory ---
+  for (const item of idbItems) {
+    const cardId = 'idb_' + item.id;
+    const { type, paint } = isPersonal ? { type: null, paint: false } : getCardMeta(cardId);
+    const effectiveType = type || item.type || null;
+
+    if (effectiveType) {
+      const radio = document.querySelector(`input[name=typ][value="${effectiveType}"]`);
+      if (radio) { radio.checked = true; updatePaintOption(); }
+      const paintCb = document.getElementById('openInPaint');
+      if (paintCb) paintCb.checked = paint;
+    }
+
+    try {
+      const savedJob = pbJob;
+      if (item.job && !pbJob) pbJob = item.job;
+      await uploadFiles([item.file]);
+      await deleteOfflineItem(item.id);
+      pbJob = savedJob;
+      sentOk++;
+    } catch(e) {
+      sentErr++;
+      console.warn('Queue idb send err:', e);
+      window._queueFailedIds.add(cardId);
+    }
+    updateProgress();
+  }
+
+  if (sendBtn) sendBtn.disabled = false;
+  if (progressWrap) { progressWrap.style.display = 'none'; delete progressWrap.dataset.sending; }
+
+  const p = n => n === 1 ? '' : n < 5 ? 'y' : 'ů';
+  if (sentErr === 0) toast(`✅ Odesláno ${sentOk} soubor${p(sentOk)}`, 'ok');
+  else               toast(`⚠️ ${sentOk} odesláno, ${sentErr} selhalo`, 'err');
+
+  await updateQueueTab();
+  const remaining  = await getOfflineQueueCount();
+  const pendRemain = (_pendingSharedFiles && _pendingSharedFiles.length) || 0;
+  if (remaining + pendRemain === 0) {
+    localStorage.removeItem('pb_queue_since');
+    navigator.clearAppBadge?.();
+    setTimeout(() => showTab('upload'), 600);
+  } else {
+    await renderQueueScreen();
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════
+// 🔔 NOTIFIKACE – upozornění na čekající frontu
+// ══════════════════════════════════════════════════════════
+function initQueueNotifications() {
+  if (window._pbNotifInit) return;
+  window._pbNotifInit = true;
+
+  // Požádej o povolení notifikací (jemně, nezávisí na odpovědi)
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
+
+  const THIRTY_MIN = 30 * 60 * 1000;
+  const CHECK_INTERVAL = 2 * 60 * 1000; // každé 2 minuty
+
+  setInterval(async () => {
+    const since = parseInt(localStorage.getItem('pb_queue_since') || '0');
+    if (!since) return;
+    if (Date.now() - since < THIRTY_MIN) return;
+
+    const idbCount  = await getOfflineQueueCount();
+    const pendCount = (_pendingSharedFiles && _pendingSharedFiles.length) || 0;
+    const total     = idbCount + pendCount;
+    if (total === 0) { localStorage.removeItem('pb_queue_since'); return; }
+
+    // Nastav odznak na ikoně PWA
+    navigator.setAppBadge?.(total).catch(() => {});
+
+    // Zobraz notifikaci jen pokud je stránka skrytá
+    if (document.visibilityState !== 'hidden') return;
+    if (Notification.permission !== 'granted') return;
+
+    // Netrapme uživatele příliš – max 1× za 30 minut
+    const lastNotif = parseInt(localStorage.getItem('pb_last_notif') || '0');
+    if (Date.now() - lastNotif < THIRTY_MIN) return;
+    localStorage.setItem('pb_last_notif', Date.now());
+
+    const p = n => n === 1 ? 'soubor čeká' : n < 5 ? 'soubory čekají' : 'souborů čeká';
+    new Notification('PhotoBridge – fronta', {
+      body: `${total} ${p(total)} přes 30 minut na odeslání`,
+      icon: 'icon_192.png',
+      badge: 'icon_192.png',
+      tag: 'pb-queue',
+      renotify: false,
+    });
+  }, CHECK_INTERVAL);
 }
 
 function initOfflineDetection() {
   if (window._pbOfflineInit) return;
   window._pbOfflineInit = true;
   updateOfflineBanner();
+  updateQueueTab();
   window.addEventListener('online', () => {
     updateOfflineBanner();
+    updateQueueTab();
     processOfflineQueue();
   });
   window.addEventListener('offline', () => {
     updateOfflineBanner();
+    updateQueueTab();
     toast('📵 Bez připojení – soubory se uloží lokálně', 'err');
   });
 }
