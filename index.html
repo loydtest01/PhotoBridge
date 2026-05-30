@@ -2514,7 +2514,7 @@ let _swipeValid = false;
 
 function getCurrentTab() {
   // Explicitní mapování: tab name → element ID (kvůli case-sensitivity, "QR" vs "Qr")
-  const TAB_IDS = { qr: 'screenQR', upload: 'screenUpload', settings: 'screenSettings' };
+  const TAB_IDS = { qr: 'screenQR', upload: 'screenUpload', queue: 'screenQueue', settings: 'screenSettings' };
   for (const t of TAB_ORDER) {
     const screen = document.getElementById(TAB_IDS[t]);
     if (screen && screen.classList.contains('active')) return t;
@@ -3020,7 +3020,7 @@ async function handleSharedPhotos() {
       let tries = 0;
       const iv = setInterval(() => {
         tries++;
-        if (window.pbToken || tries > 1200) { clearInterval(iv); res(); }
+        if (pbToken || tries > 1200) { clearInterval(iv); res(); }
       }, 250);
     });
     await waitReady();
@@ -3029,7 +3029,7 @@ async function handleSharedPhotos() {
     for (const m of meta) await cache.delete(m.key);
     await cache.delete('shared-meta');
 
-    if (!window.pbToken) {
+    if (!pbToken) {
       // Uživatel se nepřihlásil ani za 5 minut – zobraz info
       toast('⚠️ Přihlas se a sdílej fotky znovu', 'err');
       return;
