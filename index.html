@@ -1000,83 +1000,43 @@
     <!-- Queue Screen -->
     <div class="screen" id="screenQueue">
 
-      <!-- Hlavička: jméno + zakázka -->
-      <div style="
+      <!-- Zakázka – jen u firemního (standalone karta, bez jména/tečky) -->
+      <div id="queueJobRow" style="display:none;
         background:var(--surface);border:1px solid var(--border);border-radius:14px;
-        padding:14px 16px;display:flex;flex-direction:column;gap:0;
+        padding:14px 16px;
       ">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span id="queueAccountName" style="font-size:15px;font-weight:700;color:var(--text);flex:1">—</span>
-          <span id="queueStatusDot" style="font-size:11px;color:var(--muted);font-weight:600"></span>
+        <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px">Zakázka</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="queueJobName" style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--warn);flex:1;letter-spacing:.04em">—</div>
+          <button onclick="showTab('qr')" style="
+            padding:6px 12px;border-radius:8px;cursor:pointer;flex-shrink:0;
+            background:rgba(61,127,255,0.12);border:1.5px solid rgba(61,127,255,0.3);
+            color:var(--accent2);font-size:12px;font-weight:700;font-family:var(--font)
+          ">🔲 Změnit</button>
         </div>
-        <!-- Zakázka – jen u firemního -->
-        <div id="queueJobRow" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-          <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px">Zakázka</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div id="queueJobName" style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--warn);flex:1;letter-spacing:.04em">—</div>
-            <button onclick="showTab('qr')" style="
-              padding:6px 12px;border-radius:8px;cursor:pointer;flex-shrink:0;
-              background:rgba(61,127,255,0.12);border:1.5px solid rgba(61,127,255,0.3);
-              color:var(--accent2);font-size:12px;font-weight:700;font-family:var(--font)
-            ">🔲 Změnit</button>
-          </div>
-          <div id="queueNoJobWarn" style="display:none;margin-top:6px;padding:8px 10px;
-            background:rgba(240,168,48,0.12);border:1px solid rgba(240,168,48,0.35);
-            border-radius:8px;font-size:12px;color:var(--warn);line-height:1.5">
-            ⚠️ Zadej nebo naskenuj zakázku před odesláním
-          </div>
+        <div id="queueNoJobWarn" style="display:none;margin-top:6px;padding:8px 10px;
+          background:rgba(240,168,48,0.12);border:1px solid rgba(240,168,48,0.35);
+          border-radius:8px;font-size:12px;color:var(--warn);line-height:1.5">
+          ⚠️ Zadej nebo naskenuj zakázku před odesláním
         </div>
       </div>
 
-      <!-- Hromadný výběr typu – jen u firemního -->
+      <!-- Hromadný výběr typu – rozevírací select místo radio tlačítek -->
       <div id="queueBulkTypePanel" style="display:none;
-        background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;
+        background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;
       ">
-        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">
-          Hromadně nastavit typ pro všechny soubory:
+        <div style="font-size:11px;font-weight:700;color:var(--muted2);margin-bottom:8px;letter-spacing:.05em;text-transform:uppercase">
+          Hromadně nastavit typ pro všechny:
         </div>
-        <div style="display:flex;flex-direction:column;gap:7px" id="queueBulkTypes">
-          <label class="type-label sp-type" style="padding:9px 12px">
-            <input type="radio" name="qtyp" value="SP" onchange="applyBulkType('SP')">
-            <div class="type-text"><div class="code">SP_</div><div class="desc">Scan poškození</div></div>
-          </label>
-          <label class="type-label" style="padding:9px 12px">
-            <input type="radio" name="qtyp" value="SD" onchange="applyBulkType('SD')">
-            <div class="type-text"><div class="code">SD_</div><div class="desc">Scan dokumentace</div></div>
-          </label>
-          <label class="type-label" style="padding:9px 12px">
-            <input type="radio" name="qtyp" value="SDX" onchange="applyBulkType('SDX')">
-            <div class="type-text"><div class="code">SD_X</div><div class="desc">Scan baterie</div></div>
-          </label>
-          <label class="type-label" style="padding:9px 12px">
-            <input type="radio" name="qtyp" value="VT" onchange="applyBulkType('VT')">
-            <div class="type-text"><div class="code">VT_</div><div class="desc">Výsledek testu</div></div>
-          </label>
-          <label class="type-label" style="padding:9px 12px">
-            <input type="radio" name="qtyp" value="SN" onchange="applyBulkType('SN')">
-            <div class="type-text"><div class="code">SN_</div><div class="desc">Scan S/N</div></div>
-          </label>
-        </div>
+        <select id="queueBulkSelect" onchange="applyBulkType(this.value)">
+          <option value="">— vyber typ pro všechny —</option>
+          <option value="SP">SP_ – Scan poškození</option>
+          <option value="SD">SD_ – Scan dokumentace</option>
+          <option value="SDX">SD_X – Scan baterie</option>
+          <option value="VT">VT_ – Výsledek testu</option>
+          <option value="SN">SN_ – Scan S/N</option>
+        </select>
       </div>
-
-      <!-- Tlačítko odeslat vše -->
-      <button id="queueSendBtn" onclick="sendQueueNow()" style="
-        width:100%;padding:15px;border-radius:12px;cursor:pointer;
-        background:linear-gradient(135deg,var(--accent),#9050e0);
-        border:none;color:#fff;font-size:15px;font-weight:700;font-family:var(--font);
-        display:flex;align-items:center;justify-content:center;gap:10px;
-        box-shadow:0 6px 20px rgba(86,104,232,0.35);
-        transition:opacity 0.15s,transform 0.1s;
-      ">
-        <span style="font-size:20px">📤</span>
-        <span id="queueSendBtnTxt">Odeslat vše</span>
-      </button>
-
-      <!-- Celková velikost fronty -->
-      <div id="queueSizeInfo" style="
-        display:none;text-align:center;font-size:12px;font-weight:600;
-        color:var(--muted);margin-top:-4px;letter-spacing:.02em;
-      "></div>
 
       <!-- Progress při odesílání -->
       <div id="queueProgressWrap" style="display:none;flex-direction:column;gap:6px">
@@ -1107,6 +1067,25 @@
         <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Fronta je prázdná</div>
         <div style="font-size:13px;line-height:1.6">Všechny soubory byly úspěšně odeslány</div>
       </div>
+
+      <!-- Tlačítko odeslat vše – vždy pod všemi fotkami -->
+      <button id="queueSendBtn" onclick="sendQueueNow()" style="
+        width:100%;padding:15px;border-radius:12px;cursor:pointer;
+        background:linear-gradient(135deg,var(--accent),#9050e0);
+        border:none;color:#fff;font-size:15px;font-weight:700;font-family:var(--font);
+        display:flex;align-items:center;justify-content:center;gap:10px;
+        box-shadow:0 6px 20px rgba(86,104,232,0.35);
+        transition:opacity 0.15s,transform 0.1s;
+      ">
+        <span style="font-size:20px">📤</span>
+        <span id="queueSendBtnTxt">Odeslat vše</span>
+      </button>
+
+      <!-- Celková velikost fronty – pod tlačítkem -->
+      <div id="queueSizeInfo" style="
+        display:none;text-align:center;font-size:12px;font-weight:600;
+        color:var(--muted);margin-top:-4px;letter-spacing:.02em;
+      "></div>
 
     </div>
 
@@ -4124,22 +4103,17 @@ async function renderQueueScreen() {
 
   const isPersonal = isPersonalAccount();
 
-  // --- Hlavička: jméno ---
-  const nameEl     = document.getElementById('queueAccountName');
+  // --- Hlavička: zakázka ---
   const jobRow     = document.getElementById('queueJobRow');
   const jobNameEl  = document.getElementById('queueJobName');
   const noJobWarn  = document.getElementById('queueNoJobWarn');
-  const statusDot  = document.getElementById('queueStatusDot');
   const bulkPanel  = document.getElementById('queueBulkTypePanel');
-
-  if (nameEl) {
-    const displayName = getDisplayName(pbProfiles.find(p => p.id === pbActiveId), pbUser);
-    nameEl.textContent = displayName;
-  }
-  if (statusDot) statusDot.textContent = navigator.onLine ? '🟢 Online' : '🔴 Offline';
 
   // Hromadný panel typů – jen u firemního
   if (bulkPanel) bulkPanel.style.display = isPersonal ? 'none' : '';
+  // Reset bulk select při novém renderu
+  const bulkSel = document.getElementById('queueBulkSelect');
+  if (bulkSel) bulkSel.value = '';
 
   if (jobRow) {
     jobRow.style.display = isPersonal ? 'none' : '';
@@ -4303,7 +4277,7 @@ function buildQueueCard({ cardId, filename, size, savedType, isPersonal, source,
         <option value="" style="font-family:var(--mono)">— vyber typ —</option>
         ${DOC_TYPES.map(t =>
           `<option value="${t.value}" ${savedType === t.value ? 'selected' : ''}
-            style="font-family:var(--mono)">${t.code}</option>`
+            style="font-family:var(--mono)">${t.code} – ${t.desc}</option>`
         ).join('')}
       </select>
       <label id="qlabel_paint_${cardId}" style="display:${savedType && savedType !== 'SP' ? 'flex' : 'none'};align-items:center;gap:5px;cursor:pointer;flex-shrink:0;
