@@ -1839,10 +1839,20 @@ async function ocrJobNumber() {
     toast('AI čtení je vypnuté – zapni ho v Nastavení', 'info');
     return;
   }
+  // Pokud už AI scan běží, druhý klik = vyfotit hned (přeskočit čekání)
+  if (_ocrRunning) {
+    _ocrCaptureNow = true;
+    return;
+  }
+
   const btn = document.getElementById('btnOcrJob');
+  _ocrRunning = true;
+  _ocrCancel = false;
+  _ocrCaptureNow = false;
+  // Scan QR tlačítko → Zastavit (zastaví AI scan)
+  showStopButton(true);
   try {
     let video = document.getElementById('qrVideo');
-    let startedHere = false;
     if (!qrStream) {
       toast('📷 Spouštím kameru…', 'info');
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -1853,74 +1863,126 @@ async function ocrJobNumber() {
       document.getElementById('qrScanArea').style.display = 'block';
       video.style.visibility = 'visible';
       await video.play().catch(()=>{});
-      await new Promise(r => setTimeout(r, 800));
-      startedHere = true;
+      await new Promise(r => setTimeout(r, 700));
     }
     if (video.readyState < video.HAVE_CURRENT_DATA) {
       await new Promise(r => setTimeout(r, 500));
     }
 
-    // Dej uživateli čas namířit kameru na číslo zakázky – odpočet
-    if (btn) btn.disabled = true;
-    for (let sec = 3; sec >= 1; sec--) {
-      if (btn) btn.textContent = `📸 Foto za ${sec}…`;
-      toast(`📸 Namiř na číslo zakázky – foto za ${sec}…`, 'info');
-      await new Promise(r => setTimeout(r, 1000));
-    }
-    if (btn) btn.textContent = '🤖 Čtu číslo…';
-    toast('🤖 Čtu číslo zakázky…', 'info');
-    // Ještě krátká pauza na ustálení ostření/expozice
-    await new Promise(r => setTimeout(r, 400));
-
-    const cap = document.createElement('canvas');
-    const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
-    const sc = Math.min(1280 / vw, 1280 / vh, 1);
-    cap.width = Math.round(vw * sc); cap.height = Math.round(vh * sc);
-    cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height);
-    const dataUrl = cap.toDataURL('image/jpeg', 0.9);
-
     const key = await getOcrGroqKey();
     if (!key) { toast('❌ AI klíč není dostupný', 'err'); return; }
 
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: 'This is a photo of a computer screen showing a service repair application (Czech "servisní zakázka"). Find the SERVICE ORDER NUMBER. It is the SINGLE LARGEST number on the screen, shown in big bold font as a title in the TOP-LEFT area (much bigger than all other text), and it is exactly 7 digits, typically starting with 45 (e.g. 4516564). CRITICAL: Do NOT return any of these - IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, or the small field labeled "Zakázka" in the form body (that is a different reference). ONLY the big bold title number counts. Respond with ONLY those 7 digits and nothing else. If no large bold 7-digit title number is visible, respond "NONE".' },
-            { type: 'image_url', image_url: { url: dataUrl } },
-          ],
-        }],
-        max_tokens: 30,
-        temperature: 0,
-      }),
-    });
-    if (!resp.ok) throw new Error('Groq ' + resp.status);
-    const data = await resp.json();
-    let text = (data.choices?.[0]?.message?.content || '').trim();
-    const m = text.match(/\d{4,}/);
-    if (!m || /NONE/i.test(text)) {
-      toast('⚠️ Číslo zakázky nenalezeno, zkus to znovu nebo zadej ručně', 'err');
+    if (btn) btn.disabled = true;
+    toast('🤖 Namiř na číslo zakázky – AI hledá…', 'info');
+
+    // Opakované pokusy: AI zkouší číst dokud nenajde, vyprší limit, nebo uživatel zastaví.
+    // Druhý klik na Scan AI nastaví _ocrCaptureNow → vyfotí okamžitě.
+    const MAX_ATTEMPTS = 8;          // ~ horní strop pokusů
+    const ATTEMPT_GAP_MS = 1500;     // pauza mezi pokusy (čas na doostření/namíření)
+    let found = null;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS && !found; attempt++) {
+      if (_ocrCancel) break;
+      if (btn) btn.textContent = `🤖 Hledám… (${attempt})`;
+
+      // Vyfoť snímek
+      const cap = document.createElement('canvas');
+      const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+      const sc = Math.min(1280 / vw, 1280 / vh, 1);
+      cap.width = Math.round(vw * sc); cap.height = Math.round(vh * sc);
+      cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height);
+      const dataUrl = cap.toDataURL('image/jpeg', 0.9);
+
+      try {
+        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'text', text: 'This is a photo of a computer screen showing a service repair application (Czech "servisní zakázka"). Find the SERVICE ORDER NUMBER. It is the SINGLE LARGEST number on the screen, shown in big bold font as a title in the TOP-LEFT area (much bigger than all other text), and it is exactly 7 digits, typically starting with 45 (e.g. 4516564). CRITICAL: Do NOT return any of these - IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, or the small field labeled "Zakázka" in the form body (that is a different reference). ONLY the big bold title number counts. Respond with ONLY those 7 digits and nothing else. If no large bold 7-digit title number is visible, respond "NONE".' },
+                { type: 'image_url', image_url: { url: dataUrl } },
+              ],
+            }],
+            max_tokens: 30,
+            temperature: 0,
+          }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const txt = (data.choices?.[0]?.message?.content || '').trim();
+          const m = txt.match(/\d{4,}/);
+          if (m && !/NONE/i.test(txt)) found = m[0];
+        }
+      } catch (_) { /* síťová chyba u jednoho pokusu – zkus další */ }
+
+      if (found || _ocrCancel) break;
+
+      // Pauza před dalším pokusem – ale když uživatel klikne znovu, vyfoť hned
+      const waitUntil = Date.now() + ATTEMPT_GAP_MS;
+      while (Date.now() < waitUntil) {
+        if (_ocrCancel) break;
+        if (_ocrCaptureNow) { _ocrCaptureNow = false; break; }
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+
+    if (_ocrCancel) {
+      toast('AI scan zastaven', 'info');
       return;
     }
-    const jobNum = m[0];
-    if (startedHere) stopQRScan();
-    // Předvyplň pole pro ruční zadání – technik zkontroluje a potvrdí (OCR nemusí být přesné)
-    const inp = document.getElementById('manualJobInput');
-    if (inp) {
-      inp.value = jobNum;
-      inp.focus();
-      try { inp.select(); } catch(_){}
+    if (!found) {
+      toast('⚠️ Číslo zakázky nenalezeno – zkus znovu (klikni Scan AI) nebo zadej ručně', 'err');
+      return;
     }
-    toast('🤖 Přečteno: ' + jobNum + ' — zkontroluj a potvrď', 'ok');
+
+    stopQRScan();
+    // Předvyplň pole pro ruční zadání – technik zkontroluje a potvrdí
+    const inp = document.getElementById('manualJobInput');
+    if (inp) { inp.value = found; inp.focus(); try { inp.select(); } catch(_){} }
+    toast('🤖 Přečteno: ' + found + ' — zkontroluj a potvrď', 'ok');
   } catch (e) {
     toast('❌ Čtení selhalo: ' + e.message, 'err');
   } finally {
+    _ocrRunning = false;
+    _ocrCancel = false;
+    _ocrCaptureNow = false;
+    showStopButton(false);
     if (btn) { btn.disabled = false; btn.textContent = '🤖 Scan AI'; }
   }
+}
+
+// Stav AI scanu
+let _ocrRunning = false;
+let _ocrCancel = false;
+let _ocrCaptureNow = false;
+
+// Přepne Scan QR tlačítko na "Zastavit" (a zpět) během AI scanu
+function showStopButton(show) {
+  const qrBtn = document.getElementById('btnStartScan');
+  if (!qrBtn) return;
+  if (show) {
+    qrBtn.dataset.origText = qrBtn.textContent;
+    qrBtn.textContent = '✖ Zastavit';
+    qrBtn.onclick = stopAiScan;
+    qrBtn.style.background = 'rgba(240,90,90,0.15)';
+    qrBtn.style.border = '1.5px solid rgba(240,90,90,0.4)';
+    qrBtn.style.color = 'var(--red)';
+  } else {
+    qrBtn.textContent = qrBtn.dataset.origText || '📷 Scan QR';
+    qrBtn.onclick = startQRScan;
+    qrBtn.style.background = '';
+    qrBtn.style.border = '';
+    qrBtn.style.color = '';
+  }
+}
+
+// Zastaví běžící AI scan
+function stopAiScan() {
+  _ocrCancel = true;
+  stopQRScan();
 }
 
 function confirmScan(raw) {
