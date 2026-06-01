@@ -462,6 +462,7 @@
       width: 100%; padding: 13px; border-radius: 10px;
       font-size: 14px; font-weight: 700; transition: all 0.15s;
     }
+    .scan-btn-row .btn-full { width: auto; }
     .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 16px rgba(61,127,255,0.3); }
     .btn-primary:hover { background: var(--accent2); }
     .btn-primary:active { transform: scale(0.98); }
@@ -904,9 +905,11 @@
 
       <div class="upload-panel">
         <div class="section-label">Naskenovat QR / čárový kód</div>
-        <button class="btn-full btn-primary" id="btnOcrJob" onclick="ocrJobNumber()" style="display:none; margin-bottom:8px;">🤖 Přečíst číslo zakázky (AI)</button>
-        <button class="btn-full btn-primary" id="btnStartScan" onclick="startQRScan()">📷 Spustit kameru</button>
-        <button class="btn-full" id="btnStopScan" onclick="stopQRScan()" style="display:none; background:rgba(240,90,90,0.1);border:1.5px solid rgba(240,90,90,0.3);color:var(--red);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">✖ Zastavit kameru</button>
+        <div class="scan-btn-row" style="display:flex; gap:8px;">
+          <button class="btn-full btn-primary" id="btnOcrJob" onclick="ocrJobNumber()" style="display:none; flex:1;">🤖 Scan AI</button>
+          <button class="btn-full btn-primary" id="btnStartScan" onclick="startQRScan()" style="flex:1;">📷 Scan QR</button>
+        </div>
+        <button class="btn-full" id="btnStopScan" onclick="stopQRScan()" style="display:none; margin-top:8px; background:rgba(240,90,90,0.1);border:1.5px solid rgba(240,90,90,0.3);color:var(--red);border-radius:10px;padding:13px;font-size:14px;font-weight:700;">✖ Zastavit kameru</button>
       </div>
 
       <div class="upload-panel" id="manualJobSection">
@@ -1857,7 +1860,17 @@ async function ocrJobNumber() {
       await new Promise(r => setTimeout(r, 500));
     }
 
-    if (btn) { btn.disabled = true; btn.textContent = '🤖 Čtu číslo…'; }
+    // Dej uživateli čas namířit kameru na číslo zakázky – odpočet
+    if (btn) btn.disabled = true;
+    for (let sec = 3; sec >= 1; sec--) {
+      if (btn) btn.textContent = `📸 Foto za ${sec}…`;
+      toast(`📸 Namiř na číslo zakázky – foto za ${sec}…`, 'info');
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    if (btn) btn.textContent = '🤖 Čtu číslo…';
+    toast('🤖 Čtu číslo zakázky…', 'info');
+    // Ještě krátká pauza na ustálení ostření/expozice
+    await new Promise(r => setTimeout(r, 400));
 
     const cap = document.createElement('canvas');
     const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
@@ -1906,7 +1919,7 @@ async function ocrJobNumber() {
   } catch (e) {
     toast('❌ Čtení selhalo: ' + e.message, 'err');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🤖 Přečíst číslo zakázky (AI)'; }
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 Scan AI'; }
   }
 }
 
