@@ -1959,14 +1959,14 @@ let _ocrRunning = false;
 let _ocrCancel = false;
 let _ocrCaptureNow = false;
 
-// Přepne Scan QR tlačítko na "Zastavit" (a zpět) během AI scanu
-function showStopButton(show) {
+// Přepne Scan QR tlačítko na "Zastavit" (a zpět) během AI scanu nebo QR scanu
+function showStopButton(show, source) {
   const qrBtn = document.getElementById('btnStartScan');
   if (!qrBtn) return;
   if (show) {
-    qrBtn.dataset.origText = qrBtn.textContent;
+    if (!qrBtn.dataset.origText) qrBtn.dataset.origText = qrBtn.textContent;
     qrBtn.textContent = '✖ Zastavit';
-    qrBtn.onclick = stopAiScan;
+    qrBtn.onclick = (source === 'qr') ? stopQRScan : stopAiScan;
     qrBtn.style.background = 'rgba(240,90,90,0.15)';
     qrBtn.style.border = '1.5px solid rgba(240,90,90,0.4)';
     qrBtn.style.color = 'var(--red)';
@@ -2680,8 +2680,8 @@ function confirmManualJob() {
 async function startQRScan() {
   _scanLast = null; _scanCount = 0;   // vyčisti potvrzovací buffer
   document.getElementById('qrScanArea').style.display = 'block';
-  document.getElementById('btnStartScan').style.display = 'none';
-  document.getElementById('btnStopScan').style.display = '';
+  // Scan QR tlačítko se na místě změní na "Zastavit" (vedle Scan AI)
+  showStopButton(true, 'qr');
   document.getElementById('qrStatus').innerHTML = `
     <div class="qr-status-icon">🔍</div>
     <div class="qr-status-title">Hledám kód…</div>
@@ -2847,8 +2847,8 @@ function stopQRScan() {
   if (qrInterval) { clearInterval(qrInterval); qrInterval = null; }
   if (qrStream)   { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
   document.getElementById('qrScanArea').style.display = 'none';
-  document.getElementById('btnStartScan').style.display = '';
-  document.getElementById('btnStopScan').style.display  = 'none';
+  showStopButton(false);
+  document.getElementById('btnStopScan').style.display = 'none';
 }
 
 function parseQRCode(raw) {
