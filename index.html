@@ -1930,20 +1930,21 @@ async function ocrJobNumber() {
       if (_ocrCancel) break;
       if (btn) btn.textContent = `🤖 Hledám… (${attempt})`;
 
-      // Vyfoť snímek
+      // Vyfoť snímek – vyšší rozlišení kvůli čitelnosti malých číslic na displeji
       const cap = document.createElement('canvas');
       const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
-      const sc = Math.min(1280 / vw, 1280 / vh, 1);
+      const sc = Math.min(1568 / vw, 1568 / vh, 1);
       cap.width = Math.round(vw * sc); cap.height = Math.round(vh * sc);
       cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height);
-      const dataUrl = cap.toDataURL('image/jpeg', 0.9);
+      const dataUrl = cap.toDataURL('image/jpeg', 0.92);
 
-      const prompt = 'This is a photo of a computer screen showing a service repair application (Czech "servisní zakázka"). Find the SERVICE ORDER NUMBER. It is the SINGLE LARGEST number on the screen, shown in big bold font as a title in the TOP-LEFT area (much bigger than all other text), and it is exactly 7 digits, typically starting with 45 (e.g. 4516564). CRITICAL: Do NOT return any of these - IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, or the small field labeled "Zakázka" in the form body (that is a different reference). ONLY the big bold title number counts. Respond with ONLY those 7 digits and nothing else. If no large bold 7-digit title number is visible, respond "NONE".';
+      const prompt = 'Photo of a computer screen with a Czech service repair app ("servisní zakázka"). Read the SERVICE ORDER NUMBER: a 7-digit number, usually starting with 45 (e.g. 4516564), shown as a prominent bold number near the TOP of the screen. Read the digits carefully one by one. Ignore these: IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, and the small text field labeled "Zakázka" inside the form. Reply with ONLY the 7 digits, nothing else. If you really cannot see any 7-digit order number, reply "NONE".';
 
       const res = await groqVisionCall(dataUrl, prompt);
       if (res && res.text) {
         const txt = res.text;
-        const m = txt.match(/\d{4,}/);
+        // Preferuj přesně 7místné číslo (formát zakázky), jinak ber první 4+ číslic
+        const m = txt.match(/\d{7}/) || txt.match(/\d{4,}/);
         if (m && !/NONE/i.test(txt)) found = m[0];
       } else if (res && res.rateLimited) {
         // Všechny klíče narazily na limit – nemá smysl pokračovat ve smyčce
