@@ -2283,6 +2283,7 @@ function showApp() {
   showPwaInstall();
   initOfflineDetection();
   initQueueNotifications();
+  rehydratePendingShared();   // obnov sdílené fotky z IDB zálohy (přežijí kill)
   cleanJobHistory();   // vymaže [object Object] záznamy z localStorage hned při startu
   renderJobHistory();
 
@@ -2915,7 +2916,11 @@ function setJob(job, token) {
       if (firstRadio) { firstRadio.checked = true; updatePaintOption(); }
     }
     toast(`📷 Nahrávám ${f.length} sdílené foto…`, 'ok');
-    uploadFiles(f).then(() => updateQueueTab());
+    uploadFiles(f).then(() => {
+      // Odeslané sdílené fotky smaž z IDB zálohy
+      f.forEach(file => deleteSharedBackup(file));
+      updateQueueTab();
+    });
   }
   updateQueueTab();
 }
@@ -3103,6 +3108,12 @@ async function handleSharedPhotos() {
     }
     // Vždy přidej do fronty (akumuluj) – ať je firemní nebo osobní
     // Tak lze sdílet z galerie 3 fotky, vrátit se, sdílet 2 další → fronta má 5
+    // Každou fotku ulož i do IDB jako tichou zálohu (přežije zavření appky /
+    // odstřelení systémem). Na soubor pověsíme _idbId, ať zálohu po odeslání smažeme.
+    for (const f of files) {
+      const id = await savePendingShared(f, f.name);
+      if (id != null) { try { f._idbId = id; } catch(_){} }
+    }
     _pendingSharedFiles = [...(_pendingSharedFiles || []), ...files];
     const totalNow = _pendingSharedFiles.length;
     if (!localStorage.getItem('pb_queue_since')) localStorage.setItem('pb_queue_since', Date.now());
@@ -3199,6 +3210,8 @@ function confirmPendingShareJob() {
 }
 
 function cancelPendingShare() {
+  // Smaž i tiché IDB zálohy, ať se po restartu neobnoví
+  (_pendingSharedFiles || []).forEach(f => deleteSharedBackup(f));
   _pendingSharedFiles = null;
   const banner = document.getElementById('pendingShareBanner');
   if (banner) banner.remove();
@@ -3207,6 +3220,36 @@ function cancelPendingShare() {
 
 // Fotky čekající na zadání zakázky (firemní účet)
 let _pendingSharedFiles = null;
+
+// Po startu obnov čekající sdílené fotky z IDB zálohy (kdyby appku zabil systém).
+async function rehydratePendingShared() {
+  try {
+    const recs = await getSharedRecords();
+    if (!recs.length) return;
+    const restored = [];
+    for (const r of recs) {
+      if (!r.file) { await deleteOfflineItem(r.id); continue; }
+      let f = r.file;
+      try {
+        // Z IDB se vrací Blob/File – zabal zpět do File a pověs _idbId.
+        f = new File([r.file], r.name || r.file.name || 'foto.jpg', { type: r.file.type || 'image/jpeg' });
+      } catch(_) { f = r.file; }
+      try { f._idbId = r.id; } catch(_){}
+      restored.push(f);
+    }
+    if (restored.length) {
+      _pendingSharedFiles = [...(_pendingSharedFiles || []), ...restored];
+      await updateQueueTab();
+    }
+  } catch(e) { console.warn('rehydratePendingShared error:', e); }
+}
+
+// Smaž IDB zálohu sdílené fotky (volá se po úspěšném odeslání / odebrání).
+async function deleteSharedBackup(file) {
+  try {
+    if (file && file._idbId != null) await deleteOfflineItem(file._idbId);
+  } catch(_){}
+}
 
 // ── Image optimization ──
 async function optimizeImage(file) {
@@ -4040,12 +4083,20 @@ let _idbDb = null;
 function openIDB() {
   return new Promise((resolve, reject) => {
     if (_idbDb) { resolve(_idbDb); return; }
-    const req = indexedDB.open('photobridge_offline', 1);
+    // v2: přidán index 'status' – rozlišuje 'queued' (čeká, patří do Fronty)
+    //     vs 'sending' (právě se nahrává, NEpočítá se do Fronty → neprobliká).
+    const req = indexedDB.open('photobridge_offline', 2);
     req.onupgradeneeded = e => {
       const db = e.target.result;
+      let store;
       if (!db.objectStoreNames.contains('queue')) {
-        const store = db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
+        store = db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
         store.createIndex('ts', 'ts');
+      } else {
+        store = e.target.transaction.objectStore('queue');
+      }
+      if (!store.indexNames.contains('status')) {
+        store.createIndex('status', 'status');
       }
     };
     req.onsuccess = e => { _idbDb = e.target.result; resolve(_idbDb); };
@@ -4061,6 +4112,8 @@ async function saveToOfflineQueue(file, job, type, isPersonal) {
       file, job: job || null, type: type || null,
       isPersonal: !!isPersonal,
       profileId: pbActiveId || null,
+      source: 'offline',
+      status: 'queued',
       ts: Date.now()
     });
     if (!localStorage.getItem('pb_queue_since')) localStorage.setItem('pb_queue_since', Date.now());
@@ -4074,14 +4127,55 @@ async function saveToOfflineQueue(file, job, type, isPersonal) {
   }
 }
 
+// Ulož sdílenou fotku z galerie do IDB (přežije zavření appky / kill systémem).
+// status 'queued' = čeká na zakázku → patří do Fronty.
+async function savePendingShared(file, name) {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction('queue', 'readwrite');
+    const req = tx.objectStore('queue').add({
+      file, name: name || file.name || 'foto.jpg',
+      job: null, type: null,
+      isPersonal: isPersonalAccount(),
+      profileId: pbActiveId || null,
+      source: 'shared',
+      status: 'queued',
+      ts: Date.now()
+    });
+    const id = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); tx.onerror = () => rej(tx.error); });
+    await updateQueueTab();
+    return id;
+  } catch(e) {
+    console.warn('IDB savePendingShared error:', e);
+    return null;
+  }
+}
+
+// Spočítá čekající offline položky (bez sdílených záloh a bez 'sending').
 async function getOfflineQueueCount() {
   try {
     const db = await openIDB();
     return new Promise(res => {
       const tx = db.transaction('queue', 'readonly');
-      const req = tx.objectStore('queue').count();
-      req.onsuccess = () => res(req.result);
-      req.onerror   = () => res(0);
+      const store = tx.objectStore('queue');
+      // Počítej JEN offline položky, které reálně čekají (status 'queued').
+      // - source 'shared' přeskoč: ty jsou jen tichá záloha, počítají se z paměti.
+      // - status 'sending' přeskoč: zrovna se nahrává (ta vteřina do Supabase),
+      //   aby záložka Fronta neproblikla u běžného odeslání fotky.
+      let n = 0;
+      const cur = store.openCursor();
+      cur.onsuccess = e => {
+        const c = e.target.result;
+        if (c) {
+          const v = c.value;
+          const st = v.status;
+          if (v.source !== 'shared' && (st === undefined || st === 'queued')) n++;
+          c.continue();
+        } else {
+          res(n);
+        }
+      };
+      cur.onerror = () => res(0);
     });
   } catch(_) { return 0; }
 }
@@ -4092,7 +4186,21 @@ async function getAllOfflineItems() {
     return new Promise(res => {
       const tx = db.transaction('queue', 'readonly');
       const req = tx.objectStore('queue').getAll();
-      req.onsuccess = () => res(req.result || []);
+      // Vrať jen OFFLINE položky (ne sdílené zálohy – ty řeší _pendingSharedFiles).
+      req.onsuccess = () => res((req.result || []).filter(it => it.source !== 'shared'));
+      req.onerror   = () => res([]);
+    });
+  } catch(_) { return []; }
+}
+
+// Vrať tiché IDB zálohy sdílených fotek (čte se jen při startu pro obnovu).
+async function getSharedRecords() {
+  try {
+    const db = await openIDB();
+    return new Promise(res => {
+      const tx = db.transaction('queue', 'readonly');
+      const req = tx.objectStore('queue').getAll();
+      req.onsuccess = () => res((req.result || []).filter(it => it.source === 'shared'));
       req.onerror   = () => res([]);
     });
   } catch(_) { return []; }
@@ -4477,6 +4585,7 @@ async function retryQueueItem(cardId) {
       const r = await uploadFiles([file], { silent: true });
       pbJob = savedJob;
       if (!r || r.okCount === 0) throw new Error(r?.error || 'upload selhal');
+      deleteSharedBackup(file);   // smaž tichou IDB zálohu
       // Odeber z pending
       _pendingSharedFiles.splice(idx, 1);
       if (_pendingSharedFiles.length === 0) _pendingSharedFiles = null;
@@ -4600,6 +4709,8 @@ function deletePendingItem(cardId) {
   // cardId = 'pending_0', 'pending_1', …
   const idx = parseInt(cardId.replace('pending_', ''));
   if (!isNaN(idx) && _pendingSharedFiles) {
+    const removed = _pendingSharedFiles[idx];
+    if (removed) deleteSharedBackup(removed);   // smaž i tichou IDB zálohu
     _pendingSharedFiles.splice(idx, 1);
     if (_pendingSharedFiles.length === 0) _pendingSharedFiles = null;
   }
@@ -4680,7 +4791,11 @@ async function sendQueueNow() {
         const savedJob = pbJob;
         const r = await uploadFiles([pendingFiles[i]], { silent: true });
         pbJob = savedJob;
-        if (r && r.okCount > 0) { sentOk++; if (r.label) lastLabel = r.label; }
+        if (r && r.okCount > 0) {
+          sentOk++;
+          if (r.label) lastLabel = r.label;
+          deleteSharedBackup(pendingFiles[i]);   // smaž tichou IDB zálohu
+        }
         else throw new Error(r?.error || 'upload selhal');
       } catch(e) {
         sentErr++;
