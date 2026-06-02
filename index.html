@@ -3482,43 +3482,42 @@ async function uploadFiles(fileList, opts = {}) {
       : `✅ Nahráno ${done} soubor${plural(done)} → ${pbJob}`;
     haptic([40, 30, 40, 30, 80]);
 
-    // Finální název prvního úspěšného souboru (pro pruh i souhrn volajícího)
+    // Finální (celý) název prvního úspěšného souboru – necháváme jen v návratu.
     const okRes = results.find(r => r && r.ok);
     const finalName = okRes && okRes.path ? okRes.path.split('/').pop() : '';
+    // Krátký název do notifikace: u firemního účtu TYP_zakázka (např. SP_4567854),
+    // NE celý název souboru s časem a pořadím. To je to, co chce fotograf vidět.
+    const label = isPersonal ? '' : `${t}_${pbJob}`;
 
     // ── JEDINÁ notifikace: stavový pruh nad záložkami ──
-    // (dřív se tu navíc pálil duplicitní toast – ten je pryč)
     if (!silent) {
       if (failCount === 0) {
-      let statusMsg;
-      if (fileList.length === 1) {
-        statusMsg = finalName
-          ? `Soubor „${finalName}" byl úspěšně nahrán`
-          : `${okCount} soubor byl úspěšně nahrán`;
+        const statusMsg = isPersonal
+          ? `Nahráno ${okCount} soubor${plural(okCount)}`
+          : `${label} – nahráno ${okCount} soubor${plural(okCount)}`;
+        setUploadStatus('ok', statusMsg);
+      } else if (okCount === 0) {
+        const firstErr = results.find(r => !r || !r.ok)?.error || 'Neznámá chyba';
+        setUploadStatus('err', `Upload se nezdařil – ${firstErr}`);
       } else {
-        statusMsg = `Nahráno ${okCount} soubor${okCount < 5 ? 'y' : 'ů'} úspěšně`;
-      }
-      setUploadStatus('ok', statusMsg);
-    } else if (okCount === 0) {
-      const firstErr = results.find(r => !r || !r.ok)?.error || 'Neznámá chyba';
-      setUploadStatus('err', `Upload se nezdařil – ${firstErr}`);
-    } else {
-      setUploadStatus('err', `Nahráno ${okCount} z ${total} – ${failCount} soubor${failCount < 5 ? 'y' : 'ů'} selhaly`);
+        setUploadStatus('err', `Nahráno ${okCount} z ${total} – ${failCount} soubor${failCount < 5 ? 'y' : 'ů'} selhaly`);
       }
     }
 
     setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 3000);
 
-    return { okCount, failCount, total, finalName };
+    return { okCount, failCount, total, finalName, label };
 
   } catch(err) {
     text.textContent = '❌ ' + err.message;
     if (!silent) setUploadStatus('err', err.message);
     setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 5000);
-    return { okCount: 0, failCount: total, total, finalName: '', error: err.message };
+    return { okCount: 0, failCount: total, total, finalName: '', label: '', error: err.message };
+  } finally {
+    // DŮLEŽITÉ: povol tlačítka VŽDY (i po returnu z try/catch), jinak po první
+    // fotce zůstanou Foto/Video/Vybrat zašedlá a nejde nahrát další.
+    btns.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
   }
-
-  btns.forEach(id => document.getElementById(id).disabled = false);
 }
 
 // ── Token refresh ──
@@ -4128,7 +4127,7 @@ async function processOfflineQueue() {
   const items = await getAllOfflineItems();
   if (!items.length) return;
   toast(`📶 Obnoveno připojení – nahrávám ${items.length} soubor${items.length === 1 ? '' : 'ů'}…`, 'ok');
-  let okN = 0, errN = 0, lastName = '';
+  let okN = 0, errN = 0, lastLabel = '';
   for (const item of items) {
     try {
       // Restore context temporarily
@@ -4139,7 +4138,7 @@ async function processOfflineQueue() {
       if (r && r.okCount > 0) {
         await deleteOfflineItem(item.id);
         okN++;
-        if (r.finalName) lastName = r.finalName;
+        if (r.label) lastLabel = r.label;
       } else {
         errN++;
       }
@@ -4154,8 +4153,8 @@ async function processOfflineQueue() {
   if (errN > 0) {
     setUploadStatus('err', `${okN} nahráno, ${errN} soubor${p(errN)} selhalo`);
   } else if (okN > 0) {
-    setUploadStatus('ok', (okN === 1 && lastName)
-      ? `Soubor „${lastName}" byl úspěšně nahrán`
+    setUploadStatus('ok', (okN === 1 && lastLabel)
+      ? `${lastLabel} – nahráno 1 soubor`
       : `Nahráno ${okN} soubor${p(okN)} z fronty`);
   }
   await updateOfflineBanner();
@@ -4481,7 +4480,7 @@ async function retryQueueItem(cardId) {
       // Odeber z pending
       _pendingSharedFiles.splice(idx, 1);
       if (_pendingSharedFiles.length === 0) _pendingSharedFiles = null;
-      setUploadStatus('ok', r.finalName ? `Soubor „${r.finalName}" byl úspěšně nahrán` : 'Soubor byl úspěšně nahrán');
+      setUploadStatus('ok', r.label ? `${r.label} – nahráno 1 soubor` : 'Soubor byl úspěšně nahrán');
     } else {
       const id = Number(cardId.replace('idb_', ''));
       const all = await getAllOfflineItems();
@@ -4494,7 +4493,7 @@ async function retryQueueItem(cardId) {
       pbJob = savedJob;
       if (!r || r.okCount === 0) throw new Error(r?.error || 'upload selhal');
       await deleteOfflineItem(item.id);
-      setUploadStatus('ok', r.finalName ? `Soubor „${r.finalName}" byl úspěšně nahrán` : 'Soubor byl úspěšně nahrán');
+      setUploadStatus('ok', r.label ? `${r.label} – nahráno 1 soubor` : 'Soubor byl úspěšně nahrán');
     }
   } catch(e) {
     window._queueFailedIds.add(cardId);
@@ -4653,7 +4652,7 @@ async function sendQueueNow() {
   window._queueFailedIds = window._queueFailedIds || new Set();
   window._queueFailedIds.clear();
 
-  let sentOk = 0, sentErr = 0, done = 0, lastName = '';
+  let sentOk = 0, sentErr = 0, done = 0, lastLabel = '';
 
   const updateProgress = () => {
     done++;
@@ -4681,7 +4680,7 @@ async function sendQueueNow() {
         const savedJob = pbJob;
         const r = await uploadFiles([pendingFiles[i]], { silent: true });
         pbJob = savedJob;
-        if (r && r.okCount > 0) { sentOk++; if (r.finalName) lastName = r.finalName; }
+        if (r && r.okCount > 0) { sentOk++; if (r.label) lastLabel = r.label; }
         else throw new Error(r?.error || 'upload selhal');
       } catch(e) {
         sentErr++;
@@ -4714,7 +4713,7 @@ async function sendQueueNow() {
       if (r && r.okCount > 0) {
         await deleteOfflineItem(item.id);
         sentOk++;
-        if (r.finalName) lastName = r.finalName;
+        if (r.label) lastLabel = r.label;
       } else {
         throw new Error(r?.error || 'upload selhal');
       }
@@ -4732,9 +4731,10 @@ async function sendQueueNow() {
 
   const p = n => n === 1 ? '' : n < 5 ? 'y' : 'ů';
   if (sentErr === 0) {
-    const msg = (sentOk === 1 && lastName)
-      ? `Soubor „${lastName}" byl úspěšně nahrán`
-      : `Odesláno ${sentOk} soubor${p(sentOk)} úspěšně`;
+    let msg;
+    if (sentOk === 1 && lastLabel)      msg = `${lastLabel} – nahráno 1 soubor`;
+    else if (!isPersonal && pbJob)      msg = `Odesláno ${sentOk} soubor${p(sentOk)} → ${pbJob}`;
+    else                                msg = `Odesláno ${sentOk} soubor${p(sentOk)}`;
     setUploadStatus('ok', msg);
   } else {
     setUploadStatus('err', `${sentOk} odesláno, ${sentErr} soubor${p(sentErr)} selhalo`);
