@@ -686,6 +686,7 @@
     #uploadStatusBar {
       display: none;
       align-items: center;
+      justify-content: center;
       gap: 9px;
       padding: 10px 14px;
       flex-shrink: 0;
@@ -708,7 +709,8 @@
     }
     #uploadStatusIcon { font-size: 17px; flex-shrink: 0; line-height: 1; }
     #uploadStatusText {
-      flex: 1; font-size: 12px; font-weight: 600;
+      flex: 0 1 auto; min-width: 0; text-align: center;
+      font-size: 12px; font-weight: 600;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       line-height: 1.35;
     }
@@ -1810,27 +1812,70 @@ let _scanLast  = null;
 let _scanCount = 0;
 
 // ── AI OCR: přečtení čísla zakázky z fotoaparátu ──────────────
-let _ocrGroqKey = null;
-let _ocrGroqKeyTime = 0;
+let _ocrGroqKeys = null;      // pole klíčů (rotace)
+let _ocrGroqKeysTime = 0;
+let _groqKeyIdx = 0;          // round-robin ukazatel přes klíče
 
-// Načte sdílený Groq klíč ze Supabase pb_settings (cache 30 min)
-async function getOcrGroqKey() {
+// Načte sdílené Groq klíče ze Supabase pb_settings (cache 30 min).
+// Hodnota groq_api_key smí obsahovat VÍC klíčů oddělených novým řádkem,
+// čárkou, středníkem nebo mezerou → ty se rotují. Jeden klíč funguje dál.
+async function getOcrGroqKeys() {
   const now = Date.now();
-  if (_ocrGroqKey && (now - _ocrGroqKeyTime) < 30*60*1000) return _ocrGroqKey;
+  if (_ocrGroqKeys && (now - _ocrGroqKeysTime) < 30*60*1000) return _ocrGroqKeys;
   try {
     const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.groq_api_key&select=value`, {
       headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` },
     });
     if (r.ok) {
       const rows = await r.json();
-      if (rows && rows[0] && rows[0].value) {
-        _ocrGroqKey = rows[0].value;
-        _ocrGroqKeyTime = now;
-        return _ocrGroqKey;
+      const raw = (rows && rows[0] && rows[0].value) ? String(rows[0].value) : '';
+      const keys = raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+      if (keys.length) {
+        _ocrGroqKeys = keys;
+        _ocrGroqKeysTime = now;
+        return _ocrGroqKeys;
       }
     }
-  } catch (e) { console.warn('[PB] OCR klíč:', e); }
-  return null;
+  } catch (e) { console.warn('[PB] OCR klíče:', e); }
+  return _ocrGroqKeys || [];   // fallback na poslední cache, ať scan nepadne hned
+}
+
+// Zavolá Groq Vision s rotací klíčů. Každé volání bere další klíč (round-robin),
+// a při 429 (limit) / 401 / 403 (neplatný klíč) hned zkusí další klíč.
+// Vrací { text } | { rateLimited:true } | null.
+async function groqVisionCall(dataUrl, promptText) {
+  const keys = await getOcrGroqKeys();
+  if (!keys.length) return null;
+  let rateLimited = false;
+  for (let tried = 0; tried < keys.length; tried++) {
+    const key = keys[_groqKeyIdx % keys.length];
+    _groqKeyIdx = (_groqKeyIdx + 1) % keys.length;   // posuň pro příští volání
+    try {
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          messages: [{ role: 'user', content: [
+            { type: 'text', text: promptText },
+            { type: 'image_url', image_url: { url: dataUrl } },
+          ]}],
+          max_tokens: 30,
+          temperature: 0,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        return { text: (data.choices?.[0]?.message?.content || '').trim() };
+      }
+      if (resp.status === 429) rateLimited = true;     // limit → zkus další klíč
+      // 401/403 neplatný klíč, 5xx chyba serveru → taky zkus další klíč
+      continue;
+    } catch (_) {
+      continue;  // síťová chyba – zkus další klíč
+    }
+  }
+  return rateLimited ? { rateLimited: true } : null;
 }
 
 // Vyfotí jeden snímek z kamery a pošle do AI na přečtení čísla zakázky
@@ -1869,8 +1914,8 @@ async function ocrJobNumber() {
       await new Promise(r => setTimeout(r, 500));
     }
 
-    const key = await getOcrGroqKey();
-    if (!key) { toast('❌ AI klíč není dostupný', 'err'); return; }
+    const keys = await getOcrGroqKeys();
+    if (!keys.length) { toast('❌ AI klíč není dostupný', 'err'); return; }
 
     if (btn) btn.disabled = true;
     toast('🤖 Namiř na číslo zakázky – AI hledá…', 'info');
@@ -1893,30 +1938,19 @@ async function ocrJobNumber() {
       cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height);
       const dataUrl = cap.toDataURL('image/jpeg', 0.9);
 
-      try {
-        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-            messages: [{
-              role: 'user',
-              content: [
-                { type: 'text', text: 'This is a photo of a computer screen showing a service repair application (Czech "servisní zakázka"). Find the SERVICE ORDER NUMBER. It is the SINGLE LARGEST number on the screen, shown in big bold font as a title in the TOP-LEFT area (much bigger than all other text), and it is exactly 7 digits, typically starting with 45 (e.g. 4516564). CRITICAL: Do NOT return any of these - IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, or the small field labeled "Zakázka" in the form body (that is a different reference). ONLY the big bold title number counts. Respond with ONLY those 7 digits and nothing else. If no large bold 7-digit title number is visible, respond "NONE".' },
-                { type: 'image_url', image_url: { url: dataUrl } },
-              ],
-            }],
-            max_tokens: 30,
-            temperature: 0,
-          }),
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          const txt = (data.choices?.[0]?.message?.content || '').trim();
-          const m = txt.match(/\d{4,}/);
-          if (m && !/NONE/i.test(txt)) found = m[0];
-        }
-      } catch (_) { /* síťová chyba u jednoho pokusu – zkus další */ }
+      const prompt = 'This is a photo of a computer screen showing a service repair application (Czech "servisní zakázka"). Find the SERVICE ORDER NUMBER. It is the SINGLE LARGEST number on the screen, shown in big bold font as a title in the TOP-LEFT area (much bigger than all other text), and it is exactly 7 digits, typically starting with 45 (e.g. 4516564). CRITICAL: Do NOT return any of these - IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, or the small field labeled "Zakázka" in the form body (that is a different reference). ONLY the big bold title number counts. Respond with ONLY those 7 digits and nothing else. If no large bold 7-digit title number is visible, respond "NONE".';
+
+      const res = await groqVisionCall(dataUrl, prompt);
+      if (res && res.text) {
+        const txt = res.text;
+        const m = txt.match(/\d{4,}/);
+        if (m && !/NONE/i.test(txt)) found = m[0];
+      } else if (res && res.rateLimited) {
+        // Všechny klíče narazily na limit – nemá smysl pokračovat ve smyčce
+        toast('⚠️ AI je přetížená (limit) – zkus za chvíli nebo zadej ručně', 'err');
+        break;
+      }
+      // jinak (null = síťová chyba u všech klíčů) prostě zkus další pokus
 
       if (found || _ocrCancel) break;
 
