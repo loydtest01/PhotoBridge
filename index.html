@@ -686,7 +686,6 @@
     #uploadStatusBar {
       display: none;
       align-items: center;
-      justify-content: center;
       gap: 9px;
       padding: 10px 14px;
       flex-shrink: 0;
@@ -709,8 +708,7 @@
     }
     #uploadStatusIcon { font-size: 17px; flex-shrink: 0; line-height: 1; }
     #uploadStatusText {
-      flex: 0 1 auto; min-width: 0; text-align: center;
-      font-size: 12px; font-weight: 600;
+      flex: 1; font-size: 12px; font-weight: 600;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       line-height: 1.35;
     }
@@ -1506,8 +1504,8 @@
 // ═══════════════════════════════════════════════════════
 // KONFIGURACE — vyplňte vaše Supabase údaje
 // ═══════════════════════════════════════════════════════
-const SB_URL    = 'https://vfxurqshbibaibqssjyz.supabase.co';
-const SB_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmeHVycXNoYmliYWlicXNzanl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NTgxNDQsImV4cCI6MjA5NjEzNDE0NH0._oexaz0fE_asoRPHBsUJcz0vz_6tShrUWHHNMPzMCXI';
+const SB_URL    = 'https://fplegasiabuqfxwdggct.supabase.co';
+const SB_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwbGVnYXNpYWJ1cWZ4d2RnZ2N0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxOTY3MzIsImV4cCI6MjA5Mjc3MjczMn0.BHTkCK3vzJKJYU_F8bnYS5scDRCnfGWbfSaSKUH65yw';
 const SB_BUCKET = 'pb-uploads';
 const SB_DOMAIN = '';  // email zadán přímo uživatelem
 const TYPE_KEY  = 'pb_doc_type';
@@ -1812,70 +1810,27 @@ let _scanLast  = null;
 let _scanCount = 0;
 
 // ── AI OCR: přečtení čísla zakázky z fotoaparátu ──────────────
-let _ocrGroqKeys = null;      // pole klíčů (rotace)
-let _ocrGroqKeysTime = 0;
-let _groqKeyIdx = 0;          // round-robin ukazatel přes klíče
+let _ocrGroqKey = null;
+let _ocrGroqKeyTime = 0;
 
-// Načte sdílené Groq klíče ze Supabase pb_settings (cache 30 min).
-// Hodnota groq_api_key smí obsahovat VÍC klíčů oddělených novým řádkem,
-// čárkou, středníkem nebo mezerou → ty se rotují. Jeden klíč funguje dál.
-async function getOcrGroqKeys() {
+// Načte sdílený Groq klíč ze Supabase pb_settings (cache 30 min)
+async function getOcrGroqKey() {
   const now = Date.now();
-  if (_ocrGroqKeys && (now - _ocrGroqKeysTime) < 30*60*1000) return _ocrGroqKeys;
+  if (_ocrGroqKey && (now - _ocrGroqKeyTime) < 30*60*1000) return _ocrGroqKey;
   try {
     const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.groq_api_key&select=value`, {
       headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` },
     });
     if (r.ok) {
       const rows = await r.json();
-      const raw = (rows && rows[0] && rows[0].value) ? String(rows[0].value) : '';
-      const keys = raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
-      if (keys.length) {
-        _ocrGroqKeys = keys;
-        _ocrGroqKeysTime = now;
-        return _ocrGroqKeys;
+      if (rows && rows[0] && rows[0].value) {
+        _ocrGroqKey = rows[0].value;
+        _ocrGroqKeyTime = now;
+        return _ocrGroqKey;
       }
     }
-  } catch (e) { console.warn('[PB] OCR klíče:', e); }
-  return _ocrGroqKeys || [];   // fallback na poslední cache, ať scan nepadne hned
-}
-
-// Zavolá Groq Vision s rotací klíčů. Každé volání bere další klíč (round-robin),
-// a při 429 (limit) / 401 / 403 (neplatný klíč) hned zkusí další klíč.
-// Vrací { text } | { rateLimited:true } | null.
-async function groqVisionCall(dataUrl, promptText) {
-  const keys = await getOcrGroqKeys();
-  if (!keys.length) return null;
-  let rateLimited = false;
-  for (let tried = 0; tried < keys.length; tried++) {
-    const key = keys[_groqKeyIdx % keys.length];
-    _groqKeyIdx = (_groqKeyIdx + 1) % keys.length;   // posuň pro příští volání
-    try {
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-          messages: [{ role: 'user', content: [
-            { type: 'text', text: promptText },
-            { type: 'image_url', image_url: { url: dataUrl } },
-          ]}],
-          max_tokens: 30,
-          temperature: 0,
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        return { text: (data.choices?.[0]?.message?.content || '').trim() };
-      }
-      if (resp.status === 429) rateLimited = true;     // limit → zkus další klíč
-      // 401/403 neplatný klíč, 5xx chyba serveru → taky zkus další klíč
-      continue;
-    } catch (_) {
-      continue;  // síťová chyba – zkus další klíč
-    }
-  }
-  return rateLimited ? { rateLimited: true } : null;
+  } catch (e) { console.warn('[PB] OCR klíč:', e); }
+  return null;
 }
 
 // Vyfotí jeden snímek z kamery a pošle do AI na přečtení čísla zakázky
@@ -1914,8 +1869,8 @@ async function ocrJobNumber() {
       await new Promise(r => setTimeout(r, 500));
     }
 
-    const keys = await getOcrGroqKeys();
-    if (!keys.length) { toast('❌ AI klíč není dostupný', 'err'); return; }
+    const key = await getOcrGroqKey();
+    if (!key) { toast('❌ AI klíč není dostupný', 'err'); return; }
 
     if (btn) btn.disabled = true;
     toast('🤖 Namiř na číslo zakázky – AI hledá…', 'info');
@@ -1930,28 +1885,38 @@ async function ocrJobNumber() {
       if (_ocrCancel) break;
       if (btn) btn.textContent = `🤖 Hledám… (${attempt})`;
 
-      // Vyfoť snímek – vyšší rozlišení kvůli čitelnosti malých číslic na displeji
+      // Vyfoť snímek
       const cap = document.createElement('canvas');
       const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
-      const sc = Math.min(1568 / vw, 1568 / vh, 1);
+      const sc = Math.min(1280 / vw, 1280 / vh, 1);
       cap.width = Math.round(vw * sc); cap.height = Math.round(vh * sc);
       cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height);
-      const dataUrl = cap.toDataURL('image/jpeg', 0.92);
+      const dataUrl = cap.toDataURL('image/jpeg', 0.9);
 
-      const prompt = 'Photo of a computer screen with a Czech service repair app ("servisní zakázka"). Read the SERVICE ORDER NUMBER: a 7-digit number, usually starting with 45 (e.g. 4516564), shown as a prominent bold number near the TOP of the screen. Read the digits carefully one by one. Ignore these: IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, and the small text field labeled "Zakázka" inside the form. Reply with ONLY the 7 digits, nothing else. If you really cannot see any 7-digit order number, reply "NONE".';
-
-      const res = await groqVisionCall(dataUrl, prompt);
-      if (res && res.text) {
-        const txt = res.text;
-        // Preferuj přesně 7místné číslo (formát zakázky), jinak ber první 4+ číslic
-        const m = txt.match(/\d{7}/) || txt.match(/\d{4,}/);
-        if (m && !/NONE/i.test(txt)) found = m[0];
-      } else if (res && res.rateLimited) {
-        // Všechny klíče narazily na limit – nemá smysl pokračovat ve smyčce
-        toast('⚠️ AI je přetížená (limit) – zkus za chvíli nebo zadej ručně', 'err');
-        break;
-      }
-      // jinak (null = síťová chyba u všech klíčů) prostě zkus další pokus
+      try {
+        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'text', text: 'This is a photo of a computer screen showing a service repair application (Czech "servisní zakázka"). Find the SERVICE ORDER NUMBER. It is the SINGLE LARGEST number on the screen, shown in big bold font as a title in the TOP-LEFT area (much bigger than all other text), and it is exactly 7 digits, typically starting with 45 (e.g. 4516564). CRITICAL: Do NOT return any of these - IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, or the small field labeled "Zakázka" in the form body (that is a different reference). ONLY the big bold title number counts. Respond with ONLY those 7 digits and nothing else. If no large bold 7-digit title number is visible, respond "NONE".' },
+                { type: 'image_url', image_url: { url: dataUrl } },
+              ],
+            }],
+            max_tokens: 30,
+            temperature: 0,
+          }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const txt = (data.choices?.[0]?.message?.content || '').trim();
+          const m = txt.match(/\d{4,}/);
+          if (m && !/NONE/i.test(txt)) found = m[0];
+        }
+      } catch (_) { /* síťová chyba u jednoho pokusu – zkus další */ }
 
       if (found || _ocrCancel) break;
 
@@ -2318,7 +2283,6 @@ function showApp() {
   showPwaInstall();
   initOfflineDetection();
   initQueueNotifications();
-  rehydratePendingShared();   // obnov sdílené fotky z IDB zálohy (přežijí kill)
   cleanJobHistory();   // vymaže [object Object] záznamy z localStorage hned při startu
   renderJobHistory();
 
@@ -2951,11 +2915,7 @@ function setJob(job, token) {
       if (firstRadio) { firstRadio.checked = true; updatePaintOption(); }
     }
     toast(`📷 Nahrávám ${f.length} sdílené foto…`, 'ok');
-    uploadFiles(f).then(() => {
-      // Odeslané sdílené fotky smaž z IDB zálohy
-      f.forEach(file => deleteSharedBackup(file));
-      updateQueueTab();
-    });
+    uploadFiles(f).then(() => updateQueueTab());
   }
   updateQueueTab();
 }
@@ -3143,12 +3103,6 @@ async function handleSharedPhotos() {
     }
     // Vždy přidej do fronty (akumuluj) – ať je firemní nebo osobní
     // Tak lze sdílet z galerie 3 fotky, vrátit se, sdílet 2 další → fronta má 5
-    // Každou fotku ulož i do IDB jako tichou zálohu (přežije zavření appky /
-    // odstřelení systémem). Na soubor pověsíme _idbId, ať zálohu po odeslání smažeme.
-    for (const f of files) {
-      const id = await savePendingShared(f, f.name);
-      if (id != null) { try { f._idbId = id; } catch(_){} }
-    }
     _pendingSharedFiles = [...(_pendingSharedFiles || []), ...files];
     const totalNow = _pendingSharedFiles.length;
     if (!localStorage.getItem('pb_queue_since')) localStorage.setItem('pb_queue_since', Date.now());
@@ -3245,8 +3199,6 @@ function confirmPendingShareJob() {
 }
 
 function cancelPendingShare() {
-  // Smaž i tiché IDB zálohy, ať se po restartu neobnoví
-  (_pendingSharedFiles || []).forEach(f => deleteSharedBackup(f));
   _pendingSharedFiles = null;
   const banner = document.getElementById('pendingShareBanner');
   if (banner) banner.remove();
@@ -3255,36 +3207,6 @@ function cancelPendingShare() {
 
 // Fotky čekající na zadání zakázky (firemní účet)
 let _pendingSharedFiles = null;
-
-// Po startu obnov čekající sdílené fotky z IDB zálohy (kdyby appku zabil systém).
-async function rehydratePendingShared() {
-  try {
-    const recs = await getSharedRecords();
-    if (!recs.length) return;
-    const restored = [];
-    for (const r of recs) {
-      if (!r.file) { await deleteOfflineItem(r.id); continue; }
-      let f = r.file;
-      try {
-        // Z IDB se vrací Blob/File – zabal zpět do File a pověs _idbId.
-        f = new File([r.file], r.name || r.file.name || 'foto.jpg', { type: r.file.type || 'image/jpeg' });
-      } catch(_) { f = r.file; }
-      try { f._idbId = r.id; } catch(_){}
-      restored.push(f);
-    }
-    if (restored.length) {
-      _pendingSharedFiles = [...(_pendingSharedFiles || []), ...restored];
-      await updateQueueTab();
-    }
-  } catch(e) { console.warn('rehydratePendingShared error:', e); }
-}
-
-// Smaž IDB zálohu sdílené fotky (volá se po úspěšném odeslání / odebrání).
-async function deleteSharedBackup(file) {
-  try {
-    if (file && file._idbId != null) await deleteOfflineItem(file._idbId);
-  } catch(_){}
-}
 
 // ── Image optimization ──
 async function optimizeImage(file) {
@@ -3345,16 +3267,10 @@ async function ensureValidToken() {
   // result === true (obnoveno) nebo false (chyba sítě – pokračujeme se stávajícím tokenem)
   return true;
 }// ── Supabase upload ──
-async function uploadFiles(fileList, opts = {}) {
-  // silent: nezobrazuj vlastní notifikaci (toast/stavový pruh) – použij když
-  // se volá z dávky (fronta / offline auto-upload), kde výsledek hlásí volající
-  // JEDINOU souhrnnou notifikací. Vrací { okCount, failCount, total, finalName }.
-  const silent = !!opts.silent;
+async function uploadFiles(fileList) {
   const isPersonal = isPersonalAccount();
   const t = isPersonal ? null : getType();
-  if (!isPersonal && (!t || !pbJob)) {
-    return { okCount: 0, failCount: fileList.length, total: fileList.length, finalName: '' };
-  }
+  if (!isPersonal && (!t || !pbJob)) return;
 
   // OFFLINE: ulož soubory lokálně a zobraz upozornění
   if (!navigator.onLine) {
@@ -3362,8 +3278,8 @@ async function uploadFiles(fileList, opts = {}) {
       await saveToOfflineQueue(file, pbJob, t, isPersonal);
     }
     await updateOfflineBanner();
-    if (!silent) toast(`📵 Offline – ${fileList.length} soubor${fileList.length === 1 ? '' : 'ů'} uloženo lokálně`, 'err');
-    return { okCount: 0, failCount: 0, total: fileList.length, finalName: '', offline: true };
+    toast(`📵 Offline – ${fileList.length} soubor${fileList.length === 1 ? '' : 'ů'} uloženo lokálně`, 'err');
+    return;
   }
 
   const wrap  = document.getElementById('progressWrap');
@@ -3382,7 +3298,7 @@ async function uploadFiles(fileList, opts = {}) {
   if (!tokenOk) {
     btns.forEach(id => document.getElementById(id).disabled = false);
     wrap.style.display = 'none';
-    return { okCount: 0, failCount: fileList.length, total: fileList.length, finalName: '', error: 'Relace vypršela' };
+    return;
   }
 
   const total = fileList.length;
@@ -3558,44 +3474,43 @@ async function uploadFiles(fileList, opts = {}) {
     text.textContent = isPersonal
       ? `✅ Nahráno ${okCount} soubor${plural(okCount)}`
       : `✅ Nahráno ${done} soubor${plural(done)} → ${pbJob}`;
+    // Toast: u firemního účtu ukáže typ + zakázku (SP_4516564), u osobního jen počet
+    toast(isPersonal
+      ? `✅ Nahráno ${done} soubor${plural(done)}`
+      : `✅ ${t}_${pbJob} – nahráno ${done} soubor${plural(done)}`, 'ok');
     haptic([40, 30, 40, 30, 80]);
 
-    // Finální (celý) název prvního úspěšného souboru – necháváme jen v návratu.
-    const okRes = results.find(r => r && r.ok);
-    const finalName = okRes && okRes.path ? okRes.path.split('/').pop() : '';
-    // Krátký název do notifikace: u firemního účtu TYP_zakázka (např. SP_4567854),
-    // NE celý název souboru s časem a pořadím. To je to, co chce fotograf vidět.
-    const label = isPersonal ? '' : `${t}_${pbJob}`;
-
-    // ── JEDINÁ notifikace: stavový pruh nad záložkami ──
-    if (!silent) {
-      if (failCount === 0) {
-        const statusMsg = isPersonal
-          ? `Nahráno ${okCount} soubor${plural(okCount)}`
-          : `${label} – nahráno ${okCount} soubor${plural(okCount)}`;
-        setUploadStatus('ok', statusMsg);
-      } else if (okCount === 0) {
-        const firstErr = results.find(r => !r || !r.ok)?.error || 'Neznámá chyba';
-        setUploadStatus('err', `Upload se nezdařil – ${firstErr}`);
+    // ── Stavový pruh nad záložkami ──
+    if (failCount === 0) {
+      let statusMsg;
+      if (fileList.length === 1) {
+        // Použij FINÁLNÍ název (SP_/SD_ + zakázka), ne původní název z foťáku.
+        const okRes = results.find(r => r && r.ok);
+        const finalName = okRes && okRes.path ? okRes.path.split('/').pop() : '';
+        statusMsg = finalName
+          ? `Soubor „${finalName}" byl úspěšně nahrán`
+          : `${okCount} soubor byl úspěšně nahrán`;
       } else {
-        setUploadStatus('err', `Nahráno ${okCount} z ${total} – ${failCount} soubor${failCount < 5 ? 'y' : 'ů'} selhaly`);
+        statusMsg = `Nahráno ${okCount} soubor${okCount < 5 ? 'y' : 'ů'} úspěšně`;
       }
+      setUploadStatus('ok', statusMsg);
+    } else if (okCount === 0) {
+      const firstErr = results.find(r => !r || !r.ok)?.error || 'Neznámá chyba';
+      setUploadStatus('err', `Upload se nezdařil – ${firstErr}`);
+    } else {
+      setUploadStatus('err', `Nahráno ${okCount} z ${total} – ${failCount} soubor${failCount < 5 ? 'y' : 'ů'} selhaly`);
     }
 
     setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 3000);
 
-    return { okCount, failCount, total, finalName, label };
-
   } catch(err) {
     text.textContent = '❌ ' + err.message;
-    if (!silent) setUploadStatus('err', err.message);
+    toast('❌ ' + err.message, 'err');
+    setUploadStatus('err', err.message);
     setTimeout(() => { wrap.style.display = 'none'; text.textContent = ''; fill.style.width = '0%'; }, 5000);
-    return { okCount: 0, failCount: total, total, finalName: '', label: '', error: err.message };
-  } finally {
-    // DŮLEŽITÉ: povol tlačítka VŽDY (i po returnu z try/catch), jinak po první
-    // fotce zůstanou Foto/Video/Vybrat zašedlá a nejde nahrát další.
-    btns.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
   }
+
+  btns.forEach(id => document.getElementById(id).disabled = false);
 }
 
 // ── Token refresh ──
@@ -4118,20 +4033,12 @@ let _idbDb = null;
 function openIDB() {
   return new Promise((resolve, reject) => {
     if (_idbDb) { resolve(_idbDb); return; }
-    // v2: přidán index 'status' – rozlišuje 'queued' (čeká, patří do Fronty)
-    //     vs 'sending' (právě se nahrává, NEpočítá se do Fronty → neprobliká).
-    const req = indexedDB.open('photobridge_offline', 2);
+    const req = indexedDB.open('photobridge_offline', 1);
     req.onupgradeneeded = e => {
       const db = e.target.result;
-      let store;
       if (!db.objectStoreNames.contains('queue')) {
-        store = db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
+        const store = db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
         store.createIndex('ts', 'ts');
-      } else {
-        store = e.target.transaction.objectStore('queue');
-      }
-      if (!store.indexNames.contains('status')) {
-        store.createIndex('status', 'status');
       }
     };
     req.onsuccess = e => { _idbDb = e.target.result; resolve(_idbDb); };
@@ -4147,8 +4054,6 @@ async function saveToOfflineQueue(file, job, type, isPersonal) {
       file, job: job || null, type: type || null,
       isPersonal: !!isPersonal,
       profileId: pbActiveId || null,
-      source: 'offline',
-      status: 'queued',
       ts: Date.now()
     });
     if (!localStorage.getItem('pb_queue_since')) localStorage.setItem('pb_queue_since', Date.now());
@@ -4162,55 +4067,14 @@ async function saveToOfflineQueue(file, job, type, isPersonal) {
   }
 }
 
-// Ulož sdílenou fotku z galerie do IDB (přežije zavření appky / kill systémem).
-// status 'queued' = čeká na zakázku → patří do Fronty.
-async function savePendingShared(file, name) {
-  try {
-    const db = await openIDB();
-    const tx = db.transaction('queue', 'readwrite');
-    const req = tx.objectStore('queue').add({
-      file, name: name || file.name || 'foto.jpg',
-      job: null, type: null,
-      isPersonal: isPersonalAccount(),
-      profileId: pbActiveId || null,
-      source: 'shared',
-      status: 'queued',
-      ts: Date.now()
-    });
-    const id = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); tx.onerror = () => rej(tx.error); });
-    await updateQueueTab();
-    return id;
-  } catch(e) {
-    console.warn('IDB savePendingShared error:', e);
-    return null;
-  }
-}
-
-// Spočítá čekající offline položky (bez sdílených záloh a bez 'sending').
 async function getOfflineQueueCount() {
   try {
     const db = await openIDB();
     return new Promise(res => {
       const tx = db.transaction('queue', 'readonly');
-      const store = tx.objectStore('queue');
-      // Počítej JEN offline položky, které reálně čekají (status 'queued').
-      // - source 'shared' přeskoč: ty jsou jen tichá záloha, počítají se z paměti.
-      // - status 'sending' přeskoč: zrovna se nahrává (ta vteřina do Supabase),
-      //   aby záložka Fronta neproblikla u běžného odeslání fotky.
-      let n = 0;
-      const cur = store.openCursor();
-      cur.onsuccess = e => {
-        const c = e.target.result;
-        if (c) {
-          const v = c.value;
-          const st = v.status;
-          if (v.source !== 'shared' && (st === undefined || st === 'queued')) n++;
-          c.continue();
-        } else {
-          res(n);
-        }
-      };
-      cur.onerror = () => res(0);
+      const req = tx.objectStore('queue').count();
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => res(0);
     });
   } catch(_) { return 0; }
 }
@@ -4221,21 +4085,7 @@ async function getAllOfflineItems() {
     return new Promise(res => {
       const tx = db.transaction('queue', 'readonly');
       const req = tx.objectStore('queue').getAll();
-      // Vrať jen OFFLINE položky (ne sdílené zálohy – ty řeší _pendingSharedFiles).
-      req.onsuccess = () => res((req.result || []).filter(it => it.source !== 'shared'));
-      req.onerror   = () => res([]);
-    });
-  } catch(_) { return []; }
-}
-
-// Vrať tiché IDB zálohy sdílených fotek (čte se jen při startu pro obnovu).
-async function getSharedRecords() {
-  try {
-    const db = await openIDB();
-    return new Promise(res => {
-      const tx = db.transaction('queue', 'readonly');
-      const req = tx.objectStore('queue').getAll();
-      req.onsuccess = () => res((req.result || []).filter(it => it.source === 'shared'));
+      req.onsuccess = () => res(req.result || []);
       req.onerror   = () => res([]);
     });
   } catch(_) { return []; }
@@ -4270,35 +4120,19 @@ async function processOfflineQueue() {
   const items = await getAllOfflineItems();
   if (!items.length) return;
   toast(`📶 Obnoveno připojení – nahrávám ${items.length} soubor${items.length === 1 ? '' : 'ů'}…`, 'ok');
-  let okN = 0, errN = 0, lastLabel = '';
   for (const item of items) {
     try {
       // Restore context temporarily
       const savedJob  = pbJob;
+      const savedType = getType();
       if (item.job) pbJob = item.job;
-      // Upload single file (tiše – výsledek hlásíme jednou na konci)
-      const r = await uploadFiles([item.file], { silent: true });
-      if (r && r.okCount > 0) {
-        await deleteOfflineItem(item.id);
-        okN++;
-        if (r.label) lastLabel = r.label;
-      } else {
-        errN++;
-      }
+      // Upload single file
+      await uploadFiles([item.file]);
+      await deleteOfflineItem(item.id);
       if (item.job) pbJob = savedJob;
     } catch(e) {
-      errN++;
       console.warn('Offline queue upload err:', e);
     }
-  }
-  // JEDINÁ souhrnná notifikace
-  const p = n => n === 1 ? '' : n < 5 ? 'y' : 'ů';
-  if (errN > 0) {
-    setUploadStatus('err', `${okN} nahráno, ${errN} soubor${p(errN)} selhalo`);
-  } else if (okN > 0) {
-    setUploadStatus('ok', (okN === 1 && lastLabel)
-      ? `${lastLabel} – nahráno 1 soubor`
-      : `Nahráno ${okN} soubor${p(okN)} z fronty`);
   }
   await updateOfflineBanner();
   await updateQueueTab();
@@ -4617,14 +4451,12 @@ async function retryQueueItem(cardId) {
       if (!file) { toast('❌ Soubor nenalezen', 'err'); return; }
       setType();
       const savedJob = pbJob;
-      const r = await uploadFiles([file], { silent: true });
+      await uploadFiles([file]);
       pbJob = savedJob;
-      if (!r || r.okCount === 0) throw new Error(r?.error || 'upload selhal');
-      deleteSharedBackup(file);   // smaž tichou IDB zálohu
       // Odeber z pending
       _pendingSharedFiles.splice(idx, 1);
       if (_pendingSharedFiles.length === 0) _pendingSharedFiles = null;
-      setUploadStatus('ok', r.label ? `${r.label} – nahráno 1 soubor` : 'Soubor byl úspěšně nahrán');
+      toast('✅ Soubor odeslán', 'ok');
     } else {
       const id = Number(cardId.replace('idb_', ''));
       const all = await getAllOfflineItems();
@@ -4633,15 +4465,14 @@ async function retryQueueItem(cardId) {
       setType();
       const savedJob = pbJob;
       if (item.job && !pbJob) pbJob = item.job;
-      const r = await uploadFiles([item.file], { silent: true });
-      pbJob = savedJob;
-      if (!r || r.okCount === 0) throw new Error(r?.error || 'upload selhal');
+      await uploadFiles([item.file]);
       await deleteOfflineItem(item.id);
-      setUploadStatus('ok', r.label ? `${r.label} – nahráno 1 soubor` : 'Soubor byl úspěšně nahrán');
+      pbJob = savedJob;
+      toast('✅ Soubor odeslán', 'ok');
     }
   } catch(e) {
     window._queueFailedIds.add(cardId);
-    setUploadStatus('err', 'Znovu selhalo: ' + (e.message || ''));
+    toast('❌ Znovu selhalo: ' + (e.message || ''), 'err');
   }
 
   await updateQueueTab();
@@ -4744,8 +4575,6 @@ function deletePendingItem(cardId) {
   // cardId = 'pending_0', 'pending_1', …
   const idx = parseInt(cardId.replace('pending_', ''));
   if (!isNaN(idx) && _pendingSharedFiles) {
-    const removed = _pendingSharedFiles[idx];
-    if (removed) deleteSharedBackup(removed);   // smaž i tichou IDB zálohu
     _pendingSharedFiles.splice(idx, 1);
     if (_pendingSharedFiles.length === 0) _pendingSharedFiles = null;
   }
@@ -4798,7 +4627,7 @@ async function sendQueueNow() {
   window._queueFailedIds = window._queueFailedIds || new Set();
   window._queueFailedIds.clear();
 
-  let sentOk = 0, sentErr = 0, done = 0, lastLabel = '';
+  let sentOk = 0, sentErr = 0, done = 0;
 
   const updateProgress = () => {
     done++;
@@ -4824,14 +4653,9 @@ async function sendQueueNow() {
 
       try {
         const savedJob = pbJob;
-        const r = await uploadFiles([pendingFiles[i]], { silent: true });
+        await uploadFiles([pendingFiles[i]]);
         pbJob = savedJob;
-        if (r && r.okCount > 0) {
-          sentOk++;
-          if (r.label) lastLabel = r.label;
-          deleteSharedBackup(pendingFiles[i]);   // smaž tichou IDB zálohu
-        }
-        else throw new Error(r?.error || 'upload selhal');
+        sentOk++;
       } catch(e) {
         sentErr++;
         console.warn('Queue shared send err:', e);
@@ -4859,15 +4683,10 @@ async function sendQueueNow() {
     try {
       const savedJob = pbJob;
       if (item.job && !pbJob) pbJob = item.job;
-      const r = await uploadFiles([item.file], { silent: true });
-      if (r && r.okCount > 0) {
-        await deleteOfflineItem(item.id);
-        sentOk++;
-        if (r.label) lastLabel = r.label;
-      } else {
-        throw new Error(r?.error || 'upload selhal');
-      }
+      await uploadFiles([item.file]);
+      await deleteOfflineItem(item.id);
       pbJob = savedJob;
+      sentOk++;
     } catch(e) {
       sentErr++;
       console.warn('Queue idb send err:', e);
@@ -4880,15 +4699,8 @@ async function sendQueueNow() {
   if (progressWrap) { progressWrap.style.display = 'none'; delete progressWrap.dataset.sending; }
 
   const p = n => n === 1 ? '' : n < 5 ? 'y' : 'ů';
-  if (sentErr === 0) {
-    let msg;
-    if (sentOk === 1 && lastLabel)      msg = `${lastLabel} – nahráno 1 soubor`;
-    else if (!isPersonal && pbJob)      msg = `Odesláno ${sentOk} soubor${p(sentOk)} → ${pbJob}`;
-    else                                msg = `Odesláno ${sentOk} soubor${p(sentOk)}`;
-    setUploadStatus('ok', msg);
-  } else {
-    setUploadStatus('err', `${sentOk} odesláno, ${sentErr} soubor${p(sentErr)} selhalo`);
-  }
+  if (sentErr === 0) toast(`✅ Odesláno ${sentOk} soubor${p(sentOk)}`, 'ok');
+  else               toast(`⚠️ ${sentOk} odesláno, ${sentErr} selhalo`, 'err');
 
   await updateQueueTab();
   const remaining  = await getOfflineQueueCount();
@@ -4971,13 +4783,11 @@ function initOfflineDetection() {
 // ══════════════════════════════════════════════════════════
 // 📊 STAVOVÝ PRUH NAD ZÁLOŽKAMI
 // ══════════════════════════════════════════════════════════
-let _uploadStatusTimer = null;
 function setUploadStatus(type, text) {
   const bar  = document.getElementById('uploadStatusBar');
   const icon = document.getElementById('uploadStatusIcon');
   const txt  = document.getElementById('uploadStatusText');
   if (!bar) return;
-  clearTimeout(_uploadStatusTimer);
   // Restartuj animaci
   bar.style.display = 'none';
   // eslint-disable-next-line no-unused-expressions
@@ -4986,10 +4796,6 @@ function setUploadStatus(type, text) {
   icon.textContent = type === 'ok' ? '✅' : '❌';
   txt.textContent  = text;
   bar.style.display = 'flex';
-  // Úspěch sám zmizí po chvíli; chybu necháme, dokud ji uživatel nezavře.
-  if (type === 'ok') {
-    _uploadStatusTimer = setTimeout(() => { bar.style.display = 'none'; }, 4500);
-  }
 }
 
 function closeUploadStatus() {
