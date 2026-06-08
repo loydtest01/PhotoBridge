@@ -859,7 +859,7 @@
     ">CLOUD</div>
     <div id="hdrProfileArea" style="display:none;align-items:center;gap:6px">
       <!-- Jediný chip – kliknutí přepne profil (jen pokud existuje druhý) -->
-      <button id="hdrActiveProfile" onclick="quickSwitchProfile()" title="Přepnout profil" style="
+      <button id="hdrActiveProfile" onclick="headerProfileTap()" title="Přepnout profil" style="
         background:rgba(54,217,102,0.15); border:1px solid rgba(54,217,102,0.4);
         color:#36d966; border-radius:20px; padding:3px 10px; font-size:12px;
         font-weight:700; font-family:var(--mono); line-height:1.4;
@@ -1639,10 +1639,17 @@ function upsertProfile(token, refresh, user) {
 }
 
 // Okamžité přepnutí na druhý profil (volá se z headeru i nastavení)
-function quickSwitchProfile() {
+// Ťuknutí na header chip: přepnout (když je druhý profil) nebo přidat účet
+function headerProfileTap() {
   const other = pbProfiles.find(p => p.id !== pbActiveId);
-  if (!other) return;
-  syncCurrentToProfile();
+  if (other) quickSwitchProfile();
+  else openModal('modalAddProfile');
+}
+
+async function quickSwitchProfile() {
+  const other = pbProfiles.find(p => p.id !== pbActiveId);
+  if (!other) { openModal('modalAddProfile'); return; }
+  syncCurrentToProfile();                 // ulož aktuální (možná čerstvě obnovený) stav
   pbActiveId = other.id;
   pbToken    = other.token;
   pbRefresh  = other.refresh;
@@ -1650,8 +1657,16 @@ function quickSwitchProfile() {
   pbJob      = other.job || null;
   pbJobToken = other.jobToken || null;
   localStorage.setItem('pb_active_id', pbActiveId);
+  // Obnov token cílového profilu HNED – jeho access token mohl vypršet, dokud byl
+  // neaktivní. Bez toho by první upload po přepnutí spadl na 401 a strhl i switcher.
+  try {
+    const r = await tryRefreshToken();
+    if (r === 'expired') {
+      toast('⚠️ ' + getDisplayName(other, other.user) + ': relace vypršela – přihlas se k tomuto účtu znovu', 'err');
+    }
+  } catch (_) {}
   showApp();
-  toast('⇄ Přepnuto: ' + other.username, 'ok');
+  toast('⇄ Přepnuto: ' + getDisplayName(other, other.user), 'ok');
 }
 
 // Aktualizuje header + settings po změně profilu
@@ -1680,15 +1695,12 @@ function updateProfileUI() {
   const chip  = document.getElementById('hdrActiveProfile');
   const arrow = document.getElementById('hdrSwitchArrow');
   if (chip) {
-    if (other) {
-      chip.style.cursor = 'pointer';
-      chip.title = 'Přepnout na ' + getAccountLabel(other?.user) + ' ' + getDisplayName(other, other?.user);
-    } else {
-      chip.style.cursor = 'default';
-      chip.title = '';
-    }
+    chip.style.cursor = 'pointer';   // vždy ťukací: přepnout / přidat účet
+    chip.title = other
+      ? 'Přepnout na ' + getAccountLabel(other?.user) + ' ' + getDisplayName(other, other?.user)
+      : 'Přidat účet';
   }
-  if (arrow) arrow.style.display = other ? '' : 'none';
+  if (arrow) { arrow.textContent = other ? '⇄' : '＋'; arrow.style.display = ''; }
 
   // Settings
   const hasSlot   = pbProfiles.length < MAX_PROFILES;
@@ -3625,6 +3637,7 @@ async function tryRefreshToken() {
   _refreshInFlight = (async () => {
     try {
       const currentRefresh = pbRefresh; // uložíme před voláním – rotace nám ho přepíše
+      const targetId = pbActiveId;       // profil, kterému token patří – přepnutí během refreshe ho nesmí zapsat jinému
       const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
@@ -3644,9 +3657,12 @@ async function tryRefreshToken() {
       const newAccess  = data.access_token;
       const newRefresh = data.refresh_token || currentRefresh;
       const newUser    = data.user || pbUser;
+      // Rotované tokeny ulož VŽDY do PŮVODNÍHO profilu (targetId) – i kdyby se mezitím
+      // přepnul aktivní profil. Jinak by se token zapsal cizímu profilu a tenhle by
+      // zůstal s už spotřebovaným refresh tokenem → příště 400.
       try {
         const savedProfiles = JSON.parse(localStorage.getItem('pb_profiles') || '[]');
-        const idx = savedProfiles.findIndex(p => p.id === pbActiveId);
+        const idx = savedProfiles.findIndex(p => p.id === targetId);
         if (idx >= 0) {
           savedProfiles[idx].token   = newAccess;
           savedProfiles[idx].refresh = newRefresh;
@@ -3654,11 +3670,16 @@ async function tryRefreshToken() {
           localStorage.setItem('pb_profiles', JSON.stringify(savedProfiles));
         }
       } catch(_) {}
-      pbToken   = newAccess;
-      pbRefresh = newRefresh;
-      pbUser    = newUser;
-      _lastRefreshAt = Date.now();
-      try { syncCurrentToProfile(); saveProfiles(); } catch(_) {}
+      const memProf = pbProfiles.find(p => p.id === targetId);
+      if (memProf) { memProf.token = newAccess; memProf.refresh = newRefresh; memProf.user = newUser; }
+      // Globální stav aktualizuj jen když je targetId pořád aktivní (jinak patří jinému profilu)
+      if (pbActiveId === targetId) {
+        pbToken   = newAccess;
+        pbRefresh = newRefresh;
+        pbUser    = newUser;
+        _lastRefreshAt = Date.now();
+      }
+      try { saveProfiles(); } catch(_) {}
       console.log('Token refreshed at', new Date().toISOString());
       return true;
     } catch (err) {
