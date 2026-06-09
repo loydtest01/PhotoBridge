@@ -561,8 +561,7 @@
     .job-banner {
       display: flex;
       flex-direction: column;
-      background-color: color-mix(in srgb, var(--pb-bg-fallback) calc(var(--job-bg-alpha, 0.85) * 100%), transparent);
-      background-image: linear-gradient(135deg, rgba(61,127,255,0.15) 0%, rgba(155,114,255,0.10) 100%);
+      background: transparent;
       border: 1.5px solid rgba(61,127,255,0.35);
       border-radius: var(--radius);
       padding: 14px 16px 12px;
@@ -576,6 +575,19 @@
       height: 2px;
       background: linear-gradient(90deg, var(--accent), var(--purple), var(--accent2));
       opacity: 0.8;
+      z-index: 2;
+    }
+    /* Krytí pozadí čísla zakázky – opacity řízená posuvníkem v nastavení */
+    .job-banner > * { position: relative; z-index: 1; }
+    .job-banner::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      border-radius: inherit;
+      background-color: var(--pb-bg-fallback);
+      background-image: linear-gradient(135deg, rgba(61,127,255,0.15) 0%, rgba(155,114,255,0.10) 100%);
+      opacity: var(--job-bg-alpha, 0.85);
     }
     .job-banner-label {
       font-size: 9px;
