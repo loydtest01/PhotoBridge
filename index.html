@@ -529,7 +529,9 @@
     }
     .pb-modal.open { display: flex; }
     .pb-modal-box {
-      background: var(--card); border: 1px solid var(--border2);
+      background-color: var(--pb-bg-fallback);
+      background-image: linear-gradient(var(--card), var(--card));
+      border: 1px solid var(--border2);
       border-radius: 18px; padding: 24px; width: 100%; max-width: 360px;
       box-shadow: 0 24px 60px rgba(0,0,0,0.6);
     }
@@ -559,7 +561,8 @@
     .job-banner {
       display: flex;
       flex-direction: column;
-      background: linear-gradient(135deg, rgba(61,127,255,0.15) 0%, rgba(155,114,255,0.10) 100%);
+      background-color: color-mix(in srgb, var(--pb-bg-fallback) calc(var(--job-bg-alpha, 0.85) * 100%), transparent);
+      background-image: linear-gradient(135deg, rgba(61,127,255,0.15) 0%, rgba(155,114,255,0.10) 100%);
       border: 1.5px solid rgba(61,127,255,0.35);
       border-radius: var(--radius);
       padding: 14px 16px 12px;
@@ -1286,9 +1289,20 @@
       <div class="pb-card" style="margin-top:4px">
         <div style="font-size:11px;color:var(--muted);line-height:1.7">
           <div id="connectionStatusLine">📡 Supabase: <span style="color:var(--green);font-family:var(--mono);font-size:10px" id="sbStatus">—</span></div>
+          <div style="margin-top:4px" id="r2StatusLine">☁️ R2 (Cloudflare): <span style="font-family:var(--mono);font-size:10px" id="r2Status">—</span></div>
           <div style="margin-top:4px" id="bucketLine">🗂️ Bucket: <span style="font-family:var(--mono);color:var(--muted2)">pb-uploads</span></div>
           <div style="margin-top:4px">⏱️ Auto-smazání: <span style="font-family:var(--mono);color:var(--muted2)" id="retentionDisplay">7 dní</span></div>
         </div>
+      </div>
+
+      <!-- Krytí čísla zakázky -->
+      <div class="pb-card" style="margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text);font-weight:600">
+          <span>🔢 Krytí čísla zakázky</span>
+          <span id="jobOpVal" style="font-family:var(--mono);color:var(--muted2);font-size:11px">85 %</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin:4px 0 8px">Vyšší hodnota = méně průhledné pozadí, číslo zakázky je víc vidět.</div>
+        <input type="range" id="jobOpSlider" min="0" max="100" value="85" oninput="onJobOpInput(this.value)" style="width:100%">
       </div>
 
       <!-- Log nahraných souborů -->
@@ -2327,6 +2341,8 @@ function showApp() {
   // Osobní účet: QR záložka je skrytá, přepni rovnou na Upload
   if (isPersonalAccount()) showTab('upload');
   checkSBStatus();
+  checkR2Status();
+  applyJobOpacity();
   updateRetentionDisplay();
   startTokenRefreshTimer();
   readURLParams();
@@ -3845,6 +3861,41 @@ async function checkSBStatus() {
     document.getElementById('sbStatus').textContent = 'Nedostupné';
     document.getElementById('sbStatus').style.color = 'var(--red)';
   }
+}
+
+// ── R2 (Cloudflare Worker) status ──
+async function checkR2Status() {
+  const el = document.getElementById('r2Status');
+  if (!el) return;
+  if (_isTourDemo) { el.textContent = 'Demo režim'; el.style.color = 'var(--accent,#3d7fff)'; return; }
+  if (!pbToken || !(pbUser && pbUser.id)) { el.textContent = 'přihlas se'; el.style.color = 'var(--yellow)'; return; }
+  try {
+    // Healthcheck: ověřený GET na neexistující klíč ve své složce.
+    // 404 = Worker běží + token platí + R2 binding funguje (dotázal se R2, nenašel).
+    const key = pbUser.id + '/__healthcheck__';
+    const res = await fetch(`${PB_R2_URL}/file?key=${encodeURIComponent(key)}`, {
+      headers: { 'Authorization': `Bearer ${pbToken}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.status === 404 || res.ok) { el.textContent = 'Připojeno ✓'; el.style.color = 'var(--green)'; }
+    else if (res.status === 401 || res.status === 403) { el.textContent = 'token neplatný'; el.style.color = 'var(--yellow)'; }
+    else { el.textContent = 'Chyba ' + res.status; el.style.color = 'var(--red)'; }
+  } catch(_) {
+    el.textContent = 'Nedostupné'; el.style.color = 'var(--red)';
+  }
+}
+
+// ── Krytí pozadí čísla zakázky (posuvník v nastavení) ──
+function applyJobOpacity() {
+  const op = parseInt(localStorage.getItem('pb_job_op') || '85', 10);
+  document.documentElement.style.setProperty('--job-bg-alpha', (op / 100).toString());
+  const s = document.getElementById('jobOpSlider'); if (s) s.value = op;
+  const v = document.getElementById('jobOpVal');    if (v) v.textContent = op + ' %';
+}
+function onJobOpInput(val) {
+  const op = Math.max(0, Math.min(100, parseInt(val, 10) || 0));
+  localStorage.setItem('pb_job_op', String(op));
+  applyJobOpacity();
 }
 
 // ── Upload mód (LOCAL / CLOUD) ────────────────────────────────────────────────
