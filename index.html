@@ -1509,6 +1509,7 @@
 const SB_URL    = 'https://vfxurqshbibaibqssjyz.supabase.co';
 const SB_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmeHVycXNoYmliYWlicXNzanl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NTgxNDQsImV4cCI6MjA5NjEzNDE0NH0._oexaz0fE_asoRPHBsUJcz0vz_6tShrUWHHNMPzMCXI';
 const SB_BUCKET = 'pb-uploads';
+const PB_R2_URL = 'https://photobridge-r2.photobridgesupport.workers.dev';  // R2 Worker (upload fotek)
 const SB_DOMAIN = '';  // email zadán přímo uživatelem
 const TYPE_KEY  = 'pb_doc_type';
 // ═══════════════════════════════════════════════════════
@@ -3448,27 +3449,45 @@ async function uploadFiles(fileList, opts = {}) {
         path     = `${userId}/${pbJob}${subSeg}/${filename}`;
       }
 
-      const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+      // ── R2 upload (Cloudflare Worker) – rychlé, mimo Supabase egress ──
+      // path = {userId}/personal/{file}  nebo  {userId}/{job}[/__sub]/{file}
+      // Worker si {userId} (sub z JWT) přidá sám → posíláme relativní cestu BEZ userId.
+      const relPath = path.split('/').slice(1).join('/');
       const activeToken = pbToken || SB_ANON;
 
-      // Storage upload + pb_queue insert PARALELNĚ (Promise.all).
-      // Jakmile Storage potvrdí 200, pb_queue je už dávno hotová (mnohem rychlejší).
-      // PC dostane Realtime event z pb_queue inserve → začne stahovat,
-      // a Storage download se spustí v okamžiku kdy upload je hotový.
-      const doStorageUpload = async (token) => fetch(
-        `${SB_URL}/storage/v1/object/${SB_BUCKET}/${encodedPath}`,
-        {
-          method:  'POST',
-          headers: {
-            'apikey':        SB_ANON,
-            'Authorization': `Bearer ${token}`,
-            'Content-Type':  file.type || 'application/octet-stream',
-            'x-upsert':      'true'
-          },
-          body: file
-        }
-      );
+      const doR2Upload = async (token) => fetch(`${PB_R2_URL}/upload`, {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-pb-path':     relPath,
+          'Content-Type':  file.type || 'application/octet-stream',
+        },
+        body: file,
+      }).catch(e => ({ ok: false, _err: e.message }));
 
+      // R2 Worker vyžaduje platný uživatelský JWT (anon odmítne) → 401/403 = refresh + retry
+      let uploadRes = await doR2Upload(activeToken);
+      if (!uploadRes.ok && (uploadRes.status === 401 || uploadRes.status === 403)) {
+        if (pbRefresh) {
+          const refreshed = await tryRefreshToken();
+          if (refreshed === true) {
+            uploadRes = await doR2Upload(pbToken);
+          } else if (refreshed === 'expired') {
+            toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
+            throw new Error('Relace vypršela – přihlas se znovu');
+          }
+        }
+      }
+      if (!uploadRes.ok) {
+        const errBody = await (uploadRes.text?.() || Promise.resolve('')).catch(() => '');
+        throw new Error(`Upload selhalo (${uploadRes.status || '?'}): ${errBody || uploadRes._err || ''}`);
+      }
+
+      // download_url z Workeru → do pb_queue; PC podle něj stáhne fotku z R2
+      let downloadUrl = '';
+      try { const j = await uploadRes.json(); downloadUrl = j.download_url || ''; } catch(_) {}
+
+      // pb_queue insert AŽ PO uploadu (soubor v R2 už existuje → PC ho hned stáhne)
       const doQueueInsert = async (token) => fetch(`${SB_URL}/rest/v1/pb_queue`, {
         method:  'POST',
         headers: {
@@ -3478,58 +3497,24 @@ async function uploadFiles(fileList, opts = {}) {
           'Prefer':        'return=minimal'
         },
         body: JSON.stringify({
-          user_id:   pbUser?.id || null,
-          job:       isPersonal ? null : pbJob,
-          file_path: path,
+          user_id:      pbUser?.id || null,
+          job:          isPersonal ? null : pbJob,
+          file_path:    path,
+          download_url: downloadUrl || null,
         })
       }).catch(e => ({ ok: false, _err: e.message }));
 
-      // Spustit OBĚ operace souběžně
-      let [uploadRes, queueRes] = await Promise.all([
-        doStorageUpload(activeToken),
-        doQueueInsert(activeToken),
-      ]);
-
-      // 401/403 na uploadu → refresh tokenu a retry uploadu (queue už proběhla nebo selhala)
-      if (!uploadRes.ok && (uploadRes.status === 401 || uploadRes.status === 403)) {
-        if (pbRefresh) {
-          const refreshed = await tryRefreshToken();
-          if (refreshed === true) {
-            uploadRes = await doStorageUpload(pbToken);
-            // Queue insert taky znova s novým tokenem (kdyby selhala kvůli stejnému důvodu)
-            if (!queueRes || !queueRes.ok) {
-              queueRes = await doQueueInsert(pbToken);
-            }
-          } else if (refreshed === 'expired') {
-            toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
-            setTimeout(() => {
-              pbToken = pbRefresh = null;
-              syncCurrentToProfile(); saveProfiles();
-              stopTokenRefreshTimer(); stopQRScan(); showLogin();
-            }, 1500);
-            throw new Error('Relace vypršela – přihlas se znovu');
-          }
-        }
-        if (!uploadRes.ok && activeToken !== SB_ANON) {
-          uploadRes = await doStorageUpload(SB_ANON);
-        }
-      }
-
-      // pb_queue retry (1×) pokud selhala – aby PC nemusela čekat na fallback Storage scan
+      let queueRes = await doQueueInsert(pbToken || SB_ANON);
       if (!queueRes || !queueRes.ok) {
-        try {
-          queueRes = await doQueueInsert(pbToken || SB_ANON);
-        } catch (_) {}
-        if (!queueRes || !queueRes.ok) {
-          const qBody = await (queueRes?.text?.() || Promise.resolve('')).catch(() => '');
-          console.warn('pb_queue insert selhal:', queueRes?.status, qBody || queueRes?._err);
-          // PC si soubor najde přes fallback Storage scan (do 30 s)
-        }
+        try { queueRes = await doQueueInsert(pbToken || SB_ANON); } catch (_) {}  // retry 1×
       }
-
-      if (!uploadRes.ok) {
-        const errBody = await uploadRes.text().catch(() => '');
-        throw new Error(`Upload selhalo (${uploadRes.status}): ${errBody}`);
+      // U R2 PC NEscanuje úložiště (scanuje Supabase Storage, ne R2) → řádek ve frontě
+      // je povinný. Když se nezaloží, ber upload jako selhaný (ať uživatel pošle znovu),
+      // jinak by fotka osiřela v R2 bez oznámení PC.
+      if (!queueRes || !queueRes.ok) {
+        const qBody = await (queueRes?.text?.() || Promise.resolve('')).catch(() => '');
+        console.warn('pb_queue insert selhal:', queueRes?.status, qBody || queueRes?._err);
+        throw new Error('Fronta selhala – zkus poslat znovu');
       }
 
       done++;
