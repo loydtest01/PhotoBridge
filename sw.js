@@ -1,6 +1,6 @@
 // ═══ PhotoBridge Service Worker ═══
 // Bump CACHE_VERSION při každém deployi (nebo ho generuj automaticky z data).
-const CACHE_VERSION = 'pb-v1.0.6';
+const CACHE_VERSION = 'pb-v1.0.7';
 const CACHE_NAME    = CACHE_VERSION;
 const SHARE_CACHE   = 'pb-share-v1';   // dočasné úložiště fotek sdílených z galerie
 

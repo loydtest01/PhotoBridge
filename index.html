@@ -1657,14 +1657,16 @@ async function quickSwitchProfile() {
   pbJob      = other.job || null;
   pbJobToken = other.jobToken || null;
   localStorage.setItem('pb_active_id', pbActiveId);
-  // Obnov token cílového profilu HNED – jeho access token mohl vypršet, dokud byl
-  // neaktivní. Bez toho by první upload po přepnutí spadl na 401 a strhl i switcher.
-  try {
-    const r = await tryRefreshToken();
-    if (r === 'expired') {
-      toast('⚠️ ' + getDisplayName(other, other.user) + ': relace vypršela – přihlas se k tomuto účtu znovu', 'err');
-    }
-  } catch (_) {}
+  // Obnov token cílového profilu jen když chybí nebo brzy vyprší. Token, co je
+  // ještě platný, zbytečně nerotujeme → menší riziko "already used" 400.
+  if (_tokenExpiringSoon(pbToken)) {
+    try {
+      const r = await tryRefreshToken();
+      if (r === 'expired') {
+        toast('⚠️ ' + getDisplayName(other, other.user) + ': relace vypršela – přihlas se k tomuto účtu znovu', 'err');
+      }
+    } catch (_) {}
+  }
   showApp();
   toast('⇄ Přepnuto: ' + getDisplayName(other, other.user), 'ok');
 }
@@ -2344,7 +2346,9 @@ function showApp() {
   // (refresh_token expiroval), funkce sama zobrazí přihlášení.
   if (pbRefresh && !_isTourDemo) {
     setTimeout(() => {
-      tryRefreshTokenOrLogout().catch(err => console.warn('startup refresh err', err));
+      if (_tokenExpiringSoon(pbToken)) {
+        tryRefreshTokenOrLogout().catch(err => console.warn('startup refresh err', err));
+      }
     }, 200);
   }
 
@@ -3626,6 +3630,22 @@ async function uploadFiles(fileList, opts = {}) {
 let _refreshInFlight = null;     // Promise<true|false|'expired'> – sdíleno mezi callery
 let _lastRefreshAt   = 0;        // ms timestamp posledního úspěšného refreshe
 
+// Vrátí čas expirace access tokenu v ms (0 = neznámo)
+function _jwtExpMs(token) {
+  try {
+    const seg = token.split('.')[1];
+    const json = JSON.parse(decodeURIComponent(escape(atob(seg.replace(/-/g,'+').replace(/_/g,'/')))));
+    return json.exp ? json.exp * 1000 : 0;
+  } catch(_) { return 0; }
+}
+// True když token chybí nebo vyprší dřív než za `withinMs` (default 5 min)
+function _tokenExpiringSoon(token, withinMs) {
+  if (!token) return true;
+  const exp = _jwtExpMs(token);
+  if (!exp) return true;
+  return (exp - Date.now()) < (withinMs || 5*60*1000);
+}
+
 async function tryRefreshToken() {
   if (!pbRefresh) return false;
 
@@ -3698,14 +3718,33 @@ async function tryRefreshToken() {
 async function tryRefreshTokenOrLogout() {
   const result = await tryRefreshToken();
   if (result === 'expired') {
-    toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
-    setTimeout(() => {
-      pbToken = pbRefresh = null;
-      try { syncCurrentToProfile(); saveProfiles(); } catch(_) {}
-      stopTokenRefreshTimer();
-      stopQRScan();
-      showLogin();
-    }, 1500);
+    // Vypršel JEN tenhle profil. Vyčisti jeho uložené tokeny (bude chtít re-login),
+    // ale NEshazuj celou appku – pokud je druhý profil použitelný, přepni na něj.
+    const expiredId = pbActiveId;
+    try {
+      const sp = JSON.parse(localStorage.getItem('pb_profiles') || '[]');
+      const i = sp.findIndex(p => p.id === expiredId);
+      if (i >= 0) { sp[i].token = null; sp[i].refresh = null; localStorage.setItem('pb_profiles', JSON.stringify(sp)); }
+    } catch(_) {}
+    const mp = pbProfiles.find(p => p.id === expiredId);
+    if (mp) { mp.token = null; mp.refresh = null; }
+    const other = pbProfiles.find(p => p.id !== expiredId && p.token);
+    if (other) {
+      toast('⚠️ ' + getDisplayName(mp, mp && mp.user) + ': relace vypršela – přepínám na druhý účet', 'err');
+      pbActiveId = other.id;
+      pbToken = other.token; pbRefresh = other.refresh; pbUser = other.user;
+      pbJob = other.job || null; pbJobToken = other.jobToken || null;
+      try { saveProfiles(); } catch(_) {}
+      showApp();
+    } else {
+      toast('⚠️ Relace vypršela – přihlas se znovu', 'err');
+      setTimeout(() => {
+        pbToken = pbRefresh = null;
+        stopTokenRefreshTimer();
+        stopQRScan();
+        showLogin();
+      }, 1500);
+    }
     return false;
   }
   return result;
