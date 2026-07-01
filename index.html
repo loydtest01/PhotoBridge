@@ -19,6 +19,7 @@
     /* ═══ PB DESIGN SYSTEM TOKENS ═══ */
     :root, [data-theme="dark"] {
       --pb-bg-fallback:        #050d20;
+      --job-panel:             #111c40;
       --pb-card-bg:            rgba(7,14,36,0.64);
       --pb-card-bg-deep:       rgba(4,8,22,0.52);
       --pb-card-border-inner:  rgba(38,68,148,0.20);
@@ -39,6 +40,7 @@
     }
     [data-theme="light"] {
       --pb-bg-fallback:        #cfddf0;
+      --job-panel:             #ffffff;
       --pb-card-bg:            rgba(255,255,255,0.54);
       --pb-card-bg-deep:       rgba(255,255,255,0.35);
       --pb-card-border-inner:  rgba(185,210,240,0.40);
@@ -585,7 +587,7 @@
       inset: 0;
       z-index: 0;
       border-radius: inherit;
-      background-color: var(--pb-bg-fallback);
+      background-color: var(--job-panel, #ffffff);
       background-image: linear-gradient(135deg, rgba(61,127,255,0.15) 0%, rgba(155,114,255,0.10) 100%);
       opacity: var(--job-bg-alpha, 0.85);
     }
@@ -2064,6 +2066,8 @@ function stopAiScan() {
 function confirmScan(raw) {
   const val = String(raw == null ? '' : raw).trim();
   if (!val) return;
+  // Živé čtení v režimu Oprava QR: hodnotu jen zobraz jako zpětnou vazbu, NEnastavuj zakázku.
+  if (window.__qrLiveRead) { qrLiveReadResult(val); return; }
   // Čisté číselné zakázky: vyžaduj rozumnou délku (zakázka má 7 číslic).
   // Když je hodnota jen číslice a kratší než 6, je to skoro jistě
   // oříznuté čtení – zahoď a čekej na pořádný sken.
@@ -2925,11 +2929,40 @@ async function startQRScan() {
 }
 
 function stopQRScan() {
+  window.__qrLiveRead = false;
   if (qrInterval) { clearInterval(qrInterval); qrInterval = null; }
   if (qrStream)   { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
   document.getElementById('qrScanArea').style.display = 'none';
   showStopButton(false);
   document.getElementById('btnStopScan').style.display = 'none';
+}
+
+// ── ŽIVÉ ČTENÍ QR (režim Oprava QR) ────────────────────────
+// Zkusí umazaný QR přečíst živě jen pro zpětnou vazbu technikovi.
+// Zakázku NEMĚNÍ – technik pak QR vyfotí a oprava proběhne na PC.
+function startQrLiveRead() {
+  window.__qrLiveRead = true;
+  showTab('qr');
+  try { startQRScan(); } catch (_) {}
+  // startQRScan přepíše status na „Hledám kód…" – nastav QR-režimovou hlášku až po něm.
+  setTimeout(() => {
+    const st = document.getElementById('qrStatus');
+    if (st && window.__qrLiveRead) st.innerHTML =
+      '<div class="qr-status-icon">🔳</div>' +
+      '<div class="qr-status-title">Namiř na umazaný QR</div>' +
+      '<div class="qr-status-sub">Zkouším ho přečíst živě. Pak ho vyfoť – čistý QR se vloží na PC.</div>';
+  }, 60);
+}
+function qrLiveReadResult(val) {
+  try { haptic([60, 40, 60]); } catch (_) {}
+  window.__qrLiveRead = false;
+  const st = document.getElementById('qrStatus');
+  if (st) st.innerHTML =
+    '<div class="qr-status-icon">✅</div>' +
+    '<div class="qr-status-title">QR je čitelný</div>' +
+    '<div class="qr-status-sub">Vyfoť ho a nahraj – na PC se vloží ostrý čistý QR.</div>';
+  toast('✅ QR čitelný: ' + val.slice(0, 60), 'ok');
+  try { stopQRScan(); } catch (_) {}
 }
 
 function parseQRCode(raw) {
@@ -3050,6 +3083,16 @@ function updateJobUI() {
     bannerScan.classList.remove('visible');
     banner.style.borderColor = 'rgba(54,217,102,0.4)';
     banner.style.background = 'linear-gradient(135deg, rgba(54,217,102,0.08) 0%, rgba(61,127,255,0.10) 100%)';
+    // QR-opravný režim (zakázka s prefixem QR_) – informuj a nabídni živé přečtení QR.
+    if (/^QR[_-]/i.test(pbJob)) {
+      bannerHint.textContent = '🔳 Režim Oprava QR – vyfoť umazaný QR kód, čistý se vloží na PC.';
+      bannerScan.textContent = '🔍 Zkusit přečíst QR (test)';
+      bannerScan.onclick = startQrLiveRead;
+      bannerScan.classList.add('visible');
+    } else {
+      bannerScan.textContent = '🔲 Naskenovat QR kód';
+      bannerScan.onclick = () => showTab('qr');
+    }
   } else {
     // Top header badge
     jobEl.style.display = 'none';
@@ -3064,6 +3107,8 @@ function updateJobUI() {
     bannerIcon.textContent = '📋';
     bannerBadge.classList.remove('visible');
     bannerHint.classList.remove('visible');
+    bannerScan.textContent = '🔲 Naskenovat QR kód';
+    bannerScan.onclick = () => showTab('qr');
     bannerScan.classList.add('visible');
     banner.style.borderColor = 'rgba(61,127,255,0.35)';
     banner.style.background = 'linear-gradient(135deg, rgba(61,127,255,0.15) 0%, rgba(155,114,255,0.10) 100%)';
