@@ -1046,9 +1046,12 @@
         <video id="dpmVideo" playsinline autoplay muted style="flex:1;width:100%;height:100%;object-fit:cover;background:#000"></video>
         <div id="dpmStatus" style="position:absolute;top:0;left:0;right:0;padding:16px;text-align:center;color:#fff;font-weight:700;font-size:15px;line-height:1.4;background:linear-gradient(#000c,#0000)">🔦 Zapínám přísvit a hledám kód…</div>
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:70%;max-width:320px;aspect-ratio:1;border:3px solid rgba(61,127,255,.85);border-radius:14px;box-shadow:0 0 0 100vmax rgba(0,0,0,.35);pointer-events:none"></div>
-        <div style="position:absolute;bottom:0;left:0;right:0;padding:18px;display:flex;gap:10px;background:linear-gradient(#0000,#000c)">
-          <button onclick="finishDpmScan()" style="flex:2;padding:16px;border:none;border-radius:12px;background:#3d7fff;color:#fff;font-size:16px;font-weight:700;font-family:var(--font)">⬆️ Nahrát do PC</button>
-          <button onclick="stopDpmScan()" style="flex:1;padding:16px;border:none;border-radius:12px;background:#333;color:#fff;font-size:16px;font-weight:700;font-family:var(--font)">Zrušit</button>
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:16px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(#0000,#000c)">
+          <button onclick="_dpmCapture()" style="width:100%;padding:16px;border:none;border-radius:12px;background:#5b3fd4;color:#fff;font-size:17px;font-weight:800;font-family:var(--font)">📸 Sejmout snímek (<span id="dpmShotCount">0</span>)</button>
+          <div style="display:flex;gap:10px">
+            <button onclick="finishDpmScan()" style="flex:2;padding:15px;border:none;border-radius:12px;background:#3d7fff;color:#fff;font-size:15px;font-weight:700;font-family:var(--font)">⬆️ Nahrát do PC</button>
+            <button onclick="stopDpmScan()" style="flex:1;padding:15px;border:none;border-radius:12px;background:#333;color:#fff;font-size:15px;font-weight:700;font-family:var(--font)">Zrušit</button>
+          </div>
         </div>
 
         <!-- Výsledek: přečteno → hodnota + čistý QR na sejmutí do zakázky -->
@@ -1378,7 +1381,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.0.6
+        PhotoBridge&nbsp;&nbsp;v1.0.7
       </div>
 
     </div>
@@ -5737,7 +5740,7 @@ async function ensureValidToken() {
 // ══ Sekvenční sken s přísvitem pro typ QR (oprava poškozeného QR / Data Matrix) ══
 // Zkouší dekódovat KAŽDÝ snímek přisvětlené sekvence (jako průmyslová čtečka).
 // Když se povede → nahraje snímek s vypsanou hodnotou. Když ne → pošle sérii do PC.
-let _dpmStream=null, _dpmTimer=null, _dpmActive=false, _dpmDecoded=null, _dpmFrames=[], _dpmTrack=null, _dpmZx=null, _dpmTick=0;
+let _dpmStream=null, _dpmTimer=null, _dpmActive=false, _dpmDecoded=null, _dpmShots=[], _dpmLastCap=null, _dpmTrack=null, _dpmZx=null, _dpmTick=0;
 
 function _dpmBoxBlur(g,w,h,r){const win=2*r+1,tmp=new Float32Array(w*h),out=new Float32Array(w*h);
  for(let y=0;y<h;y++){const off=y*w;let s=0;for(let x=-r;x<=r;x++)s+=g[off+Math.max(0,Math.min(w-1,x))];
@@ -5778,9 +5781,10 @@ function _dpmDecodeCanvas(canvas,deep){
 
 async function startDpmScan(){
  if(!checkReady())return;
- _dpmActive=true;_dpmDecoded=null;_dpmFrames=[];_dpmTick=0;
+ _dpmActive=true;_dpmDecoded=null;_dpmShots=[];_dpmLastCap=null;_dpmTick=0;
  document.getElementById('dpmScanArea').style.display='flex';
  { const rp=document.getElementById('dpmResult'); if(rp) rp.style.display='none'; }
+ { const sc=document.getElementById('dpmShotCount'); if(sc) sc.textContent='0'; }
  document.getElementById('dpmStatus').textContent='🔦 Zapínám přísvit a hledám kód…';
  const video=document.getElementById('dpmVideo');
  try{
@@ -5801,7 +5805,7 @@ function _dpmLoop(){
   const vw=video.videoWidth,vh=video.videoHeight,s=Math.min(vw,vh)*0.7,cx=(vw-s)/2,cy=(vh-s)/2;
   const cap=document.createElement('canvas');cap.width=Math.round(s);cap.height=Math.round(s);
   cap.getContext('2d').drawImage(video,cx,cy,s,s,0,0,cap.width,cap.height);
-  cap.toBlob(b=>{if(b){_dpmFrames.push(b);if(_dpmFrames.length>8)_dpmFrames.shift();}},'image/jpeg',0.9);
+  _dpmLastCap=cap;   // aktuální (živý) snímek – uživatel ho může sejmout tlačítkem
   if(!_dpmDecoded){
    let res=null;try{res=_dpmDecodeCanvas(cap,(_dpmTick%4===0));}catch(_){}
    if(res&&res.data){
@@ -5810,7 +5814,7 @@ function _dpmLoop(){
     _dpmShowResult(res.data,res.fmt);
     return;
    }else{
-    document.getElementById('dpmStatus').textContent='🔦 Hledám kód… drž nad kódem, lehce pohybuj';
+    document.getElementById('dpmStatus').textContent='🔦 Miř na kód. Když ho přečtu, ukážu QR. Jinak sejmi pár snímků a „Nahrát do PC“.';
    }
   }
  }
@@ -5834,6 +5838,19 @@ function _dpmRescan(){
  if(_dpmActive && !_dpmTimer) _dpmLoop();
 }
 
+// Uživatel sejme aktuální (namířený) snímek – jen tyhle jdou do PC (ne auto-sběr při pohybu).
+function _dpmCapture(){
+ if(!_dpmLastCap){ toast('Chvilku počkej, než naběhne kamera','err'); return; }
+ const c=document.createElement('canvas'); c.width=_dpmLastCap.width; c.height=_dpmLastCap.height;
+ c.getContext('2d').drawImage(_dpmLastCap,0,0);
+ c.toBlob(b=>{
+  if(b){ _dpmShots.push(b); if(_dpmShots.length>6)_dpmShots.shift();
+   const sc=document.getElementById('dpmShotCount'); if(sc) sc.textContent=String(_dpmShots.length);
+   toast('📸 Sejmuto '+_dpmShots.length,'ok');
+  }
+ },'image/jpeg',0.92);
+}
+
 // Spoj snímky pod sebe do jedné fotky (pro odeslání do PC, když se nedekóduje).
 async function _dpmMontage(blobs){
  const imgs=await Promise.all(blobs.map(b=>new Promise(r=>{const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);im.src=URL.createObjectURL(b);})));
@@ -5850,14 +5867,12 @@ async function _dpmMontage(blobs){
 async function finishDpmScan(){
  // Tlačítko „Nahrát do PC" – použije se hlavně když se kód NEPŘEČETL.
  if(_dpmDecoded&&_dpmDecoded.data){ _dpmShowResult(_dpmDecoded.data,_dpmDecoded.fmt); return; }
- const pick=_dpmFrames.slice(-4); const files=[];
- if(pick.length){
-  const blob=await _dpmMontage(pick);        // poslední 4 snímky spoj do JEDNÉ fotky
-  files.push(new File([blob],'qr_serie.jpg',{type:'image/jpeg'}));
-  toast('⬆️ Kód nepřečten – posílám sérii '+pick.length+' snímků (v jedné fotce) do PC','');
- }else toast('⚠️ Žádný snímek k odeslání','err');
+ if(!_dpmShots.length){ toast('📸 Nejdřív sejmi aspoň jeden snímek (miř na kód a klikni „Sejmout“)','err'); return; }
+ const blob=await _dpmMontage(_dpmShots);     // jen uživatelem sejmuté snímky → do JEDNÉ fotky
+ const files=[new File([blob],'qr_serie.jpg',{type:'image/jpeg'})];
+ toast('⬆️ Posílám '+_dpmShots.length+' sejmutých snímků (v jedné fotce) do PC','');
  stopDpmScan();
- if(files.length)await uploadFiles(files);
+ await uploadFiles(files);
 }
 
 function stopDpmScan(){
@@ -5865,7 +5880,7 @@ function stopDpmScan(){
  if(_dpmTimer){clearTimeout(_dpmTimer);_dpmTimer=null;}
  try{if(_dpmTrack)_dpmTrack.applyConstraints({advanced:[{torch:false}]}).catch(()=>{});}catch(_){}
  if(_dpmStream){_dpmStream.getTracks().forEach(t=>t.stop());_dpmStream=null;}
- _dpmTrack=null;_dpmDecoded=null;
+ _dpmTrack=null;_dpmDecoded=null;_dpmShots=[];_dpmLastCap=null;
  const rp=document.getElementById('dpmResult');if(rp)rp.style.display='none';
  const a=document.getElementById('dpmScanArea');if(a)a.style.display='none';
 }
