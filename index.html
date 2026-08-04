@@ -1351,7 +1351,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.0.5
+        PhotoBridge&nbsp;&nbsp;v1.0.6
       </div>
 
     </div>
@@ -1868,6 +1868,27 @@ let _ocrGroqKeys = null;      // pole klíčů (rotace)
 let _ocrGroqKeysTime = 0;
 let _groqKeyIdx = 0;          // round-robin ukazatel přes klíče
 
+// ── AI VISION MODEL ze Supabase (pb_settings.groq_vision_model, cache 30 min) ──
+// Když Groq model vyřadí, stačí změnit hodnotu v Supabase – žádné nasazování.
+const VISION_MODEL_DEFAULT = 'qwen/qwen3.6-27b';
+let _visionModel = null, _visionModelTime = 0;
+async function getVisionModel() {
+  const now = Date.now();
+  if (_visionModel && (now - _visionModelTime) < 30*60*1000) return _visionModel;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.groq_vision_model&select=value`, {
+      headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` },
+    });
+    if (r.ok) {
+      const rows = await r.json();
+      const v = (rows && rows[0] && rows[0].value) ? String(rows[0].value).trim() : '';
+      if (v) { _visionModel = v; _visionModelTime = now; return v; }
+    }
+  } catch (_) {}
+  _visionModel = VISION_MODEL_DEFAULT; _visionModelTime = now;
+  return _visionModel;
+}
+
 // Načte sdílené Groq klíče ze Supabase pb_settings (cache 30 min).
 // Hodnota groq_api_key smí obsahovat VÍC klíčů oddělených novým řádkem,
 // čárkou, středníkem nebo mezerou → ty se rotují. Jeden klíč funguje dál.
@@ -1898,7 +1919,9 @@ async function getOcrGroqKeys() {
 async function groqVisionCall(dataUrl, promptText) {
   const keys = await getOcrGroqKeys();
   if (!keys.length) return null;
+  const model = await getVisionModel();
   let rateLimited = false;
+  let modelBad = false;
   for (let tried = 0; tried < keys.length; tried++) {
     const key = keys[_groqKeyIdx % keys.length];
     _groqKeyIdx = (_groqKeyIdx + 1) % keys.length;   // posuň pro příští volání
@@ -1907,7 +1930,7 @@ async function groqVisionCall(dataUrl, promptText) {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'qwen/qwen3.6-27b',   // llama-4-scout byl Groqem vyřazen 6/2026 → aktuální vision model
+          model: model,   // název modelu se čte ze Supabase pb_settings (groq_vision_model)
           messages: [{ role: 'user', content: [
             { type: 'text', text: promptText },
             { type: 'image_url', image_url: { url: dataUrl } },
@@ -1924,13 +1947,16 @@ async function groqVisionCall(dataUrl, promptText) {
         return { text: cleaned || raw.trim() };
       }
       if (resp.status === 429) rateLimited = true;     // limit → zkus další klíč
+      if (resp.status === 400 || resp.status === 404) modelBad = true;  // model nejspíš vyřazen
       // 401/403 neplatný klíč, 5xx chyba serveru → taky zkus další klíč
       continue;
     } catch (_) {
       continue;  // síťová chyba – zkus další klíč
     }
   }
-  return rateLimited ? { rateLimited: true } : null;
+  if (rateLimited) return { rateLimited: true };
+  if (modelBad) return { modelBad: true, model };
+  return null;
 }
 
 // Vyfotí jeden snímek z kamery a pošle do AI na přečtení čísla zakázky
@@ -2004,6 +2030,10 @@ async function ocrJobNumber() {
       } else if (res && res.rateLimited) {
         // Všechny klíče narazily na limit – nemá smysl pokračovat ve smyčce
         toast('⚠️ AI je přetížená (limit) – zkus za chvíli nebo zadej ručně', 'err');
+        break;
+      } else if (res && res.modelBad) {
+        // Groq model už neexistuje/nefunguje → řekni to NAHLAS (admin změní model v Supabase)
+        toast('❌ AI model „' + res.model + '" není na Groq dostupný – admin: změň groq_vision_model v Supabase', 'err');
         break;
       }
       // jinak (null = síťová chyba u všech klíčů) prostě zkus další pokus
