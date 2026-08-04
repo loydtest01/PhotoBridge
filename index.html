@@ -1351,7 +1351,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.0.4
+        PhotoBridge&nbsp;&nbsp;v1.0.5
       </div>
 
     </div>
@@ -1912,13 +1912,16 @@ async function groqVisionCall(dataUrl, promptText) {
             { type: 'text', text: promptText },
             { type: 'image_url', image_url: { url: dataUrl } },
           ]}],
-          max_tokens: 30,
+          max_tokens: 1024,   // Qwen thinking model – rezerva na úvahové tokeny
           temperature: 0,
         }),
       });
       if (resp.ok) {
         const data = await resp.json();
-        return { text: (data.choices?.[0]?.message?.content || '').trim() };
+        // Qwen může odpověď obalit úvahovým blokem <think>…</think> – odfiltruj
+        const raw = (data.choices?.[0]?.message?.content || '');
+        const cleaned = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        return { text: cleaned || raw.trim() };
       }
       if (resp.status === 429) rateLimited = true;     // limit → zkus další klíč
       // 401/403 neplatný klíč, 5xx chyba serveru → taky zkus další klíč
@@ -1990,7 +1993,7 @@ async function ocrJobNumber() {
       cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height);
       const dataUrl = cap.toDataURL('image/jpeg', 0.92);
 
-      const prompt = 'Photo of a computer screen with a Czech service repair app ("servisní zakázka"). Read the SERVICE ORDER NUMBER: a 7-digit number, usually starting with 45 (e.g. 4516564), shown as a prominent bold number near the TOP of the screen. Read the digits carefully one by one. Ignore these: IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, and the small text field labeled "Zakázka" inside the form. Reply with ONLY the 7 digits, nothing else. If you really cannot see any 7-digit order number, reply "NONE".';
+      const prompt = 'Photo of a computer screen with a Czech service repair app ("servisní zakázka"). Read the SERVICE ORDER NUMBER: a 7-digit number, usually starting with 45 (e.g. 4516564), shown as a prominent bold number near the TOP of the screen. Read the digits carefully one by one. Ignore these: IČ/DIČ tax numbers (8 digits), phone numbers (9 digits), postal codes, customer codes like Z0160, and the small text field labeled "Zakázka" inside the form. Reply with ONLY the 7 digits, nothing else. If you really cannot see any 7-digit order number, reply "NONE". /no_think';
 
       const res = await groqVisionCall(dataUrl, prompt);
       if (res && res.text) {
