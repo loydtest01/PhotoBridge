@@ -842,6 +842,21 @@
       <span id="loginBtnTxt">Přihlásit se</span>
       <span id="loginBtnLoad" style="display:none"><span class="spin">⏳</span> Přihlašuji…</span>
     </button>
+
+    <!-- Firemní přihlášení (BRITEX / RTS) – zobrazí se, jen když je nastavené -->
+    <div id="britexLoginWrap" style="display:none;margin-top:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="flex:1;height:1px;background:var(--border,rgba(255,255,255,.15))"></div>
+        <span style="font-size:12px;color:var(--text2,#8b93a7)">nebo</span>
+        <div style="flex:1;height:1px;background:var(--border,rgba(255,255,255,.15))"></div>
+      </div>
+      <button class="login-btn" id="britexLoginBtn" onclick="britexLogin()" style="
+        background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18)">
+        <span style="display:inline-flex;align-items:center;gap:8px;justify-content:center">
+          <span style="font-size:15px">🏢</span> Sign in with BRITEX OAuth2
+        </span>
+      </button>
+    </div>
   </div>
 
   <!-- PWA install – dostupné BEZ přihlášení -->
@@ -1367,7 +1382,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.0.8
+        PhotoBridge&nbsp;&nbsp;v1.0.9
       </div>
 
     </div>
@@ -1779,6 +1794,43 @@ async function rtsSavePhoto(file, job, filename) {
   } catch (e) {
     // Typicky CORS – prohlížeč nepustí volání z jiné domény, pokud to RTS nepovolí
     return { ok: false, error: `Síť/CORS: ${e.message}` };
+  }
+}
+
+/**
+ * Firemní přihlášení (BRITEX / RTS) na přihlašovací obrazovce.
+ *
+ * Tlačítko se ukáže, jen když je v Supabase nastaven klíč rts_sso_enabled='on'
+ * A ZÁROVEŇ existuje rts_client_id. Dokud IT nedodá funkční OAuth registraci,
+ * zůstává skryté – technici se hlásí e-mailem jako dosud.
+ */
+async function britexInit() {
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/pb_settings?key=in.(rts_sso_enabled,rts_client_id)&select=key,value`,
+      { headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` } });
+    if (!r.ok) return;
+    const rows = await r.json();
+    let enabled = false, hasId = false;
+    for (const row of (rows || [])) {
+      if (row.key === 'rts_sso_enabled' && String(row.value).trim().toLowerCase() === 'on') enabled = true;
+      if (row.key === 'rts_client_id'   && String(row.value || '').trim()) hasId = true;
+    }
+    const wrap = document.getElementById('britexLoginWrap');
+    if (wrap && enabled && hasId) wrap.style.display = '';
+  } catch (_) {}
+}
+
+/** Spustí firemní přihlášení přes Supabase (poskytovatel BRITEX/RTS). */
+async function britexLogin() {
+  try {
+    // Stránka nepoužívá Supabase JS klienta – přesměrujeme rovnou na
+    // autorizační endpoint Supabase, který nás pošle na přihlášení BRITEX.
+    const provider = 'keycloak';   // custom OIDC poskytovatel nastavený v Supabase
+    const back = encodeURIComponent(location.origin + location.pathname);
+    location.href = `${SB_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${back}`;
+  } catch (e) {
+    toast(`❌ Přihlášení selhalo: ${e.message}`, 'err');
   }
 }
 
@@ -2421,6 +2473,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Návrat z přihlášení do RTS (?code=…) – vyměň kód za token
   try { rtsHandleRedirect(); } catch (_) {}
   try { rtsUpdateUi(); rtsUpdateDirectUi(); } catch (_) {}
+  try { britexInit(); } catch (_) {}
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
