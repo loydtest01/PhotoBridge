@@ -1203,6 +1203,22 @@
           <button class="settings-btn" onclick="openModal('modalPass')">Změnit</button>
         </div>
         <div class="settings-row">
+          <div class="settings-icon">🏢</div>
+          <div class="settings-info">
+            <div class="settings-title">Přihlášení do RTS</div>
+            <div class="settings-sub" id="rts-state">Nepřihlášen</div>
+          </div>
+          <button class="settings-btn" onclick="rtsLogin()">Přihlásit</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-icon">🚀</div>
+          <div class="settings-info">
+            <div class="settings-title">Posílat fotky rovnou do zakázky</div>
+            <div class="settings-sub" id="rtsDirectSub">Vypnuto – fotky jdou přes PC</div>
+          </div>
+          <button id="rtsDirectBtn" onclick="toggleRtsDirect()" class="settings-btn">Zapnout</button>
+        </div>
+        <div class="settings-row">
           <div class="settings-icon">📋</div>
           <div class="settings-info">
             <div class="settings-title">Aktivní zakázka</div>
@@ -1351,7 +1367,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.0.6
+        PhotoBridge&nbsp;&nbsp;v1.0.8
       </div>
 
     </div>
@@ -1547,6 +1563,261 @@ const SB_URL    = 'https://vfxurqshbibaibqssjyz.supabase.co';
 const SB_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmeHVycXNoYmliYWlicXNzanl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NTgxNDQsImV4cCI6MjA5NjEzNDE0NH0._oexaz0fE_asoRPHBsUJcz0vz_6tShrUWHHNMPzMCXI';
 const SB_BUCKET = 'pb-uploads';
 const PB_R2_URL = 'https://photobridge-r2.photobridgesupport.workers.dev';  // R2 Worker (upload fotek)
+
+// ══════════════════════════════════════════════════════════════════════════
+// RTS API (Britex) – ukládání fotek přímo do zakázky, bez PC a UploadScanu
+//
+// Přihlášení: OAuth2 authorization_code + PKCE (mobilní web nemůže udržet
+// client_secret v tajnosti, proto PKCE). client_id se čte ze Supabase
+// pb_settings.rts_client_id – technik nic nevyplňuje.
+//
+// Token se ukládá do localStorage a obnovuje přes refresh_token.
+// ══════════════════════════════════════════════════════════════════════════
+const RTS_URL_DEFAULT = 'https://rts.britex.cz';
+const RTS_LS_KEY      = 'pb_rts_session';
+const RTS_LS_VERIFIER = 'pb_rts_verifier';
+
+let _rtsCfg = null, _rtsCfgTime = 0;
+
+/** client_id (a případně secret) ze Supabase, cache 30 min. */
+async function rtsGetConfig() {
+  const now = Date.now();
+  if (_rtsCfg && (now - _rtsCfgTime) < 30 * 60 * 1000) return _rtsCfg;
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/pb_settings?key=in.(rts_client_id,rts_client_secret,rts_url)&select=key,value`,
+      { headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` } });
+    if (r.ok) {
+      const rows = await r.json();
+      const out = { url: RTS_URL_DEFAULT };
+      for (const row of (rows || [])) {
+        if (row.key === 'rts_client_id')     out.clientId     = String(row.value || '').trim();
+        if (row.key === 'rts_client_secret') out.clientSecret = String(row.value || '').trim();
+        if (row.key === 'rts_url' && row.value) out.url        = String(row.value).trim();
+      }
+      _rtsCfg = out; _rtsCfgTime = now;
+      return out;
+    }
+  } catch (_) {}
+  return _rtsCfg || { url: RTS_URL_DEFAULT };
+}
+
+/** Uložená RTS session. */
+function rtsSession() {
+  try { return JSON.parse(localStorage.getItem(RTS_LS_KEY) || 'null'); } catch (_) { return null; }
+}
+function rtsSaveSession(sess) {
+  try { localStorage.setItem(RTS_LS_KEY, JSON.stringify(sess)); } catch (_) {}
+}
+function rtsLogout() {
+  try { localStorage.removeItem(RTS_LS_KEY); } catch (_) {}
+  toast('Odhlášeno z RTS', 'ok');
+  rtsUpdateUi();
+}
+
+/** Je technik přihlášen v RTS a token platí? */
+function rtsIsLoggedIn() {
+  const s = rtsSession();
+  return !!(s && s.accessToken && Date.now() < (s.expiresAt || 0));
+}
+
+// ── PKCE ──────────────────────────────────────────────────────────────────
+function _rtsB64url(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function _rtsPkce() {
+  const rnd = crypto.getRandomValues(new Uint8Array(32));
+  const verifier  = _rtsB64url(rnd);
+  const digest    = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return { verifier, challenge: _rtsB64url(digest) };
+}
+
+/** Spustí přihlášení do RTS (přesměruje na přihlašovací stránku). */
+async function rtsLogin() {
+  const cfg = await rtsGetConfig();
+  if (!cfg.clientId) {
+    toast('❌ Chybí client_id – admin: pb_settings.rts_client_id', 'err');
+    return;
+  }
+  const pkce = await _rtsPkce();
+  const state = _rtsB64url(crypto.getRandomValues(new Uint8Array(16)));
+  try {
+    sessionStorage.setItem(RTS_LS_VERIFIER, JSON.stringify({ v: pkce.verifier, state }));
+  } catch (_) {}
+
+  // Po přihlášení se RTS vrátí na tuhle stránku s parametrem ?code=
+  const redirectUri = location.origin + location.pathname;
+  const url = `${cfg.url}/oauth/Authorize`
+    + `?response_type=code`
+    + `&client_id=${encodeURIComponent(cfg.clientId)}`
+    + `&redirect_uri=${encodeURIComponent(redirectUri)}`
+    + `&scope=user`
+    + `&state=${encodeURIComponent(state)}`
+    + `&code_challenge=${encodeURIComponent(pkce.challenge)}`
+    + `&code_challenge_method=S256`;
+  location.href = url;
+}
+
+/** Po návratu z RTS vymění ?code= za token. Volá se při startu stránky. */
+async function rtsHandleRedirect() {
+  const params = new URLSearchParams(location.search);
+  const code   = params.get('code');
+  if (!code) return false;
+
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(RTS_LS_VERIFIER) || 'null'); } catch (_) {}
+  if (!saved) return false;                       // není naše přesměrování
+  const st = params.get('state');
+  if (st && saved.state && st !== saved.state) {
+    toast('❌ Neplatný state při přihlášení', 'err');
+    return false;
+  }
+
+  const cfg = await rtsGetConfig();
+  const body = new URLSearchParams({
+    grant_type:    'authorization_code',
+    code,
+    redirect_uri:  location.origin + location.pathname,
+    client_id:     cfg.clientId || '',
+    code_verifier: saved.v,
+  });
+  if (cfg.clientSecret) body.set('client_secret', cfg.clientSecret);
+
+  try {
+    const r = await fetch(`${cfg.url}/oauth/Token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    if (!r.ok) {
+      toast(`❌ Přihlášení do RTS selhalo (${r.status})`, 'err');
+      return false;
+    }
+    const j = await r.json();
+    rtsSaveSession({
+      accessToken:  j.access_token || j.token,
+      refreshToken: j.refresh_token || null,
+      expiresAt:    Date.now() + (Number(j.expires_in || 86400) * 1000),
+    });
+    try { sessionStorage.removeItem(RTS_LS_VERIFIER); } catch (_) {}
+    // Ukliď ?code= z adresy, ať se při refreshi nezkouší znovu
+    history.replaceState({}, '', location.origin + location.pathname);
+    toast('✅ Přihlášeno do RTS', 'ok');
+    rtsUpdateUi();
+    return true;
+  } catch (e) {
+    toast(`❌ RTS: ${e.message}`, 'err');
+    return false;
+  }
+}
+
+/** Vrátí platný RTS token (obnoví přes refresh_token, když je potřeba). */
+async function rtsGetToken() {
+  const s = rtsSession();
+  if (!s || !s.accessToken) return null;
+  if (Date.now() < (s.expiresAt - 30000)) return s.accessToken;
+
+  if (s.refreshToken) {
+    const cfg = await rtsGetConfig();
+    try {
+      const body = new URLSearchParams({
+        grant_type:    'refresh_token',
+        refresh_token: s.refreshToken,
+        client_id:     cfg.clientId || '',
+      });
+      if (cfg.clientSecret) body.set('client_secret', cfg.clientSecret);
+      const r = await fetch(`${cfg.url}/oauth/Token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        rtsSaveSession({
+          accessToken:  j.access_token || j.token,
+          refreshToken: j.refresh_token || s.refreshToken,
+          expiresAt:    Date.now() + (Number(j.expires_in || 86400) * 1000),
+        });
+        return j.access_token || j.token;
+      }
+    } catch (_) {}
+  }
+  return null;   // vypršelo a obnovit nejde → nutné nové přihlášení
+}
+
+/**
+ * Odešle fotku PŘÍMO do zakázky v RTS (bez PC).
+ * POZOR: RTS chce base64 VČETNĚ prefixu "data:image/...;base64," – bez něj
+ * vrací HTTP 400 "Index was outside the bounds of the array".
+ * @returns {Promise<{ok:boolean, error?:string}>}
+ */
+async function rtsSavePhoto(file, job, filename) {
+  const token = await rtsGetToken();
+  if (!token) return { ok: false, error: 'Nepřihlášen do RTS' };
+
+  const cfg = await rtsGetConfig();
+  const id  = parseInt(String(job || '').replace(/\D/g, ''), 10);
+  if (!id) return { ok: false, error: `Neplatné číslo zakázky: ${job}` };
+
+  const dataUri = await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload  = () => res(fr.result);          // vrací rovnou data:...;base64,...
+    fr.onerror = () => rej(new Error('Čtení souboru selhalo'));
+    fr.readAsDataURL(file);
+  });
+
+  try {
+    const r = await fetch(`${cfg.url}/api/Info21/SavePhotoFile`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: [{ name: filename, content: '', data: dataUri }], id }),
+    });
+    if (r.ok) return { ok: true };
+    const txt = await r.text().catch(() => '');
+    return { ok: false, error: `HTTP ${r.status} ${txt.slice(0, 160)}` };
+  } catch (e) {
+    // Typicky CORS – prohlížeč nepustí volání z jiné domény, pokud to RTS nepovolí
+    return { ok: false, error: `Síť/CORS: ${e.message}` };
+  }
+}
+
+/** Zapne/vypne posílání fotek přímo do zakázky (bez PC). */
+function toggleRtsDirect() {
+  const on = localStorage.getItem('pb_rts_direct') === 'on';
+  if (!on && !rtsIsLoggedIn()) {
+    toast('⚠️ Nejdřív se přihlas do RTS', 'err');
+    return;
+  }
+  localStorage.setItem('pb_rts_direct', on ? 'off' : 'on');
+  rtsUpdateDirectUi();
+  toast(on ? 'Přímé odesílání vypnuto' : 'Přímé odesílání zapnuto', 'ok');
+}
+
+/** Aktualizuje tlačítko přihlášení v nastavení. */
+function rtsUpdateUi() {
+  const el = document.getElementById('rts-state');
+  if (!el) return;
+  const s = rtsSession();
+  if (!s || !s.accessToken) { el.textContent = 'Nepřihlášen'; return; }
+  const exp = new Date(s.expiresAt).toLocaleString('cs-CZ');
+  el.textContent = (Date.now() < s.expiresAt)
+    ? `✓ Přihlášen (do ${exp})`
+    : (s.refreshToken ? '⚠ Vypršelo (obnoví se samo)' : '⚠ Vypršelo – přihlas se znovu');
+}
+
+/** Stav přepínače přímého odesílání. */
+function rtsUpdateDirectUi() {
+  const btn = document.getElementById('rtsDirectBtn');
+  const sub = document.getElementById('rtsDirectSub');
+  if (!btn || !sub) return;
+  const on = localStorage.getItem('pb_rts_direct') === 'on';
+  btn.textContent = on ? 'Vypnout' : 'Zapnout';
+  sub.textContent = on
+    ? 'Zapnuto – bez úprav rovnou do RTS, do Malování přes PC'
+    : 'Vypnuto – všechny fotky jdou přes PC';
+}
+
 const SB_DOMAIN = '';  // email zadán přímo uživatelem
 const TYPE_KEY  = 'pb_doc_type';
 // ═══════════════════════════════════════════════════════
@@ -2147,6 +2418,10 @@ if (window.PB_QR && window.PB_QR.job) {
 // ── On load ──
 window.addEventListener('DOMContentLoaded', () => {
   // ── Service worker (kvůli sdílení fotek z galerie – Web Share Target) ──
+  // Návrat z přihlášení do RTS (?code=…) – vyměň kód za token
+  try { rtsHandleRedirect(); } catch (_) {}
+  try { rtsUpdateUi(); rtsUpdateDirectUi(); } catch (_) {}
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
@@ -3574,6 +3849,8 @@ async function uploadFiles(fileList, opts = {}) {
           job:          isPersonal ? null : pbJob,
           file_path:    path,
           download_url: downloadUrl || null,
+          // true = fotku už do zakázky poslal mobil → PC ji tam NEposílá znovu
+          rts_sent:     sentByMobile,
         })
       }).catch(e => ({ ok: false, _err: e.message }));
 
@@ -3588,6 +3865,25 @@ async function uploadFiles(fileList, opts = {}) {
         const qBody = await (queueRes?.text?.() || Promise.resolve('')).catch(() => '');
         console.warn('pb_queue insert selhal:', queueRes?.status, qBody || queueRes?._err);
         throw new Error('Fronta selhala – zkus poslat znovu');
+      }
+
+      // ── RTS: rozhodnutí, kdo fotku pošle do zakázky ────────────────────
+      // Fotka označená _PAINT jde do Malování → pošle ji AŽ PC po úpravě.
+      // Ostatní může poslat rovnou mobil (bez PC). Tím se zabrání tomu,
+      // aby ji poslali oba a v zakázce byla dvakrát.
+      const goesToPaint = /_PAINT\./i.test(filename);
+      const rtsDirect   = localStorage.getItem('pb_rts_direct') === 'on';
+      let sentByMobile  = false;
+
+      if (rtsDirect && !isPersonal && pbJob && !goesToPaint) {
+        const rr = await rtsSavePhoto(file, pbJob, filename);
+        if (rr.ok) {
+          sentByMobile = true;
+          toast(`✅ ${filename} uloženo do zakázky`, 'ok');
+        } else {
+          console.warn('RTS SavePhotoFile:', rr.error);
+          toast(`⚠️ RTS: ${rr.error} – pošle PC`, 'err');
+        }
       }
 
       done++;
