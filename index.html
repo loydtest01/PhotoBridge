@@ -1665,7 +1665,9 @@ function rtsLogin() {
   try {
     const back = encodeURIComponent(location.origin + location.pathname);
     location.href = `${SB_URL}/auth/v1/authorize`
-      + `?provider=${encodeURIComponent(RTS_PROVIDER)}`
+      // Dvojtečku NEKÓDOVAT – Supabase si %3A nepřeloží zpět a při návratu
+      // přes callback pak poskytovatele nenajde („missing provider id“).
+      + `?provider=${RTS_PROVIDER}`
       + `&redirect_to=${back}`;
   } catch (e) {
     toast(`❌ Přihlášení selhalo: ${e.message}`, 'err');
