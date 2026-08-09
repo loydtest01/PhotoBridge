@@ -1382,7 +1382,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.0.9
+        PhotoBridge&nbsp;&nbsp;v1.1.0
       </div>
 
     </div>
@@ -1582,32 +1582,39 @@ const PB_R2_URL = 'https://photobridge-r2.photobridgesupport.workers.dev';  // R
 // ══════════════════════════════════════════════════════════════════════════
 // RTS API (Britex) – ukládání fotek přímo do zakázky, bez PC a UploadScanu
 //
-// Přihlášení: OAuth2 authorization_code + PKCE (mobilní web nemůže udržet
-// client_secret v tajnosti, proto PKCE). client_id se čte ze Supabase
-// pb_settings.rts_client_id – technik nic nevyplňuje.
+// PŘIHLÁŠENÍ ŘEŠÍ SUPABASE, NE TAHLE STRÁNKA.
+// V Supabase je nastaven Custom Auth Provider „custom:britex" (manuální
+// konfigurace – RTS nemá OIDC discovery, endpointy jsou zadané ručně).
+// Stránka jen přesměruje na /auth/v1/authorize a zpátky dostane hotovou
+// session. Co tím padá:
+//   • client_secret už v prohlížeči vůbec není (dřív se četl anon klíčem,
+//     takže si ho mohl přečíst kdokoli, kdo otevřel zdroj stránky)
+//   • odpadá CORS na rts.britex.cz – /oauth/Token volá Supabase, ne mobil
+//   • odpadá vlastní PKCE i hlídání ?code= v adrese
 //
-// Token se ukládá do localStorage a obnovuje přes refresh_token.
+// BONUS: Supabase vrací v návratové adrese i „provider_token" = přístupový
+// token do RTS. Jedním přihlášením tak technik získá účet v PhotoBridge
+// i token na posílání fotek přímo do zakázky.
 // ══════════════════════════════════════════════════════════════════════════
 const RTS_URL_DEFAULT = 'https://rts.britex.cz';
 const RTS_LS_KEY      = 'pb_rts_session';
-const RTS_LS_VERIFIER = 'pb_rts_verifier';
+const RTS_PROVIDER    = 'custom:britex';   // Provider Identifier v Supabase
 
 let _rtsCfg = null, _rtsCfgTime = 0;
 
-/** client_id (a případně secret) ze Supabase, cache 30 min. */
+/** client_id ze Supabase, cache 30 min. (Secret se sem záměrně NEČTE.) */
 async function rtsGetConfig() {
   const now = Date.now();
   if (_rtsCfg && (now - _rtsCfgTime) < 30 * 60 * 1000) return _rtsCfg;
   try {
     const r = await fetch(
-      `${SB_URL}/rest/v1/pb_settings?key=in.(rts_client_id,rts_client_secret,rts_url)&select=key,value`,
+      `${SB_URL}/rest/v1/pb_settings?key=in.(rts_client_id,rts_url)&select=key,value`,
       { headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` } });
     if (r.ok) {
       const rows = await r.json();
       const out = { url: RTS_URL_DEFAULT };
       for (const row of (rows || [])) {
         if (row.key === 'rts_client_id')     out.clientId     = String(row.value || '').trim();
-        if (row.key === 'rts_client_secret') out.clientSecret = String(row.value || '').trim();
         if (row.key === 'rts_url' && row.value) out.url        = String(row.value).trim();
       }
       _rtsCfg = out; _rtsCfgTime = now;
@@ -1636,129 +1643,106 @@ function rtsIsLoggedIn() {
   return !!(s && s.accessToken && Date.now() < (s.expiresAt || 0));
 }
 
-// ── PKCE ──────────────────────────────────────────────────────────────────
-function _rtsB64url(bytes) {
-  return btoa(String.fromCharCode(...new Uint8Array(bytes)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-async function _rtsPkce() {
-  const rnd = crypto.getRandomValues(new Uint8Array(32));
-  const verifier  = _rtsB64url(rnd);
-  const digest    = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-  return { verifier, challenge: _rtsB64url(digest) };
-}
+// ── Přihlášení přes BRITEX (Supabase Custom Auth Provider) ─────────────────
 
-/** Spustí přihlášení do RTS (přesměruje na přihlašovací stránku). */
-async function rtsLogin() {
-  const cfg = await rtsGetConfig();
-  if (!cfg.clientId) {
-    toast('❌ Chybí client_id – admin: pb_settings.rts_client_id', 'err');
-    return;
-  }
-  const pkce = await _rtsPkce();
-  const state = _rtsB64url(crypto.getRandomValues(new Uint8Array(16)));
+/**
+ * Spustí firemní přihlášení. Odsud odcházíme na Supabase, ten pošle technika
+ * na přihlašovací stránku RTS a po úspěchu nás vrátí sem s hotovou session
+ * v adrese (za mřížkou).
+ *
+ * Používá to jak tlačítko „Sign in with BRITEX" na přihlašovací obrazovce,
+ * tak tlačítko „Přihlásit" u RTS v nastavení – je to jedno a totéž přihlášení.
+ */
+function rtsLogin() {
   try {
-    sessionStorage.setItem(RTS_LS_VERIFIER, JSON.stringify({ v: pkce.verifier, state }));
-  } catch (_) {}
-
-  // Po přihlášení se RTS vrátí na tuhle stránku s parametrem ?code=
-  const redirectUri = location.origin + location.pathname;
-  const url = `${cfg.url}/oauth/Authorize`
-    + `?response_type=code`
-    + `&client_id=${encodeURIComponent(cfg.clientId)}`
-    + `&redirect_uri=${encodeURIComponent(redirectUri)}`
-    + `&scope=user`
-    + `&state=${encodeURIComponent(state)}`
-    + `&code_challenge=${encodeURIComponent(pkce.challenge)}`
-    + `&code_challenge_method=S256`;
-  location.href = url;
-}
-
-/** Po návratu z RTS vymění ?code= za token. Volá se při startu stránky. */
-async function rtsHandleRedirect() {
-  const params = new URLSearchParams(location.search);
-  const code   = params.get('code');
-  if (!code) return false;
-
-  let saved = null;
-  try { saved = JSON.parse(sessionStorage.getItem(RTS_LS_VERIFIER) || 'null'); } catch (_) {}
-  if (!saved) return false;                       // není naše přesměrování
-  const st = params.get('state');
-  if (st && saved.state && st !== saved.state) {
-    toast('❌ Neplatný state při přihlášení', 'err');
-    return false;
-  }
-
-  const cfg = await rtsGetConfig();
-  const body = new URLSearchParams({
-    grant_type:    'authorization_code',
-    code,
-    redirect_uri:  location.origin + location.pathname,
-    client_id:     cfg.clientId || '',
-    code_verifier: saved.v,
-  });
-  if (cfg.clientSecret) body.set('client_secret', cfg.clientSecret);
-
-  try {
-    const r = await fetch(`${cfg.url}/oauth/Token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
-    if (!r.ok) {
-      toast(`❌ Přihlášení do RTS selhalo (${r.status})`, 'err');
-      return false;
-    }
-    const j = await r.json();
-    rtsSaveSession({
-      accessToken:  j.access_token || j.token,
-      refreshToken: j.refresh_token || null,
-      expiresAt:    Date.now() + (Number(j.expires_in || 86400) * 1000),
-    });
-    try { sessionStorage.removeItem(RTS_LS_VERIFIER); } catch (_) {}
-    // Ukliď ?code= z adresy, ať se při refreshi nezkouší znovu
-    history.replaceState({}, '', location.origin + location.pathname);
-    toast('✅ Přihlášeno do RTS', 'ok');
-    rtsUpdateUi();
-    return true;
+    const back = encodeURIComponent(location.origin + location.pathname);
+    location.href = `${SB_URL}/auth/v1/authorize`
+      + `?provider=${encodeURIComponent(RTS_PROVIDER)}`
+      + `&redirect_to=${back}`;
   } catch (e) {
-    toast(`❌ RTS: ${e.message}`, 'err');
-    return false;
+    toast(`❌ Přihlášení selhalo: ${e.message}`, 'err');
   }
 }
 
-/** Vrátí platný RTS token (obnoví přes refresh_token, když je potřeba). */
+/**
+ * Zpracuje návrat z přihlášení. Supabase vrací tokeny za mřížkou, např.
+ *   #access_token=…&refresh_token=…&provider_token=…&expires_in=3600
+ * Volá se při startu stránky.
+ *
+ * provider_token = přístupový token do RTS. Supabase si ho neukládá, takže
+ * si ho uschováme sami – jinak by fotky nešly poslat přímo do zakázky.
+ */
+async function rtsHandleRedirect() {
+  const hash = String(location.hash || '').replace(/^#/, '');
+  if (!hash) return false;
+
+  const p = new URLSearchParams(hash);
+  const err = p.get('error_description') || p.get('error');
+  if (err) {
+    history.replaceState({}, '', location.origin + location.pathname);
+    toast(`❌ Přihlášení přes BRITEX selhalo: ${decodeURIComponent(err)}`, 'err');
+    return false;
+  }
+
+  const accessToken = p.get('access_token');
+  if (!accessToken) return false;               // není naše přesměrování
+
+  // Ukliď tokeny z adresy hned – ať nezůstanou v historii prohlížeče
+  history.replaceState({}, '', location.origin + location.pathname);
+
+  // Token do RTS (na posílání fotek do zakázky)
+  const providerToken = p.get('provider_token');
+  if (providerToken) {
+    rtsSaveSession({
+      accessToken:  providerToken,
+      refreshToken: p.get('provider_refresh_token') || null,
+      // RTS drží přihlášení ~24 h a refresh_token nevydává
+      expiresAt:    Date.now() + 23 * 60 * 60 * 1000,
+    });
+  }
+
+  // Kdo se přihlásil – Supabase to řekne až na dotaz
+  let user = null;
+  try {
+    const r = await fetch(`${SB_URL}/auth/v1/user`, {
+      headers: { apikey: SB_ANON, Authorization: `Bearer ${accessToken}` },
+    });
+    if (r.ok) user = await r.json();
+  } catch (_) {}
+  if (!user || !user.id) {
+    toast('❌ Přihlášení se nepodařilo dokončit', 'err');
+    return false;
+  }
+
+  try { syncCurrentToProfile(); } catch (_) {}
+  const ok = upsertProfile(accessToken, p.get('refresh_token') || null, user);
+  if (!ok) {
+    toast('❌ Limit 2 profilů byl dosažen – odeber jeden a zkus to znovu', 'err');
+    return false;
+  }
+
+  pbToken    = accessToken;
+  pbRefresh  = p.get('refresh_token') || null;
+  pbUser     = user;
+  pbJob      = null;
+  pbJobToken = null;
+
+  showApp();
+  try { rtsUpdateUi(); rtsUpdateDirectUi(); } catch (_) {}
+  toast(`✅ Přihlášen jako ${user.email || 'BRITEX'}`, 'ok');
+  return true;
+}
+
+/**
+ * Vrátí platný RTS token.
+ * RTS refresh_token nevydává, takže po vypršení (~23 h) je potřeba se
+ * přihlásit znovu – vrátíme null a volající na to upozorní.
+ */
 async function rtsGetToken() {
   const s = rtsSession();
   if (!s || !s.accessToken) return null;
   if (Date.now() < (s.expiresAt - 30000)) return s.accessToken;
-
-  if (s.refreshToken) {
-    const cfg = await rtsGetConfig();
-    try {
-      const body = new URLSearchParams({
-        grant_type:    'refresh_token',
-        refresh_token: s.refreshToken,
-        client_id:     cfg.clientId || '',
-      });
-      if (cfg.clientSecret) body.set('client_secret', cfg.clientSecret);
-      const r = await fetch(`${cfg.url}/oauth/Token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        rtsSaveSession({
-          accessToken:  j.access_token || j.token,
-          refreshToken: j.refresh_token || s.refreshToken,
-          expiresAt:    Date.now() + (Number(j.expires_in || 86400) * 1000),
-        });
-        return j.access_token || j.token;
-      }
-    } catch (_) {}
-  }
-  return null;   // vypršelo a obnovit nejde → nutné nové přihlášení
+  return null;
 }
 
 /**
@@ -1821,17 +1805,9 @@ async function britexInit() {
   } catch (_) {}
 }
 
-/** Spustí firemní přihlášení přes Supabase (poskytovatel BRITEX/RTS). */
-async function britexLogin() {
-  try {
-    // Stránka nepoužívá Supabase JS klienta – přesměrujeme rovnou na
-    // autorizační endpoint Supabase, který nás pošle na přihlášení BRITEX.
-    const provider = 'keycloak';   // custom OIDC poskytovatel nastavený v Supabase
-    const back = encodeURIComponent(location.origin + location.pathname);
-    location.href = `${SB_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${back}`;
-  } catch (e) {
-    toast(`❌ Přihlášení selhalo: ${e.message}`, 'err');
-  }
+/** Tlačítko „Sign in with BRITEX OAuth2" – je to totéž jako přihlášení do RTS. */
+function britexLogin() {
+  rtsLogin();
 }
 
 /** Zapne/vypne posílání fotek přímo do zakázky (bez PC). */
