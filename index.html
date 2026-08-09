@@ -853,7 +853,11 @@
       <button class="login-btn" id="britexLoginBtn" onclick="britexLogin()" style="
         background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18)">
         <span style="display:inline-flex;align-items:center;gap:8px;justify-content:center">
-          <span style="font-size:15px">🏢</span> Sign in with BRITEX OAuth2
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg> BRITEX – OAuth2
         </span>
       </button>
     </div>
@@ -1498,8 +1502,12 @@
 <div class="pb-modal" id="modalPass">
   <div class="pb-modal-box">
     <div class="pb-modal-title">🔑 Změnit heslo</div>
-    <div class="pb-modal-sub">Zadej nové heslo pro svůj účet PhotoBridge.</div>
+    <div class="pb-modal-sub">Kvůli bezpečnosti nejdřív zadej stávající heslo.</div>
     <div class="field-gap">
+      <div class="pw-wrap">
+        <input class="pb-input" type="password" id="curPass" placeholder="Stávající heslo" autocomplete="current-password">
+        <button class="eye-btn" type="button" onclick="toggleEye('curPass',this)">👁️</button>
+      </div>
       <div class="pw-wrap">
         <input class="pb-input" type="password" id="newPass1" placeholder="Nové heslo (min. 6 znaků)">
         <button class="eye-btn" type="button" onclick="toggleEye('newPass1',this)">👁️</button>
@@ -4180,18 +4188,34 @@ function stopTokenRefreshTimer() {
 
 // ── Change password ──
 async function doChangePassword() {
+  const cur = document.getElementById('curPass').value;
   const p1 = document.getElementById('newPass1').value;
   const p2 = document.getElementById('newPass2').value;
+  if (!cur)       { toast('⚠️ Zadej stávající heslo', 'err'); return; }
   if (!p1)        { toast('⚠️ Zadej heslo', 'err'); return; }
   if (p1.length < 6) { toast('⚠️ Min. 6 znaků', 'err'); return; }
   if (p1 !== p2)  { toast('⚠️ Hesla se neshodují', 'err'); return; }
 
+  const email = pbUser?.email || '';
+  if (!email) { toast('⚠️ Nezn\u00e1m e-mail účtu, přihlas se znovu', 'err'); return; }
+
   const btn = document.getElementById('savePassBtn');
   btn.disabled = true; btn.textContent = '⏳ Ukládám…';
   try {
+    // Ověření stávajícího hesla re-loginem – stejně jako PC aplikace.
+    // Bez toho by kdokoli s odemčeným telefonem přepsal heslo bez znalosti starého.
+    const chk = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
+      body: JSON.stringify({ email, password: cur })
+    });
+    if (!chk.ok) throw new Error('Stávající heslo je nesprávné');
+    const chkData = await chk.json();
+    const tok = chkData.access_token || pbToken;
+
     const res  = await fetch(`${SB_URL}/auth/v1/user`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON, 'Authorization': `Bearer ${pbToken}` },
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON, 'Authorization': `Bearer ${tok}` },
       body: JSON.stringify({ password: p1 })
     });
     const data = await res.json();
@@ -4404,7 +4428,7 @@ function toast(msg, type = '') {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   // Clear password fields on close
-  ['newPass1','newPass2'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
+  ['curPass','newPass1','newPass2'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
 }
 document.querySelectorAll('.pb-modal').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
