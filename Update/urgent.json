@@ -1,0 +1,5 @@
+{
+  "_napoveda": "Seznam verzí, které se nainstalují BEZ PTANÍ. Piš sem jen verze, které řeší vážnou chybu (fotky neodcházejí, aplikace padá). Běžné verze sem nepatří.",
+  "_pozor": "Když je urgentní kterákoli verze v řetězu, nainstalují se s ní i všechny běžné verze před ní. Jinak by se přeskočily a aplikace by se rozbila.",
+  "urgent": []
+}
