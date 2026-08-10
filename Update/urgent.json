@@ -1,5 +1,5 @@
 {
   "_napoveda": "Verze, které se nainstalují BEZ PTANÍ. Jen vážné chyby – fotky neodcházejí, aplikace padá.",
   "_pozor": "Když je urgentní kterákoli verze v řetězu, nainstalují se s ní i všechny běžné před ní.",
-  "urgent": ["3.1.89"]
+  "urgent": ["3.1.89", "3.1.91"]
 }
