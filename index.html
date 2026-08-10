@@ -1222,6 +1222,14 @@
           <button class="settings-btn" onclick="openModal('modalPass')">Změnit</button>
         </div>
         <div class="settings-row">
+          <div class="settings-icon">🗑️</div>
+          <div class="settings-info">
+            <div class="settings-title">Smazat účet</div>
+            <div class="settings-sub">Nevratné – nejdřív ukážeme, co je nenahrané</div>
+          </div>
+          <button class="settings-btn" onclick="openDeleteAccount()">Smazat</button>
+        </div>
+        <div class="settings-row">
           <div class="settings-icon">🏢</div>
           <div class="settings-info">
             <div class="settings-title">Přihlášení do RTS</div>
@@ -1386,7 +1394,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.2.0
+        PhotoBridge&nbsp;&nbsp;v1.3.0
       </div>
 
     </div>
@@ -1497,6 +1505,28 @@
   </div>
 </div>
 
+
+<!-- ═══ MODAL: Smazání účtu ═══ -->
+<div class="pb-modal" id="modalDelete">
+  <div class="pb-modal-box">
+    <div class="pb-modal-title">🗑️ Smazat účet</div>
+    <div class="pb-modal-sub">Nevratné. Nejdřív zkontrolujeme, jestli ti něco nezůstalo nenahraného.</div>
+    <div class="field-gap">
+      <input class="pb-input" type="email" id="delEmail" placeholder="Tvůj e-mail" autocomplete="email">
+      <div class="pw-wrap">
+        <input class="pb-input" type="password" id="delPass" placeholder="Heslo" autocomplete="current-password">
+        <button class="eye-btn" type="button" onclick="toggleEye('delPass',this)">👁️</button>
+      </div>
+    </div>
+    <div id="delReport" style="display:none;margin-top:12px;padding:10px;border-radius:8px;
+         border:1px solid rgba(255,255,255,.15);font-size:13px;line-height:1.5"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modalDelete')">Zrušit</button>
+      <button class="btn-full btn-primary" style="flex:1" id="delCheckBtn" onclick="doDeleteCheck()">Zkontrolovat</button>
+      <button class="btn-full" style="flex:1;display:none;background:#b3261e;color:#fff" id="delConfirmBtn" onclick="doDeleteConfirm()">Smazat účet</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ MODAL: Změna hesla ═══ -->
 <div class="pb-modal" id="modalPass">
@@ -1905,6 +1935,103 @@ async function britexInit() {
 /** Tlačítko „Sign in with BRITEX OAuth2" – je to totéž jako přihlášení do RTS. */
 function britexLogin() {
   rtsLogin();
+}
+
+// ── Smazání účtu ───────────────────────────────────────────────────────────
+// Dvoukrokové. Nejdřív jen ověření a přehled toho, co zůstalo nenahrané –
+// teprve pak mazání. Bez toho by technik přišel o fotky ve frontě, o kterých
+// neví. Vlastní mazání dělá Edge Funkce delete-account (potřebuje service_role).
+let _delPendingCount = 0;
+
+function openDeleteAccount() {
+  document.getElementById('delEmail').value = pbUser?.email || '';
+  document.getElementById('delPass').value  = '';
+  document.getElementById('delReport').style.display = 'none';
+  document.getElementById('delConfirmBtn').style.display = 'none';
+  document.getElementById('delCheckBtn').style.display = '';
+  _delPendingCount = 0;
+  openModal('modalDelete');
+}
+
+async function _delCall(body) {
+  const r = await fetch(`${SB_URL}/functions/v1/delete-account`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SB_ANON,
+               Authorization: `Bearer ${SB_ANON}` },
+    body: JSON.stringify(body),
+  });
+  const out = await r.json().catch(() => null);
+  if (!r.ok || !out || !out.ok) {
+    const d = out?.detail ? ` – ${String(out.detail).slice(0, 120)}` : '';
+    throw new Error((out?.error || `HTTP ${r.status}`) + d);
+  }
+  return out;
+}
+
+async function doDeleteCheck() {
+  const email = document.getElementById('delEmail').value.trim();
+  const pass  = document.getElementById('delPass').value;
+  if (!email) { toast('⚠️ Zadej e-mail', 'err'); return; }
+  if (!pass)  { toast('⚠️ Zadej heslo', 'err'); return; }
+
+  const btn = document.getElementById('delCheckBtn');
+  btn.disabled = true; btn.textContent = '⏳ Ověřuji…';
+  try {
+    const out = await _delCall({ email, password: pass });
+    const sh  = out.shrnuti || {};
+    _delPendingCount = sh.pocet || 0;
+
+    const box = document.getElementById('delReport');
+    if (_delPendingCount > 0) {
+      const od  = sh.nejstarsi  ? new Date(sh.nejstarsi).toLocaleString('cs-CZ')  : '?';
+      const dod = sh.nejnovejsi ? new Date(sh.nejnovejsi).toLocaleString('cs-CZ') : '?';
+      const zak = (sh.zakazky || []).map(z => z === null ? 'osobní' : z).join(', ');
+      box.innerHTML =
+        `<b style="color:#ffb020">⚠️ Ve frontě máš ${_delPendingCount} nenahraných fotek.</b><br>` +
+        `Nejstarší: ${od}<br>Nejnovější: ${dod}<br>Zakázky: ${zak || '—'}<br><br>` +
+        `<label style="display:flex;align-items:center;gap:8px">` +
+        `<input type="checkbox" id="delQueueToo"> Smazat i tyhle fotky</label>` +
+        `<div style="margin-top:6px;opacity:.75">Nezaškrtnuté = fotky zůstanou ve frontě ` +
+        `a normálně dojedou do zakázek.</div>`;
+    } else {
+      box.innerHTML = '<b style="color:#3ddc84">✓ Ve frontě nemáš nic nenahraného.</b>';
+    }
+    box.style.display = '';
+    document.getElementById('delCheckBtn').style.display = 'none';
+    document.getElementById('delConfirmBtn').style.display = '';
+  } catch (e) {
+    toast(`❌ ${e.message}`, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Zkontrolovat';
+  }
+}
+
+async function doDeleteConfirm() {
+  const email = document.getElementById('delEmail').value.trim();
+  const pass  = document.getElementById('delPass').value;
+  const cb    = document.getElementById('delQueueToo');
+  const alsoQ = !!(cb && cb.checked);
+
+  let text = `Opravdu smazat účet ${email}?\n\nTato akce je nevratná.`;
+  if (_delPendingCount > 0) {
+    text += alsoQ
+      ? `\n\nSmaže se i ${_delPendingCount} nenahraných fotek – do zakázek už nedojedou.`
+      : `\n\n${_delPendingCount} fotek zůstane ve frontě a dojede do zakázek.`;
+  }
+  if (!confirm(text)) return;
+
+  const btn = document.getElementById('delConfirmBtn');
+  btn.disabled = true; btn.textContent = '⏳ Mažu…';
+  try {
+    const out = await _delCall({ email, password: pass, confirm: true, delete_queue: alsoQ });
+    closeModal('modalDelete');
+    toast(`✅ Účet ${out.email} byl smazán`, 'ok');
+    setTimeout(() => { try { doLogout(); } catch (_) { location.reload(); } }, 1200);
+  } catch (e) {
+    toast(`❌ ${e.message}`, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Smazat účet';
+  }
 }
 
 /** Zapne/vypne posílání fotek přímo do zakázky (bez PC). */
