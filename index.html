@@ -853,7 +853,11 @@
       <button class="login-btn" id="britexLoginBtn" onclick="britexLogin()" style="
         background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18)">
         <span style="display:inline-flex;align-items:center;gap:8px;justify-content:center">
-          <span style="font-size:15px">🏢</span> Sign in with BRITEX OAuth2
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg> BRITEX – OAuth2
         </span>
       </button>
     </div>
@@ -1218,6 +1222,14 @@
           <button class="settings-btn" onclick="openModal('modalPass')">Změnit</button>
         </div>
         <div class="settings-row">
+          <div class="settings-icon">🗑️</div>
+          <div class="settings-info">
+            <div class="settings-title">Smazat účet</div>
+            <div class="settings-sub">Nevratné – nejdřív ukážeme, co je nenahrané</div>
+          </div>
+          <button class="settings-btn" onclick="openDeleteAccount()">Smazat</button>
+        </div>
+        <div class="settings-row">
           <div class="settings-icon">🏢</div>
           <div class="settings-info">
             <div class="settings-title">Přihlášení do RTS</div>
@@ -1382,7 +1394,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.1.0
+        PhotoBridge&nbsp;&nbsp;v1.3.0
       </div>
 
     </div>
@@ -1494,12 +1506,38 @@
 </div>
 
 
+<!-- ═══ MODAL: Smazání účtu ═══ -->
+<div class="pb-modal" id="modalDelete">
+  <div class="pb-modal-box">
+    <div class="pb-modal-title">🗑️ Smazat účet</div>
+    <div class="pb-modal-sub">Nevratné. Nejdřív zkontrolujeme, jestli ti něco nezůstalo nenahraného.</div>
+    <div class="field-gap">
+      <input class="pb-input" type="email" id="delEmail" placeholder="Tvůj e-mail" autocomplete="email">
+      <div class="pw-wrap">
+        <input class="pb-input" type="password" id="delPass" placeholder="Heslo" autocomplete="current-password">
+        <button class="eye-btn" type="button" onclick="toggleEye('delPass',this)">👁️</button>
+      </div>
+    </div>
+    <div id="delReport" style="display:none;margin-top:12px;padding:10px;border-radius:8px;
+         border:1px solid rgba(255,255,255,.15);font-size:13px;line-height:1.5"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modalDelete')">Zrušit</button>
+      <button class="btn-full btn-primary" style="flex:1" id="delCheckBtn" onclick="doDeleteCheck()">Zkontrolovat</button>
+      <button class="btn-full" style="flex:1;display:none;background:#b3261e;color:#fff" id="delConfirmBtn" onclick="doDeleteConfirm()">Smazat účet</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MODAL: Změna hesla ═══ -->
 <div class="pb-modal" id="modalPass">
   <div class="pb-modal-box">
     <div class="pb-modal-title">🔑 Změnit heslo</div>
-    <div class="pb-modal-sub">Zadej nové heslo pro svůj účet PhotoBridge.</div>
+    <div class="pb-modal-sub">Kvůli bezpečnosti nejdřív zadej stávající heslo.</div>
     <div class="field-gap">
+      <div class="pw-wrap">
+        <input class="pb-input" type="password" id="curPass" placeholder="Stávající heslo" autocomplete="current-password">
+        <button class="eye-btn" type="button" onclick="toggleEye('curPass',this)">👁️</button>
+      </div>
       <div class="pw-wrap">
         <input class="pb-input" type="password" id="newPass1" placeholder="Nové heslo (min. 6 znaků)">
         <button class="eye-btn" type="button" onclick="toggleEye('newPass1',this)">👁️</button>
@@ -1580,25 +1618,34 @@ const SB_BUCKET = 'pb-uploads';
 const PB_R2_URL = 'https://photobridge-r2.photobridgesupport.workers.dev';  // R2 Worker (upload fotek)
 
 // ══════════════════════════════════════════════════════════════════════════
-// RTS API (Britex) – ukládání fotek přímo do zakázky, bez PC a UploadScanu
+// RTS API (Britex) – firemní přihlášení + ukládání fotek přímo do zakázky
 //
-// PŘIHLÁŠENÍ ŘEŠÍ SUPABASE, NE TAHLE STRÁNKA.
-// V Supabase je nastaven Custom Auth Provider „custom:britex" (manuální
-// konfigurace – RTS nemá OIDC discovery, endpointy jsou zadané ručně).
-// Stránka jen přesměruje na /auth/v1/authorize a zpátky dostane hotovou
-// session. Co tím padá:
-//   • client_secret už v prohlížeči vůbec není (dřív se četl anon klíčem,
-//     takže si ho mohl přečíst kdokoli, kdo otevřel zdroj stránky)
-//   • odpadá CORS na rts.britex.cz – /oauth/Token volá Supabase, ne mobil
-//   • odpadá vlastní PKCE i hlídání ?code= v adrese
+// PŘIHLÁŠENÍ JDE PŘES EDGE FUNKCI „rts-sso“, NE PŘES SUPABASE PROVIDERY.
 //
-// BONUS: Supabase vrací v návratové adrese i „provider_token" = přístupový
-// token do RTS. Jedním přihlášením tak technik získá účet v PhotoBridge
-// i token na posílání fotek přímo do zakázky.
+// Původně to mělo řešit Supabase přes Custom Auth Provider „custom:britex“.
+// Nefunguje to – callback vždy skončí „missing provider id“. Vyzkoušeno:
+// dva nezávisle založené poskytovatele, PKCE zapnuté i vypnuté, různé scopes,
+// kódovaná i nekódovaná dvojtečka. Je to chyba Supabase (supabase/auth#2519),
+// ne naše nastavení. Poskytovatel „custom:britex“ v projektu možná ještě je,
+// ale nepoužívá se.
+//
+// JAK TO TEDY CHODÍ
+//   1. stránka: PKCE + odchod na rts.britex.cz/oauth/Authorize
+//   2. návrat sem s ?code=
+//   3. Edge Funkce rts-sso: kód → token do RTS → ověření u /api/v4/User
+//      → najde nebo založí účet → vrátí token_hash
+//   4. stránka: token_hash → session přes /auth/v1/verify
+//
+// PROČ VÝMĚNU KÓDU NEDĚLÁ STRÁNKA SAMA
+// Prohlížeč na rts.britex.cz/oauth/Token kvůli CORS nedosáhne. Edge Funkce
+// běží na serveru, takže žádný CORS neřeší. Navíc RTS u výměny vyžaduje
+// client_secret – ten musí zůstat na serveru, do prohlížeče nepatří.
+//
+// PODMÍNKA: adresa téhle stránky musí být u RTS povolena jako redirect_uri
+// pro naše client_id. Zařizuje správce RTS.
 // ══════════════════════════════════════════════════════════════════════════
 const RTS_URL_DEFAULT = 'https://rts.britex.cz';
 const RTS_LS_KEY      = 'pb_rts_session';
-const RTS_PROVIDER    = 'custom:britex';   // Provider Identifier v Supabase
 
 let _rtsCfg = null, _rtsCfgTime = 0;
 
@@ -1643,86 +1690,166 @@ function rtsIsLoggedIn() {
   return !!(s && s.accessToken && Date.now() < (s.expiresAt || 0));
 }
 
-// ── Přihlášení přes BRITEX (Supabase Custom Auth Provider) ─────────────────
+// ── Přihlášení přes BRITEX (Edge Funkce rts-sso) ───────────────────────────
+//
+// POZOR – nejde přes Supabase Custom Auth Providers. Ty mají chybu na straně
+// Supabase: callback vždy skončí „missing provider id“. Ověřeno dvěma
+// poskytovateli, s PKCE i bez, s různými scopes.
+//
+// Místo toho jdeme na RTS přímo a kód vyměníme přes Edge Funkci, protože
+// prohlížeč na rts.britex.cz/oauth/Token kvůli CORS nedosáhne.
+//
+//   1. tady: PKCE + odchod na rts.britex.cz/oauth/Authorize
+//   2. návrat sem s ?code=
+//   3. Edge Funkce: kód → token do RTS → ověření totožnosti → token_hash
+//   4. tady: token_hash → session přes /auth/v1/verify
+//
+// DŮLEŽITÉ: adresa téhle stránky musí být u RTS povolena jako redirect_uri
+// pro naše client_id. Zařizuje správce RTS (Luboš).
+
+const RTS_PKCE_KEY = 'pb_rts_pkce';
+
+/** Adresa téhle stránky bez parametrů – používá se jako redirect_uri. */
+function rtsRedirectUri() {
+  return location.origin + location.pathname;
+}
+
+/** PKCE: náhodný verifier a jeho SHA-256 otisk v base64url. */
+async function rtsMakePkce() {
+  const rnd = new Uint8Array(32);
+  crypto.getRandomValues(rnd);
+  const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  const verifier  = b64url(rnd);
+  const digest    = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return { verifier, challenge: b64url(digest) };
+}
 
 /**
- * Spustí firemní přihlášení. Odsud odcházíme na Supabase, ten pošle technika
- * na přihlašovací stránku RTS a po úspěchu nás vrátí sem s hotovou session
- * v adrese (za mřížkou).
- *
- * Používá to jak tlačítko „Sign in with BRITEX" na přihlašovací obrazovce,
- * tak tlačítko „Přihlásit" u RTS v nastavení – je to jedno a totéž přihlášení.
+ * Spustí firemní přihlášení – odchod na přihlašovací stránku RTS.
+ * Používá to tlačítko „BRITEX – OAuth2“ i tlačítko „Přihlásit“ u RTS
+ * v nastavení; je to jedno a totéž přihlášení.
  */
-function rtsLogin() {
+async function rtsLogin() {
   try {
-    const back = encodeURIComponent(location.origin + location.pathname);
-    location.href = `${SB_URL}/auth/v1/authorize`
-      + `?provider=${encodeURIComponent(RTS_PROVIDER)}`
-      + `&redirect_to=${back}`;
+    const cfg = await rtsGetConfig();
+    if (!cfg.clientId) { toast('❌ Chybí client_id pro RTS', 'err'); return; }
+
+    const pkce  = await rtsMakePkce();
+    const state = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+    // Verifier musí přežít odchod na RTS a návrat zpět
+    sessionStorage.setItem(RTS_PKCE_KEY, JSON.stringify({ v: pkce.verifier, s: state }));
+
+    location.href = `${cfg.url}/oauth/Authorize`
+      + `?response_type=code`
+      + `&client_id=${encodeURIComponent(cfg.clientId)}`
+      + `&redirect_uri=${encodeURIComponent(rtsRedirectUri())}`
+      + `&scope=user`
+      + `&state=${encodeURIComponent(state)}`
+      + `&code_challenge=${encodeURIComponent(pkce.challenge)}`
+      + `&code_challenge_method=S256`;
   } catch (e) {
     toast(`❌ Přihlášení selhalo: ${e.message}`, 'err');
   }
 }
 
 /**
- * Zpracuje návrat z přihlášení. Supabase vrací tokeny za mřížkou, např.
- *   #access_token=…&refresh_token=…&provider_token=…&expires_in=3600
- * Volá se při startu stránky.
- *
- * provider_token = přístupový token do RTS. Supabase si ho neukládá, takže
- * si ho uschováme sami – jinak by fotky nešly poslat přímo do zakázky.
+ * Zpracuje návrat z RTS. Volá se při startu stránky.
+ * V adrese je ?code=… (a ?state=…), nic dalšího odsud nečteme.
  */
 async function rtsHandleRedirect() {
-  const hash = String(location.hash || '').replace(/^#/, '');
-  if (!hash) return false;
+  const q    = new URLSearchParams(location.search || '');
+  const code = q.get('code');
+  const err  = q.get('error_description') || q.get('error');
 
-  const p = new URLSearchParams(hash);
-  const err = p.get('error_description') || p.get('error');
   if (err) {
-    history.replaceState({}, '', location.origin + location.pathname);
+    history.replaceState({}, '', rtsRedirectUri());
     toast(`❌ Přihlášení přes BRITEX selhalo: ${decodeURIComponent(err)}`, 'err');
     return false;
   }
+  if (!code) return false;                       // není naše přesměrování
 
-  const accessToken = p.get('access_token');
-  if (!accessToken) return false;               // není naše přesměrování
+  // Ukliď kód z adresy hned, ať nezůstane v historii prohlížeče
+  history.replaceState({}, '', rtsRedirectUri());
 
-  // Ukliď tokeny z adresy hned – ať nezůstanou v historii prohlížeče
-  history.replaceState({}, '', location.origin + location.pathname);
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(RTS_PKCE_KEY) || 'null'); } catch (_) {}
+  sessionStorage.removeItem(RTS_PKCE_KEY);
 
-  // Token do RTS (na posílání fotek do zakázky)
-  const providerToken = p.get('provider_token');
-  if (providerToken) {
-    rtsSaveSession({
-      accessToken:  providerToken,
-      refreshToken: p.get('provider_refresh_token') || null,
-      // RTS drží přihlášení ~24 h a refresh_token nevydává
-      expiresAt:    Date.now() + 23 * 60 * 60 * 1000,
-    });
+  if (!saved || !saved.v) {
+    toast('❌ Přihlášení vypršelo, zkus to znovu', 'err');
+    return false;
   }
-
-  // Kdo se přihlásil – Supabase to řekne až na dotaz
-  let user = null;
-  try {
-    const r = await fetch(`${SB_URL}/auth/v1/user`, {
-      headers: { apikey: SB_ANON, Authorization: `Bearer ${accessToken}` },
-    });
-    if (r.ok) user = await r.json();
-  } catch (_) {}
-  if (!user || !user.id) {
-    toast('❌ Přihlášení se nepodařilo dokončit', 'err');
+  if (saved.s && q.get('state') && saved.s !== q.get('state')) {
+    toast('❌ Neplatný state – přihlášení zrušeno', 'err');
     return false;
   }
 
+  // ── Edge Funkce: kód → token do RTS → ověření → token_hash ───────────────
+  let out;
+  try {
+    const r = await fetch(`${SB_URL}/functions/v1/rts-sso`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SB_ANON,
+                 Authorization: `Bearer ${SB_ANON}` },
+      body: JSON.stringify({
+        code,
+        code_verifier: saved.v,
+        redirect_uri:  rtsRedirectUri(),
+      }),
+    });
+    out = await r.json().catch(() => null);
+    if (!r.ok || !out || !out.ok) {
+      const detail = out?.detail ? ` – ${String(out.detail).slice(0, 120)}` : '';
+      toast(`❌ ${out?.error || `HTTP ${r.status}`}${detail}`, 'err');
+      return false;
+    }
+  } catch (e) {
+    toast(`❌ Ověření selhalo: ${e.message}`, 'err');
+    return false;
+  }
+
+  // Token do RTS (na posílání fotek přímo do zakázky)
+  if (out.rts_token) {
+    rtsSaveSession({
+      accessToken:  out.rts_token,
+      refreshToken: null,          // RTS refresh_token nevydává
+      expiresAt:    Date.now() + (Number(out.expires_in || 23 * 3600) * 1000),
+    });
+  }
+
+  // ── Výměna token_hash za session ────────────────────────────────────────
+  let sess;
+  try {
+    const r = await fetch(`${SB_URL}/auth/v1/verify`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SB_ANON },
+      body:    JSON.stringify({ type: 'magiclink', token_hash: out.token_hash }),
+    });
+    sess = await r.json().catch(() => null);
+    if (!r.ok || !sess?.access_token) {
+      toast(`❌ Přihlášení se nedokončilo: ${sess?.error_description || sess?.msg || r.status}`, 'err');
+      return false;
+    }
+  } catch (e) {
+    toast(`❌ Přihlášení se nedokončilo: ${e.message}`, 'err');
+    return false;
+  }
+
+  const user = sess.user;
+  if (!user || !user.id) { toast('❌ Přihlášení se nepodařilo dokončit', 'err'); return false; }
+
   try { syncCurrentToProfile(); } catch (_) {}
-  const ok = upsertProfile(accessToken, p.get('refresh_token') || null, user);
+  const ok = upsertProfile(sess.access_token, sess.refresh_token || null, user);
   if (!ok) {
     toast('❌ Limit 2 profilů byl dosažen – odeber jeden a zkus to znovu', 'err');
     return false;
   }
 
-  pbToken    = accessToken;
-  pbRefresh  = p.get('refresh_token') || null;
+  pbToken    = sess.access_token;
+  pbRefresh  = sess.refresh_token || null;
   pbUser     = user;
   pbJob      = null;
   pbJobToken = null;
@@ -1808,6 +1935,103 @@ async function britexInit() {
 /** Tlačítko „Sign in with BRITEX OAuth2" – je to totéž jako přihlášení do RTS. */
 function britexLogin() {
   rtsLogin();
+}
+
+// ── Smazání účtu ───────────────────────────────────────────────────────────
+// Dvoukrokové. Nejdřív jen ověření a přehled toho, co zůstalo nenahrané –
+// teprve pak mazání. Bez toho by technik přišel o fotky ve frontě, o kterých
+// neví. Vlastní mazání dělá Edge Funkce delete-account (potřebuje service_role).
+let _delPendingCount = 0;
+
+function openDeleteAccount() {
+  document.getElementById('delEmail').value = pbUser?.email || '';
+  document.getElementById('delPass').value  = '';
+  document.getElementById('delReport').style.display = 'none';
+  document.getElementById('delConfirmBtn').style.display = 'none';
+  document.getElementById('delCheckBtn').style.display = '';
+  _delPendingCount = 0;
+  openModal('modalDelete');
+}
+
+async function _delCall(body) {
+  const r = await fetch(`${SB_URL}/functions/v1/delete-account`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SB_ANON,
+               Authorization: `Bearer ${SB_ANON}` },
+    body: JSON.stringify(body),
+  });
+  const out = await r.json().catch(() => null);
+  if (!r.ok || !out || !out.ok) {
+    const d = out?.detail ? ` – ${String(out.detail).slice(0, 120)}` : '';
+    throw new Error((out?.error || `HTTP ${r.status}`) + d);
+  }
+  return out;
+}
+
+async function doDeleteCheck() {
+  const email = document.getElementById('delEmail').value.trim();
+  const pass  = document.getElementById('delPass').value;
+  if (!email) { toast('⚠️ Zadej e-mail', 'err'); return; }
+  if (!pass)  { toast('⚠️ Zadej heslo', 'err'); return; }
+
+  const btn = document.getElementById('delCheckBtn');
+  btn.disabled = true; btn.textContent = '⏳ Ověřuji…';
+  try {
+    const out = await _delCall({ email, password: pass });
+    const sh  = out.shrnuti || {};
+    _delPendingCount = sh.pocet || 0;
+
+    const box = document.getElementById('delReport');
+    if (_delPendingCount > 0) {
+      const od  = sh.nejstarsi  ? new Date(sh.nejstarsi).toLocaleString('cs-CZ')  : '?';
+      const dod = sh.nejnovejsi ? new Date(sh.nejnovejsi).toLocaleString('cs-CZ') : '?';
+      const zak = (sh.zakazky || []).map(z => z === null ? 'osobní' : z).join(', ');
+      box.innerHTML =
+        `<b style="color:#ffb020">⚠️ Ve frontě máš ${_delPendingCount} nenahraných fotek.</b><br>` +
+        `Nejstarší: ${od}<br>Nejnovější: ${dod}<br>Zakázky: ${zak || '—'}<br><br>` +
+        `<label style="display:flex;align-items:center;gap:8px">` +
+        `<input type="checkbox" id="delQueueToo"> Smazat i tyhle fotky</label>` +
+        `<div style="margin-top:6px;opacity:.75">Nezaškrtnuté = fotky zůstanou ve frontě ` +
+        `a normálně dojedou do zakázek.</div>`;
+    } else {
+      box.innerHTML = '<b style="color:#3ddc84">✓ Ve frontě nemáš nic nenahraného.</b>';
+    }
+    box.style.display = '';
+    document.getElementById('delCheckBtn').style.display = 'none';
+    document.getElementById('delConfirmBtn').style.display = '';
+  } catch (e) {
+    toast(`❌ ${e.message}`, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Zkontrolovat';
+  }
+}
+
+async function doDeleteConfirm() {
+  const email = document.getElementById('delEmail').value.trim();
+  const pass  = document.getElementById('delPass').value;
+  const cb    = document.getElementById('delQueueToo');
+  const alsoQ = !!(cb && cb.checked);
+
+  let text = `Opravdu smazat účet ${email}?\n\nTato akce je nevratná.`;
+  if (_delPendingCount > 0) {
+    text += alsoQ
+      ? `\n\nSmaže se i ${_delPendingCount} nenahraných fotek – do zakázek už nedojedou.`
+      : `\n\n${_delPendingCount} fotek zůstane ve frontě a dojede do zakázek.`;
+  }
+  if (!confirm(text)) return;
+
+  const btn = document.getElementById('delConfirmBtn');
+  btn.disabled = true; btn.textContent = '⏳ Mažu…';
+  try {
+    const out = await _delCall({ email, password: pass, confirm: true, delete_queue: alsoQ });
+    closeModal('modalDelete');
+    toast(`✅ Účet ${out.email} byl smazán`, 'ok');
+    setTimeout(() => { try { doLogout(); } catch (_) { location.reload(); } }, 1200);
+  } catch (e) {
+    toast(`❌ ${e.message}`, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Smazat účet';
+  }
 }
 
 /** Zapne/vypne posílání fotek přímo do zakázky (bez PC). */
@@ -3864,6 +4088,27 @@ async function uploadFiles(fileList, opts = {}) {
       let downloadUrl = '';
       try { const j = await uploadRes.json(); downloadUrl = j.download_url || ''; } catch(_) {}
 
+      // ── RTS: rozhodnutí, kdo fotku pošle do zakázky ────────────────────
+      // Fotka označená _PAINT jde do Malování → pošle ji AŽ PC po úpravě.
+      // Ostatní může poslat rovnou mobil (bez PC). Tím se zabrání tomu,
+      // aby ji poslali oba a v zakázce byla dvakrát.
+      // Musí proběhnout PŘED vložením do fronty, protože výsledek (sentByMobile)
+      // se ukládá do sloupce rts_sent v tom samém insertu.
+      const goesToPaint = /_PAINT\./i.test(filename);
+      const rtsDirect   = localStorage.getItem('pb_rts_direct') === 'on';
+      let sentByMobile  = false;
+
+      if (rtsDirect && !isPersonal && pbJob && !goesToPaint) {
+        const rr = await rtsSavePhoto(file, pbJob, filename);
+        if (rr.ok) {
+          sentByMobile = true;
+          toast(`✅ ${filename} uloženo do zakázky`, 'ok');
+        } else {
+          console.warn('RTS SavePhotoFile:', rr.error);
+          toast(`⚠️ RTS: ${rr.error} – pošle PC`, 'err');
+        }
+      }
+
       // pb_queue insert AŽ PO uploadu (soubor v R2 už existuje → PC ho hned stáhne)
       const doQueueInsert = async (token) => fetch(`${SB_URL}/rest/v1/pb_queue`, {
         method:  'POST',
@@ -3894,25 +4139,6 @@ async function uploadFiles(fileList, opts = {}) {
         const qBody = await (queueRes?.text?.() || Promise.resolve('')).catch(() => '');
         console.warn('pb_queue insert selhal:', queueRes?.status, qBody || queueRes?._err);
         throw new Error('Fronta selhala – zkus poslat znovu');
-      }
-
-      // ── RTS: rozhodnutí, kdo fotku pošle do zakázky ────────────────────
-      // Fotka označená _PAINT jde do Malování → pošle ji AŽ PC po úpravě.
-      // Ostatní může poslat rovnou mobil (bez PC). Tím se zabrání tomu,
-      // aby ji poslali oba a v zakázce byla dvakrát.
-      const goesToPaint = /_PAINT\./i.test(filename);
-      const rtsDirect   = localStorage.getItem('pb_rts_direct') === 'on';
-      let sentByMobile  = false;
-
-      if (rtsDirect && !isPersonal && pbJob && !goesToPaint) {
-        const rr = await rtsSavePhoto(file, pbJob, filename);
-        if (rr.ok) {
-          sentByMobile = true;
-          toast(`✅ ${filename} uloženo do zakázky`, 'ok');
-        } else {
-          console.warn('RTS SavePhotoFile:', rr.error);
-          toast(`⚠️ RTS: ${rr.error} – pošle PC`, 'err');
-        }
       }
 
       done++;
@@ -4180,18 +4406,34 @@ function stopTokenRefreshTimer() {
 
 // ── Change password ──
 async function doChangePassword() {
+  const cur = document.getElementById('curPass').value;
   const p1 = document.getElementById('newPass1').value;
   const p2 = document.getElementById('newPass2').value;
+  if (!cur)       { toast('⚠️ Zadej stávající heslo', 'err'); return; }
   if (!p1)        { toast('⚠️ Zadej heslo', 'err'); return; }
   if (p1.length < 6) { toast('⚠️ Min. 6 znaků', 'err'); return; }
   if (p1 !== p2)  { toast('⚠️ Hesla se neshodují', 'err'); return; }
 
+  const email = pbUser?.email || '';
+  if (!email) { toast('⚠️ Nezn\u00e1m e-mail účtu, přihlas se znovu', 'err'); return; }
+
   const btn = document.getElementById('savePassBtn');
   btn.disabled = true; btn.textContent = '⏳ Ukládám…';
   try {
+    // Ověření stávajícího hesla re-loginem – stejně jako PC aplikace.
+    // Bez toho by kdokoli s odemčeným telefonem přepsal heslo bez znalosti starého.
+    const chk = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
+      body: JSON.stringify({ email, password: cur })
+    });
+    if (!chk.ok) throw new Error('Stávající heslo je nesprávné');
+    const chkData = await chk.json();
+    const tok = chkData.access_token || pbToken;
+
     const res  = await fetch(`${SB_URL}/auth/v1/user`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON, 'Authorization': `Bearer ${pbToken}` },
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON, 'Authorization': `Bearer ${tok}` },
       body: JSON.stringify({ password: p1 })
     });
     const data = await res.json();
@@ -4404,7 +4646,7 @@ function toast(msg, type = '') {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   // Clear password fields on close
-  ['newPass1','newPass2'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
+  ['curPass','newPass1','newPass2'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
 }
 document.querySelectorAll('.pb-modal').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
