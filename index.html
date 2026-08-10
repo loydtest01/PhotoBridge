@@ -1394,7 +1394,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.3.1
+        PhotoBridge&nbsp;&nbsp;v1.4.1
       </div>
 
     </div>
@@ -2051,12 +2051,26 @@ function rtsUpdateUi() {
   const el = document.getElementById('rts-state');
   if (!el) return;
   const s = rtsSession();
-  if (!s || !s.accessToken) { el.textContent = 'Nepřihlášen'; return; }
-  const exp = new Date(s.expiresAt).toLocaleString('cs-CZ');
-  el.textContent = (Date.now() < s.expiresAt)
-    ? `✓ Přihlášen (do ${exp})`
-    : (s.refreshToken ? '⚠ Vypršelo (obnoví se samo)' : '⚠ Vypršelo – přihlas se znovu');
+  if (!s || !s.accessToken) {
+    el.textContent = '⚠ Nepřihlášen – fotky se neuloží do zakázek';
+    el.style.color = '#ff6b6b';
+    return;
+  }
+  const left = s.expiresAt - Date.now();
+  if (left <= 0) {
+    el.textContent = '⚠ Vypršelo – přihlas se znovu';
+    el.style.color = '#ff6b6b';
+    return;
+  }
+  // Odpočet je srozumitelnější než čas vypršení – technik hned vidí,
+  // jestli mu to vydrží do konce směny.
+  const h = Math.floor(left / 3600000);
+  const m = Math.floor((left % 3600000) / 60000);
+  el.textContent = `✓ Přihlášen · zbývá ${h > 0 ? `${h} h ${m} min` : `${m} min`}`;
+  el.style.color = left < 3600000 ? '#ffb020' : '';
 }
+
+setInterval(() => { try { rtsUpdateUi(); } catch (_) {} }, 60000);
 
 /** Stav přepínače přímého odesílání. */
 function rtsUpdateDirectUi() {
@@ -3926,7 +3940,37 @@ async function optimizeImage(file) {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, w, h);
-        canvas.toBlob(blob => resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })), 'image/jpeg', 0.92);
+        // ── Strop 3 MB ─────────────────────────────────────────────────
+        // Sken se přikládá k PDF (CN a další). Nad 15 MB se e-mail nemusí
+        // doručit, nad 25 MB se neodešle vůbec. Proto se kvalita snižuje,
+        // dokud se fotka pod strop nevejde. Rozměr se zmenšuje až nakonec,
+        // ať zůstane co nejdéle čitelná.
+        const MAX_BYTES = 3 * 1024 * 1024;
+        const kvality   = [0.92, 0.85, 0.75, 0.65, 0.55, 0.45];
+
+        const zkus = (i, sirka, vyska) => {
+          const c2 = document.createElement('canvas');
+          c2.width = sirka; c2.height = vyska;
+          const x2 = c2.getContext('2d');
+          x2.imageSmoothingEnabled = true;
+          x2.imageSmoothingQuality = 'high';
+          x2.drawImage(img, 0, 0, sirka, vyska);
+
+          c2.toBlob(blob => {
+            if (!blob) return resolve(file);
+
+            if (blob.size <= MAX_BYTES || (i >= kvality.length - 1 && sirka <= 1200)) {
+              return resolve(new File([blob], file.name,
+                { type: 'image/jpeg', lastModified: Date.now() }));
+            }
+            if (i < kvality.length - 1) {
+              return zkus(i + 1, sirka, vyska);          // nejdřív kvalita
+            }
+            return zkus(0, Math.round(sirka * 0.8), Math.round(vyska * 0.8));  // pak rozměr
+          }, 'image/jpeg', kvality[i]);
+        };
+
+        zkus(0, w, h);
       };
       img.src = e.target.result;
     };
