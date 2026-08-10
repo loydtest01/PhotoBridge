@@ -1394,7 +1394,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.4.1
+        PhotoBridge&nbsp;&nbsp;v1.4.3
       </div>
 
     </div>
@@ -1655,15 +1655,21 @@ async function rtsGetConfig() {
   if (_rtsCfg && (now - _rtsCfgTime) < 30 * 60 * 1000) return _rtsCfg;
   try {
     const r = await fetch(
-      `${SB_URL}/rest/v1/pb_settings?key=in.(rts_client_id,rts_url)&select=key,value`,
+      // Mobil má u RTS vlastního klienta (jinou povolenou návratovou adresu).
+      // Když ještě není založený, spadne se zpátky na klienta pro PC.
+      `${SB_URL}/rest/v1/pb_settings?key=in.(rts_client_id_mobile,rts_client_id,rts_url)&select=key,value`,
       { headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` } });
     if (r.ok) {
       const rows = await r.json();
       const out = { url: RTS_URL_DEFAULT };
+      let idPc = '', idMobil = '';
       for (const row of (rows || [])) {
-        if (row.key === 'rts_client_id')     out.clientId     = String(row.value || '').trim();
-        if (row.key === 'rts_url' && row.value) out.url        = String(row.value).trim();
+        if (row.key === 'rts_client_id')        idPc    = String(row.value || '').trim();
+        if (row.key === 'rts_client_id_mobile') idMobil = String(row.value || '').trim();
+        if (row.key === 'rts_url' && row.value) out.url = String(row.value).trim();
       }
+      out.clientId = idMobil || idPc;
+      out.jeMobilniKlient = Boolean(idMobil);
       _rtsCfg = out; _rtsCfgTime = now;
       return out;
     }
@@ -1798,6 +1804,7 @@ async function rtsHandleRedirect() {
         code,
         code_verifier: saved.v,
         redirect_uri:  rtsRedirectUri(),
+        client:        'mobile',   // ať funkce vezme mobilní client_secret
       }),
     });
     out = await r.json().catch(() => null);
@@ -4018,6 +4025,19 @@ async function uploadFiles(fileList, opts = {}) {
     return { okCount: 0, failCount: fileList.length, total: fileList.length, finalName: '' };
   }
 
+  // ── Video jen k VT a SD ──────────────────────────────────────────────────
+  // SP se vkládá do CN, ze kterého se sestavuje PDF. Video by ho rozbilo.
+  // Ostatní typy (SDX, SN, FA) končí taky v dokumentech, proto stejné omezení.
+  if (!isPersonal) {
+    const videa = Array.from(fileList).filter(f => (f.type || '').startsWith('video/'));
+    if (videa.length && !VIDEO_POVOLENO.includes(t)) {
+      if (!silent) {
+        toast(`❌ Video nelze nahrát jako ${t}. Použij ${VIDEO_POVOLENO.join(' nebo ')}.`, 'err');
+      }
+      return { okCount: 0, failCount: videa.length, total: fileList.length, finalName: '' };
+    }
+  }
+
   // OFFLINE: ulož soubory lokálně a zobraz upozornění
   if (!navigator.onLine) {
     for (const file of fileList) {
@@ -5251,6 +5271,11 @@ async function renderQueueScreen() {
 
   if (listEl) listEl.innerHTML = cards.join('');
 }
+
+// Typy dokumentů, ke kterým lze nahrát VIDEO.
+// SP se vkládá do CN, ze kterého se sestavuje PDF – video by ho rozbilo.
+// Totéž platí pro SDX, SN a FA, ty taky končí v dokumentech.
+const VIDEO_POVOLENO = ['VT', 'SD'];
 
 // Typy dokumentů – centrální definice
 const DOC_TYPES = [
