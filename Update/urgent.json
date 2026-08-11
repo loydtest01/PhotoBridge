@@ -1,5 +1,5 @@
 {
   "_napoveda": "ZÁLOŽNÍ cesta pro aplikace bez websocketu (á 30 min). Hlavní je tlačítko v Admin centru.",
   "_pozor": "Když je urgentní kterákoli verze v řetězu, nainstalují se s ní i všechny běžné před ní.",
-  "urgent": ["3.1.89", "3.1.91", "3.1.95", "3.1.98"]
+  "urgent": ["3.1.89", "3.1.91", "3.1.95", "3.2.0"]
 }
