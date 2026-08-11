@@ -1394,7 +1394,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.4.3
+        PhotoBridge&nbsp;&nbsp;v1.4.4
       </div>
 
     </div>
@@ -4025,16 +4025,18 @@ async function uploadFiles(fileList, opts = {}) {
     return { okCount: 0, failCount: fileList.length, total: fileList.length, finalName: '' };
   }
 
-  // ── Video jen k VT a SD ──────────────────────────────────────────────────
-  // SP se vkládá do CN, ze kterého se sestavuje PDF. Video by ho rozbilo.
-  // Ostatní typy (SDX, SN, FA) končí taky v dokumentech, proto stejné omezení.
+  // ── Video nikdy jako SP ─────────────────────────────────────────────────
+  // Nahrání se NEODMÍTNE – typ se jen přepíše na SD. Odmítnout by znamenalo,
+  // že technik má video v ruce a neví, co s ním; takhle se nahraje a jen
+  // skončí ve správné složce.
+  let typProVideo = t;
   if (!isPersonal) {
     const videa = Array.from(fileList).filter(f => (f.type || '').startsWith('video/'));
     if (videa.length && !VIDEO_POVOLENO.includes(t)) {
+      typProVideo = VIDEO_NAHRADA;
       if (!silent) {
-        toast(`❌ Video nelze nahrát jako ${t}. Použij ${VIDEO_POVOLENO.join(' nebo ')}.`, 'err');
+        toast(`ℹ️ Video nemůže být ${t} (rozbilo by CN) – ukládám jako ${VIDEO_NAHRADA}.`, 'ok');
       }
-      return { okCount: 0, failCount: videa.length, total: fileList.length, finalName: '' };
     }
   }
 
@@ -4103,10 +4105,16 @@ async function uploadFiles(fileList, opts = {}) {
         filename = `${ts}.${ext}`;
         path     = `${userId}/personal/${filename}`;
       } else {
+        // Video nesmí jako SP – rozbilo by CN, ze kterého se sestavuje PDF.
+        // Rozhoduje se PO SOUBORECH: když technik nahraje najednou fotku
+        // a video, fotka si typ ponechá a přepíše se jen to video.
+        const jeVideo = (file.type || '').startsWith('video/');
+        const typSouboru = jeVideo ? typProVideo : t;
+
         // {batchTs}_{seq} – batchTs zachovává pořadí mezi batchi,
         // seq zachovává pořadí v jednom batchi (paralelní uploady).
-        const openPaint = (t !== 'SP' && document.getElementById('openInPaint').checked) ? '_PAINT' : '';
-        filename = `${t}_${pbJob}_${batchTs}_${seqStr}${openPaint}.${ext}`;
+        const openPaint = (typSouboru !== 'SP' && document.getElementById('openInPaint').checked) ? '_PAINT' : '';
+        filename = `${typSouboru}_${pbJob}_${batchTs}_${seqStr}${openPaint}.${ext}`;
         // Když má fotograf v Nastavení zapnuto „Ukládat do podsložky zakázky",
         // vložíme do cesty segment `__sub`. PC poller ho detekuje a uloží
         // fotku do podsložky SAVE_DIR/<job>/ místo přímo do SAVE_DIR.
@@ -5272,10 +5280,16 @@ async function renderQueueScreen() {
   if (listEl) listEl.innerHTML = cards.join('');
 }
 
-// Typy dokumentů, ke kterým lze nahrát VIDEO.
+// Typy, ke kterým může jít VIDEO.
 // SP se vkládá do CN, ze kterého se sestavuje PDF – video by ho rozbilo.
-// Totéž platí pro SDX, SN a FA, ty taky končí v dokumentech.
+// Totéž platí pro SDX, SN a FA. VT je naopak legitimní volba (výsledek testu
+// bývá video záměrně).
+//
+// NÁHRADA PŘI OMYLU JE SD, NIKDY VT – VT SE POSÍLÁ ZÁKAZNÍKOVI.
+// Video přepsané na VT by se k němu dostalo, aniž by o tom technik věděl.
+// Neměň to zpátky, i když se to zdá logičtější.
 const VIDEO_POVOLENO = ['VT', 'SD'];
+const VIDEO_NAHRADA  = 'SD';
 
 // Typy dokumentů – centrální definice
 const DOC_TYPES = [
