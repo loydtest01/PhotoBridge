@@ -1,6 +1,6 @@
 // ═══ PhotoBridge Service Worker ═══
 // Bump CACHE_VERSION při každém deployi (nebo ho generuj automaticky z data).
-const CACHE_VERSION = 'pb-v1.0.22';   // mobil v1.4.6 – zapomenuté heslo v mobilu
+const CACHE_VERSION = 'pb-v1.0.23';   // mobil v1.4.7 – klíče až po přihlášení
 const CACHE_NAME    = CACHE_VERSION;
 const SHARE_CACHE   = 'pb-share-v1';   // dočasné úložiště fotek sdílených z galerie
 

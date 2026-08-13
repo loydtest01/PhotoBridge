@@ -1403,7 +1403,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.4.6
+        PhotoBridge&nbsp;&nbsp;v1.4.7
       </div>
 
     </div>
@@ -2530,8 +2530,10 @@ async function getOcrGroqKeys() {
   const now = Date.now();
   if (_ocrGroqKeys && (now - _ocrGroqKeysTime) < 30*60*1000) return _ocrGroqKeys;
   try {
+    // Čte se PŘIHLAŠOVACÍM tokenem, ne anonymním. Anonymní klíč je veřejně
+    // ve zdrojáku téhle stránky, takže by se ke Groq klíčům dostal kdokoli.
     const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.groq_api_key&select=value`, {
-      headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` },
+      headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${pbToken || SB_ANON}` },
     });
     if (r.ok) {
       const rows = await r.json();
