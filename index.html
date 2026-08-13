@@ -1394,7 +1394,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.4.4
+        PhotoBridge&nbsp;&nbsp;v1.4.5
       </div>
 
     </div>
@@ -2041,8 +2041,74 @@ async function doDeleteConfirm() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   CENTRÁLNÍ NASTAVENÍ RTS
+
+   Do v3.3.11 rozhodoval o přímém odesílání jen přepínač v tomhle telefonu
+   (pb_rts_direct). Byl nezávislý na tom, co má nastavený počítač – když si
+   ho technik zapnul a jeho PC bylo v režimu „disk", šla fotka do zakázky
+   DVAKRÁT: z RTS i z UploadScanu přes M:.
+
+   Od v3.3.12 platí pro celou firmu jedno nastavení z pb_settings:
+     rts_mode          disk | both | api
+     rts_domeny        kdo RTS používá (např. britex.cz)
+     rts_emaily_navic  výjimky mimo doménu
+
+   Přepínač v telefonu zůstává, ale nemůže jít proti tomu, co platí centrálně.
+   ══════════════════════════════════════════════════════════════════════════ */
+let RTS_CENTRALNI = null;   // null = ještě nenačteno
+
+async function nactiRtsCentralni() {
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/pb_settings?key=in.(rts_mode,rts_domeny,rts_emaily_navic)&select=key,value`,
+      { headers: { apikey: SB_ANON,
+                   Authorization: `Bearer ${pbToken || SB_ANON}` } });
+    if (!r.ok) return;
+
+    const n = {};
+    for (const row of await r.json()) n[row.key] = String(row.value ?? '').trim();
+
+    const mail   = String((pbUser && pbUser.email) || '').toLowerCase();
+    const domeny = (n.rts_domeny || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+    const emaily = (n.rts_emaily_navic || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+
+    // Bez nastavených domén se nikomu nic neomezuje.
+    let povoleno = true;
+    if (domeny.length || emaily.length) {
+      povoleno = emaily.includes(mail) || domeny.some(d => mail.endsWith('@' + d));
+    }
+
+    RTS_CENTRALNI = { mode: n.rts_mode || null, povoleno };
+    try { rtsUpdateDirectUi(); } catch (_) {}
+  } catch (_) { /* bez sítě zůstává null – platí přepínač v telefonu */ }
+}
+
+/**
+ * Má se fotka poslat do zakázky rovnou z telefonu?
+ *
+ * Centrální nastavení má přednost:
+ *   'disk'  → nikdy (fotky vyzvedává UploadScan z M:)
+ *   'api'   → vždy (UploadScan už neexistuje, PC by fotku jen zdržel)
+ *   'both'  → podle přepínače v telefonu
+ */
+function rtsPosilatPrimo() {
+  if (RTS_CENTRALNI && !RTS_CENTRALNI.povoleno) return false;
+  if (RTS_CENTRALNI && RTS_CENTRALNI.mode === 'disk') return false;
+  if (RTS_CENTRALNI && RTS_CENTRALNI.mode === 'api')  return true;
+  return localStorage.getItem('pb_rts_direct') === 'on';
+}
+
 /** Zapne/vypne posílání fotek přímo do zakázky (bez PC). */
 function toggleRtsDirect() {
+  if (RTS_CENTRALNI && !RTS_CENTRALNI.povoleno) {
+    toast('Tenhle účet do zakázek neodesílá', 'err');
+    return;
+  }
+  if (RTS_CENTRALNI && (RTS_CENTRALNI.mode === 'disk' || RTS_CENTRALNI.mode === 'api')) {
+    toast('Nastaveno centrálně správcem – nejde změnit', 'err');
+    return;
+  }
   const on = localStorage.getItem('pb_rts_direct') === 'on';
   if (!on && !rtsIsLoggedIn()) {
     toast('⚠️ Nejdřív se přihlas do RTS', 'err');
@@ -2084,6 +2150,21 @@ function rtsUpdateDirectUi() {
   const btn = document.getElementById('rtsDirectBtn');
   const sub = document.getElementById('rtsDirectSub');
   if (!btn || !sub) return;
+  if (RTS_CENTRALNI && !RTS_CENTRALNI.povoleno) {
+    btn.disabled = true;
+    btn.textContent = '—';
+    sub.textContent = 'Tenhle účet do zakázek neodesílá';
+    return;
+  }
+  if (RTS_CENTRALNI && (RTS_CENTRALNI.mode === 'disk' || RTS_CENTRALNI.mode === 'api')) {
+    btn.disabled = true;
+    btn.textContent = RTS_CENTRALNI.mode === 'api' ? 'Zapnuto' : 'Vypnuto';
+    sub.textContent = RTS_CENTRALNI.mode === 'api'
+      ? 'Nastaveno správcem – fotky bez úprav jdou rovnou do zakázky'
+      : 'Nastaveno správcem – všechny fotky jdou přes PC';
+    return;
+  }
+  btn.disabled = false;
   const on = localStorage.getItem('pb_rts_direct') === 'on';
   btn.textContent = on ? 'Vypnout' : 'Zapnout';
   sub.textContent = on
@@ -2932,6 +3013,9 @@ function updateAccountUI() {
 }
 
 function showApp() {
+  // Centrální nastavení RTS – bez něj by telefon posílal proti tomu,
+  // co platí pro firmu.
+  try { nactiRtsCentralni(); } catch (_) {}
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   const username = pbUser?.user_metadata?.username || pbUser?.email?.split('@')[0] || '—';
@@ -4167,7 +4251,7 @@ async function uploadFiles(fileList, opts = {}) {
       // Musí proběhnout PŘED vložením do fronty, protože výsledek (sentByMobile)
       // se ukládá do sloupce rts_sent v tom samém insertu.
       const goesToPaint = /_PAINT\./i.test(filename);
-      const rtsDirect   = localStorage.getItem('pb_rts_direct') === 'on';
+      const rtsDirect   = rtsPosilatPrimo();
       let sentByMobile  = false;
 
       if (rtsDirect && !isPersonal && pbJob && !goesToPaint) {
