@@ -843,6 +843,15 @@
       <span id="loginBtnLoad" style="display:none"><span class="spin">⏳</span> Přihlašuji…</span>
     </button>
 
+    <!-- Zapomenuté heslo – na PC to bylo odjakživa, v mobilu chybělo.
+         Bez toho zbývala technikovi jediná cesta: založit si nový účet. -->
+    <div id="forgotWrap" style="text-align:right;margin-top:8px">
+      <button type="button" onclick="zapomenuteHeslo()" style="
+        background:none;border:none;padding:4px 2px;cursor:pointer;
+        font-family:var(--font);font-size:12px;color:var(--accent);
+        text-decoration:underline">Zapomenuté heslo?</button>
+    </div>
+
     <!-- Firemní přihlášení (BRITEX / RTS) – zobrazí se, jen když je nastavené -->
     <div id="britexLoginWrap" style="display:none;margin-top:14px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -1394,7 +1403,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.4.5
+        PhotoBridge&nbsp;&nbsp;v1.4.6
       </div>
 
     </div>
@@ -3106,6 +3115,8 @@ function setLoginMode(mode) {
     regTab.style.color = '#fff';
     regTab.style.borderBottom = '2px solid var(--accent)';
     btnTxt.textContent = 'Zaregistrovat se';
+    // Při registraci nemá „zapomenuté heslo" co dělat – účet ještě neexistuje.
+    { const w = document.getElementById('forgotWrap'); if (w) w.style.display = 'none'; }
   } else {
     regFields.style.display = 'none';
     loginTab.style.color = '#fff';
@@ -3113,7 +3124,50 @@ function setLoginMode(mode) {
     regTab.style.color = 'var(--muted2)';
     regTab.style.borderBottom = '2px solid transparent';
     btnTxt.textContent = 'Přihlásit se';
+    { const w = document.getElementById('forgotWrap'); if (w) w.style.display = ''; }
   }
+}
+
+/**
+ * Pošle e-mail s odkazem na nastavení nového hesla.
+ *
+ * PROČ TO TU PŘIBYLO
+ * Technik, který si nevzpomněl na heslo, neměl v mobilu jak požádat o reset –
+ * a místo aby o tom řekl, založil si prostě nový účet. Zpracování odkazu
+ * z e-mailu (type=recovery) mobil uměl už dřív, chybělo jen si o něj říct.
+ *
+ * Odpověď je ZÁMĚRNĚ stejná, ať účet existuje nebo ne. Jinak by se dalo
+ * zjišťovat, kdo je ve firmě zaregistrovaný.
+ */
+async function zapomenuteHeslo() {
+  const email = (document.getElementById('loginEmail').value || '').trim();
+  const err   = document.getElementById('loginErr');
+
+  if (!email || !email.includes('@')) {
+    err.textContent = 'Nejdřív vyplň e-mail, na který ti mám odkaz poslat.';
+    err.style.display = 'block';
+    return;
+  }
+
+  err.textContent = '⏳ Odesílám…';
+  err.style.display = 'block';
+
+  try {
+    await fetch(`${SB_URL}/auth/v1/recover`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SB_ANON },
+      body:    JSON.stringify({
+        email,
+        // Po kliknutí v e-mailu se vrátí sem – stránka si hash type=recovery
+        // umí zpracovat sama.
+        gotrue_meta_security: {},
+      }),
+    });
+  } catch (_) { /* i chyba sítě se hlásí stejně, viz níž */ }
+
+  err.style.color = '';
+  err.textContent = 'Pokud účet existuje, poslali jsme na ' + email
+                  + ' odkaz pro nastavení nového hesla. Mrkni i do spamu.';
 }
 
 async function doLoginOrRegister() {
