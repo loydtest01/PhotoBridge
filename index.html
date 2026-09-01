@@ -773,6 +773,52 @@
       background: rgba(100,135,255,0.12);
       color: var(--accent2);
     }
+  /* ── Sběr sériových čísel ─────────────────────────────────────── */
+  #sberPanel { margin-bottom: 12px; }
+
+  .sber-prepinac {
+    display: flex; align-items: center; gap: 12px; cursor: pointer;
+  }
+  .sber-prepinac input { display: none; }
+  .sber-posuvnik {
+    width: 46px; height: 26px; border-radius: 14px; flex: none;
+    background: rgba(255,255,255,.14); position: relative;
+    transition: background .2s ease;
+  }
+  .sber-posuvnik::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 20px; height: 20px; border-radius: 50%; background: #fff;
+    transition: transform .2s ease;
+  }
+  .sber-prepinac input:checked + .sber-posuvnik { background: #00c98a; }
+  .sber-prepinac input:checked + .sber-posuvnik::after { transform: translateX(20px); }
+  .sber-popis b { display: block; font-size: 14px; }
+  .sber-popis small { display: block; font-size: 11px; opacity: .65; margin-top: 1px; }
+
+  .sber-btn {
+    width: 100%; margin-top: 12px; padding: 13px; border: none; border-radius: 10px;
+    background: #00c98a; color: #06231a; font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .sber-btn.bezi { background: #ff5c6c; color: #fff; }
+
+  .sber-vstup {
+    width: 100%; margin-top: 8px; padding: 12px; border-radius: 10px;
+    font-family: 'Consolas', monospace; font-size: 17px; letter-spacing: .05em;
+    background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.15); color: inherit;
+  }
+  .sber-stav { font-size: 12px; min-height: 18px; margin-top: 7px; }
+  .sber-stav.ok  { color: #00c98a; }
+  .sber-stav.err { color: #ff5c6c; }
+
+  .sber-seznam {
+    margin-top: 8px; max-height: 190px; overflow-y: auto;
+    font-family: 'Consolas', monospace; font-size: 13px;
+  }
+  .sber-seznam div {
+    padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.07);
+    display: flex; gap: 8px;
+  }
+  .sber-seznam .poradi { opacity: .5; min-width: 24px; }
   </style>
 </head>
 <body>
@@ -994,6 +1040,30 @@
         </div>
         <div class="job-banner-hint" id="uploadBannerHint"></div>
         <button class="job-banner-scan-btn" id="uploadBannerScanBtn" onclick="showTab('qr')">🔲 Naskenovat QR kód</button>
+      </div>
+
+      <!-- ── Sběr sériových čísel ────────────────────────────────────────
+           ZÁMĚRNĚ NENÍ TYP DOKUMENTU. Typy jako SP_ nebo SD_ říkají, kam se
+           fotka v zakázce zařadí – tohle do zakázky nejde vůbec a nemá ani
+           zakázku. Jako položka v číselníku by se to pletlo s SN_ (scan
+           sériového čísla baterie) a lezlo by to do statistiky typů. -->
+      <div class="upload-panel" id="sberPanel">
+        <label class="sber-prepinac">
+          <input type="checkbox" id="sberZap" onchange="prepniSber()">
+          <span class="sber-posuvnik"></span>
+          <span class="sber-popis">
+            <b>Sbírat sériová čísla</b>
+            <small>Bez zakázky, bez fotky – jen čísla do seznamu v počítači</small>
+          </span>
+        </label>
+
+        <div id="sberObsah" style="display:none">
+          <button class="sber-btn" id="sberSkenBtn" onclick="sberSkenuj()">Skenovat kód</button>
+          <input class="sber-vstup" id="sberRucne" inputmode="numeric" autocomplete="off"
+                 placeholder="nebo číslo opiš a dej Enter">
+          <div class="sber-stav" id="sberStav"></div>
+          <div class="sber-seznam" id="sberSeznam"></div>
+        </div>
       </div>
 
       <div class="upload-panel" id="typesPanel">
@@ -1403,7 +1473,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.4.7
+        PhotoBridge&nbsp;&nbsp;v1.4.8
       </div>
 
     </div>
@@ -2106,6 +2176,159 @@ function rtsPosilatPrimo() {
   if (RTS_CENTRALNI && RTS_CENTRALNI.mode === 'disk') return false;
   if (RTS_CENTRALNI && RTS_CENTRALNI.mode === 'api')  return true;
   return localStorage.getItem('pb_rts_direct') === 'on';
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SBĚR SÉRIOVÝCH ČÍSEL
+
+   Samostatný režim, ne typ dokumentu. Nepotřebuje zakázku a neposílá fotku –
+   jen přečtené číslo do tabulky pb_sber, odkud si ho vyzvedne počítač
+   a ukáže v okně.
+
+   DVĚ CESTY KE ČTENÍ
+   1. Čárový kód přes ZXing – nejrychlejší, když to jde.
+   2. Ruční opis čísla vytištěného pod kódem. U lesklých štítků je to často
+      jediná spolehlivá cesta: odlesk zabije kontrast mezi čárami, ale
+      číslice mají větší plochu a přečtou se i tak.
+
+   Duplicitu odmítne databáze (unikátní index), takže i když skenují dva
+   lidé naráz, totéž číslo se neuloží dvakrát.
+   ══════════════════════════════════════════════════════════════════════ */
+let sberCisla = [];
+let sberCtecka = null, sberProud = null, sberBezi = false;
+
+function sberStav(text, trida) {
+  const el = document.getElementById('sberStav');
+  if (!el) return;
+  el.className = 'sber-stav ' + (trida || '');
+  el.textContent = text || '';
+}
+
+function prepniSber() {
+  const zap = document.getElementById('sberZap').checked;
+  document.getElementById('sberObsah').style.display = zap ? '' : 'none';
+
+  // Při sběru nedává výběr typu ani zakázka smysl – schováme je, ať to
+  // technika nemate.
+  const typy = document.getElementById('typesPanel');
+  if (typy) typy.style.display = zap ? 'none' : '';
+
+  if (zap) {
+    sberNacti();
+    sberStav('Zapnuto. Naskenuj kód nebo číslo opiš.');
+  } else {
+    sberZastavSken();
+    sberStav('');
+  }
+  try { localStorage.setItem('pb_sber_zap', zap ? '1' : '0'); } catch (_) {}
+}
+
+async function sberNacti() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/pb_sber?select=id,cislo&order=id.asc&limit=500`, {
+      headers: { apikey: SB_ANON, Authorization: `Bearer ${pbToken || SB_ANON}` },
+    });
+    if (!r.ok) return;
+    sberCisla = await r.json();
+    sberVykresli();
+  } catch (_) {}
+}
+
+function sberVykresli() {
+  const box = document.getElementById('sberSeznam');
+  if (!box) return;
+  if (!sberCisla.length) { box.innerHTML = ''; return; }
+
+  // Nejnovější nahoře – po naskenování chceš vidět, co právě přibylo.
+  box.innerHTML = sberCisla.slice().reverse().map((c, i) =>
+    `<div><span class="poradi">${sberCisla.length - i}.</span><span>${c.cislo}</span></div>`
+  ).join('');
+}
+
+async function sberPridej(cislo) {
+  const c = String(cislo || '').trim();
+  if (!c) return;
+
+  if (sberCisla.some(x => x.cislo === c)) {
+    sberStav(`${c} už v seznamu je`, 'err');
+    try { if (navigator.vibrate) navigator.vibrate([60, 60, 60]); } catch (_) {}
+    return;
+  }
+
+  sberStav('Ukládám\u2026');
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/pb_sber`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_ANON, Authorization: `Bearer ${pbToken || SB_ANON}`,
+        'Content-Type': 'application/json', Prefer: 'return=representation',
+      },
+      body: JSON.stringify({ cislo: c, kdo: (pbUser && pbUser.email) || '' }),
+    });
+
+    // 409 = unikátní index. Někdo to naskenoval dřív.
+    if (r.status === 409) { sberStav(`${c} už v seznamu je`, 'err'); return; }
+    if (!r.ok) { sberStav('Uložení selhalo: HTTP ' + r.status, 'err'); return; }
+
+    const [novy] = await r.json();
+    sberCisla.push(novy);
+    sberVykresli();
+    sberStav(`\u2713 ${c}`, 'ok');
+    try { if (navigator.vibrate) navigator.vibrate(80); } catch (_) {}
+  } catch (e) { sberStav('Chyba spojení: ' + e.message, 'err'); }
+}
+
+async function sberSkenuj() {
+  if (sberBezi) { sberZastavSken(); return; }
+
+  try {
+    sberProud = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+    });
+  } catch (e) { sberStav('Kamera není dostupná: ' + e.message, 'err'); return; }
+
+  // Použijeme existující náhled kamery ze skenování QR, ať se nemusí
+  // vytvářet druhý.
+  const v = document.getElementById('qr-video') || document.createElement('video');
+  v.srcObject = sberProud;
+  v.setAttribute('playsinline', '');
+  v.muted = true;
+  await v.play().catch(() => {});
+
+  sberBezi = true;
+  document.getElementById('sberSkenBtn').textContent = 'Zastavit skenování';
+  document.getElementById('sberSkenBtn').classList.add('bezi');
+  sberStav('Namiř na kód. U lesklého štítku ho nakloň, ať se světlo neodráží.');
+
+  try {
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.EAN_13,   ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.CODABAR,
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+    sberCtecka = new ZXing.BrowserMultiFormatReader(hints);
+    sberCtecka.decodeFromVideoElement(v, (vysledek) => {
+      if (!vysledek) return;
+      const text = String(vysledek.getText() || '').trim();
+      if (!text) return;
+      sberPridej(text);
+      sberZastavSken();   // ať se týž kód nenačte desetkrát za sebou
+    });
+  } catch (e) {
+    sberStav('Skener se nepodařilo spustit: ' + e.message, 'err');
+    sberZastavSken();
+  }
+}
+
+function sberZastavSken() {
+  try { if (sberCtecka) sberCtecka.reset(); } catch (_) {}
+  try { if (sberProud) sberProud.getTracks().forEach(t => t.stop()); } catch (_) {}
+  sberCtecka = null; sberProud = null; sberBezi = false;
+  const b = document.getElementById('sberSkenBtn');
+  if (b) { b.textContent = 'Skenovat kód'; b.classList.remove('bezi'); }
 }
 
 /** Zapne/vypne posílání fotek přímo do zakázky (bez PC). */
@@ -3023,10 +3246,33 @@ function updateAccountUI() {
   if (settingsScanRow) settingsScanRow.style.display = isPersonal ? 'none' : '';
 }
 
+/** Obnoví zapnutý sběr po znovuotevření stránky. */
+function sberObnov() {
+  try {
+    if (localStorage.getItem('pb_sber_zap') !== '1') return;
+    const pr = document.getElementById('sberZap');
+    if (pr) { pr.checked = true; prepniSber(); }
+  } catch (_) {}
+}
+
 function showApp() {
   // Centrální nastavení RTS – bez něj by telefon posílal proti tomu,
   // co platí pro firmu.
   try { nactiRtsCentralni(); } catch (_) {}
+  try { sberObnov(); } catch (_) {}
+
+  // Ruční opis čísla – u lesklých štítků často jediná cesta.
+  try {
+    const r = document.getElementById('sberRucne');
+    if (r && !r.dataset.napojeno) {
+      r.dataset.napojeno = '1';
+      r.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const v = r.value.trim();
+        if (v) { sberPridej(v); r.value = ''; }
+      });
+    }
+  } catch (_) {}
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   const username = pbUser?.user_metadata?.username || pbUser?.email?.split('@')[0] || '—';
