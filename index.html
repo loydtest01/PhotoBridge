@@ -774,26 +774,14 @@
       color: var(--accent2);
     }
   /* ── Sběr sériových čísel ─────────────────────────────────────── */
-  #sberPanel { margin-bottom: 12px; }
-
-  .sber-prepinac {
-    display: flex; align-items: center; gap: 12px; cursor: pointer;
+  /* Zapnutý sběr je poznat barvou tlačítka. Vypnuté zůstává jako ostatní
+     tlačítka v nastavení – dřív bylo poloprůhledné a na světlém pozadí
+     zanikalo, takže nebylo poznat, že tam vůbec je. */
+  .settings-btn.sber-aktivni {
+    background: #00c98a !important;
+    color: #06231a !important;
+    font-weight: 700;
   }
-  .sber-prepinac input { display: none; }
-  .sber-posuvnik {
-    width: 46px; height: 26px; border-radius: 14px; flex: none;
-    background: rgba(255,255,255,.14); position: relative;
-    transition: background .2s ease;
-  }
-  .sber-posuvnik::after {
-    content: ''; position: absolute; top: 3px; left: 3px;
-    width: 20px; height: 20px; border-radius: 50%; background: #fff;
-    transition: transform .2s ease;
-  }
-  .sber-prepinac input:checked + .sber-posuvnik { background: #00c98a; }
-  .sber-prepinac input:checked + .sber-posuvnik::after { transform: translateX(20px); }
-  .sber-popis b { display: block; font-size: 14px; }
-  .sber-popis small { display: block; font-size: 11px; opacity: .65; margin-top: 1px; }
 
   .sber-kamera { display: none; margin-top: 12px; position: relative; }
   .sber-kamera.vidno { display: block; }
@@ -1077,40 +1065,6 @@
         <button class="job-banner-scan-btn" id="uploadBannerScanBtn" onclick="showTab('qr')">🔲 Naskenovat QR kód</button>
       </div>
 
-      <!-- ── Sběr sériových čísel ────────────────────────────────────────
-           ZÁMĚRNĚ NENÍ TYP DOKUMENTU. Typy jako SP_ nebo SD_ říkají, kam se
-           fotka v zakázce zařadí – tohle do zakázky nejde vůbec a nemá ani
-           zakázku. Jako položka v číselníku by se to pletlo s SN_ (scan
-           sériového čísla baterie) a lezlo by to do statistiky typů. -->
-      <div class="upload-panel" id="sberPanel">
-        <label class="sber-prepinac">
-          <input type="checkbox" id="sberZap" onchange="prepniSber()">
-          <span class="sber-posuvnik"></span>
-          <span class="sber-popis">
-            <b>Sbírat sériová čísla</b>
-            <small>Bez zakázky, bez fotky – jen čísla do seznamu v počítači</small>
-          </span>
-        </label>
-
-        <div id="sberObsah" style="display:none">
-          <!-- Vlastní náhled kamery. Do v3.3.34 se skener napojoval na náhled
-               ze záložky QR – ten je ale na jiné obrazovce, takže technik
-               skenoval naslepo a neviděl, na co míří. -->
-          <div class="sber-kamera" id="sberKamera">
-            <video id="sberVideo" playsinline muted></video>
-            <div class="sber-hledacek"></div>
-          </div>
-          <button class="sber-btn" id="sberSkenBtn" onclick="sberSkenuj()">Skenovat kód</button>
-          <button class="sber-btn sber-ai" id="sberAiBtn" onclick="sberPrectiAi()">
-            🤖 Přečíst číslo pod kódem
-          </button>
-          <input class="sber-vstup" id="sberRucne" inputmode="numeric" autocomplete="off"
-                 placeholder="nebo číslo opiš a dej Enter">
-          <div class="sber-stav" id="sberStav"></div>
-          <div class="sber-seznam" id="sberSeznam"></div>
-        </div>
-      </div>
-
       <div class="upload-panel" id="typesPanel">
         <div class="section-label">Vyber typ dokumentu:</div>
         <div class="types" id="types">
@@ -1369,6 +1323,34 @@
           </div>
           <button id="rtsDirectBtn" onclick="toggleRtsDirect()" class="settings-btn">Zapnout</button>
         </div>
+        <!-- Sběr sériových čísel patří do nastavení, ne na hlavní obrazovku.
+             Používá ho jen ten, kdo zrovna vyčítá dávku disků – ostatním by
+             na hlavní obrazovce jen překážel. -->
+        <div class="settings-row">
+          <div class="settings-icon">🔢</div>
+          <div class="settings-info">
+            <div class="settings-title">Sbírat sériová čísla</div>
+            <div class="settings-sub" id="sberSub">Vypnuto</div>
+          </div>
+          <button id="sberBtn" onclick="prepniSber()" class="settings-btn">Zapnout</button>
+        </div>
+
+
+        <!-- Obsah sběru – ukáže se až po zapnutí. -->
+        <div id="sberObsah" style="display:none;padding:0 14px 14px">
+          <div class="sber-kamera" id="sberKamera">
+            <video id="sberVideo" playsinline muted></video>
+            <div class="sber-hledacek"></div>
+          </div>
+          <button class="sber-btn" id="sberSkenBtn" onclick="sberSkenuj()">Skenovat kód</button>
+          <button class="sber-btn sber-ai" id="sberAiBtn" onclick="sberPrectiAi()">
+            🤖 Přečíst číslo pod kódem
+          </button>
+          <input class="sber-vstup" id="sberRucne" inputmode="numeric" autocomplete="off"
+                 placeholder="nebo číslo opiš a dej Enter">
+          <div class="sber-stav" id="sberStav"></div>
+          <div class="sber-seznam" id="sberSeznam"></div>
+        </div>
         <div class="settings-row">
           <div class="settings-icon">📋</div>
           <div class="settings-info">
@@ -1518,7 +1500,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.5.0
+        PhotoBridge&nbsp;&nbsp;v1.5.1
       </div>
 
     </div>
@@ -2249,23 +2231,36 @@ function sberStav(text, trida) {
   el.textContent = text || '';
 }
 
+let sberZapnuto = false;
+
 function prepniSber() {
-  const zap = document.getElementById('sberZap').checked;
-  document.getElementById('sberObsah').style.display = zap ? '' : 'none';
+  sberZapnuto = !sberZapnuto;
+  sberVykresliPrepinac();
 
-  // Při sběru nedává výběr typu ani zakázka smysl – schováme je, ať to
-  // technika nemate.
-  const typy = document.getElementById('typesPanel');
-  if (typy) typy.style.display = zap ? 'none' : '';
-
-  if (zap) {
+  if (sberZapnuto) {
     sberNacti();
-    sberStav('Zapnuto. Naskenuj kód nebo číslo opiš.');
+    sberStav('Naskenuj kód, nebo číslo opiš.');
   } else {
     sberZastavSken();
     sberStav('');
   }
-  try { localStorage.setItem('pb_sber_zap', zap ? '1' : '0'); } catch (_) {}
+  try { localStorage.setItem('pb_sber_zap', sberZapnuto ? '1' : '0'); } catch (_) {}
+}
+
+/** Vzhled přepínače. Musí být poznat i ve VYPNUTÉM stavu – původní
+ *  poloprůhledné tlačítko na světlém pozadí zanikalo. */
+function sberVykresliPrepinac() {
+  const btn = document.getElementById('sberBtn');
+  const sub = document.getElementById('sberSub');
+  const obsah = document.getElementById('sberObsah');
+  if (!btn || !sub || !obsah) return;
+
+  obsah.style.display = sberZapnuto ? '' : 'none';
+  btn.textContent = sberZapnuto ? 'Vypnout' : 'Zapnout';
+  btn.classList.toggle('sber-aktivni', sberZapnuto);
+  sub.textContent = sberZapnuto
+    ? 'Zapnuto – čísla chodí do počítače'
+    : 'Vypnuto';
 }
 
 async function sberNacti() {
@@ -3433,9 +3428,9 @@ function updateAccountUI() {
 /** Obnoví zapnutý sběr po znovuotevření stránky. */
 function sberObnov() {
   try {
-    if (localStorage.getItem('pb_sber_zap') !== '1') return;
-    const pr = document.getElementById('sberZap');
-    if (pr) { pr.checked = true; prepniSber(); }
+    sberZapnuto = localStorage.getItem('pb_sber_zap') === '1';
+    sberVykresliPrepinac();
+    if (sberZapnuto) sberNacti();
   } catch (_) {}
 }
 
