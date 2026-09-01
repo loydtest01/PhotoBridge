@@ -795,11 +795,46 @@
   .sber-popis b { display: block; font-size: 14px; }
   .sber-popis small { display: block; font-size: 11px; opacity: .65; margin-top: 1px; }
 
+  .sber-kamera { display: none; margin-top: 12px; position: relative; }
+  .sber-kamera.vidno { display: block; }
+  .sber-kamera video {
+    width: 100%; border-radius: 10px; background: #000;
+    aspect-ratio: 4/3; object-fit: cover; display: block;
+  }
+  /* Vodicí čára – pomáhá trefit kód a naklonit štítek proti odlesku. */
+  .sber-hledacek {
+    position: absolute; left: 8%; right: 8%; top: 50%;
+    height: 0; border-top: 2px solid #00c98a; opacity: .85;
+    box-shadow: 0 0 12px rgba(0,201,138,.6);
+  }
+
   .sber-btn {
     width: 100%; margin-top: 12px; padding: 13px; border: none; border-radius: 10px;
     background: #00c98a; color: #06231a; font-size: 15px; font-weight: 700; cursor: pointer;
   }
   .sber-btn.bezi { background: #ff5c6c; color: #fff; }
+  /* Druhá cesta – když čárový kód nejde přečíst. U lesklých štítků
+     to bývá pravidlo, ne výjimka. */
+  .sber-ai { background: rgba(255,255,255,.10); color: inherit; margin-top: 8px; }
+  .sber-ai:disabled { opacity: .5; }
+
+  /* Potvrzení přečteného čísla – špatná číslice v S/N je horší než
+     nepřečtený kód, proto se nic neukládá bez odsouhlasení. */
+  .sber-potvrd {
+    margin-top: 10px; padding: 12px; border-radius: 10px;
+    background: rgba(0,201,138,.12); border: 1px solid rgba(0,201,138,.45);
+  }
+  .sber-potvrd .cislo {
+    font-family: 'Consolas', monospace; font-size: 22px; font-weight: 700;
+    letter-spacing: .05em; margin: 4px 0 10px; word-break: break-all;
+  }
+  .sber-potvrd .tlacitka { display: flex; gap: 8px; }
+  .sber-potvrd button {
+    flex: 1; padding: 10px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .sber-potvrd .ano { background: #00c98a; color: #06231a; }
+  .sber-potvrd .ne  { background: rgba(255,255,255,.12); color: inherit; }
 
   .sber-vstup {
     width: 100%; margin-top: 8px; padding: 12px; border-radius: 10px;
@@ -1058,7 +1093,17 @@
         </label>
 
         <div id="sberObsah" style="display:none">
+          <!-- Vlastní náhled kamery. Do v3.3.34 se skener napojoval na náhled
+               ze záložky QR – ten je ale na jiné obrazovce, takže technik
+               skenoval naslepo a neviděl, na co míří. -->
+          <div class="sber-kamera" id="sberKamera">
+            <video id="sberVideo" playsinline muted></video>
+            <div class="sber-hledacek"></div>
+          </div>
           <button class="sber-btn" id="sberSkenBtn" onclick="sberSkenuj()">Skenovat kód</button>
+          <button class="sber-btn sber-ai" id="sberAiBtn" onclick="sberPrectiAi()">
+            🤖 Přečíst číslo pod kódem
+          </button>
           <input class="sber-vstup" id="sberRucne" inputmode="numeric" autocomplete="off"
                  placeholder="nebo číslo opiš a dej Enter">
           <div class="sber-stav" id="sberStav"></div>
@@ -1473,7 +1518,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.4.8
+        PhotoBridge&nbsp;&nbsp;v1.5.0
       </div>
 
     </div>
@@ -2278,6 +2323,141 @@ async function sberPridej(cislo) {
   } catch (e) { sberStav('Chyba spojení: ' + e.message, 'err'); }
 }
 
+/**
+ * Přečte sériové číslo VYTIŠTĚNÉ POD čárovým kódem.
+ *
+ * PROČ TAHLE CESTA EXISTUJE
+ * Lesklý štítek zabije kontrast mezi čárkami a čtečka ho nepřečte – ověřeno
+ * na SSD Verbatim, které nezvládla ani čtečka u počítače. Číslice pod kódem
+ * mají ale mnohem větší plochu a na odlesk jsou málo citlivé.
+ *
+ * Fotí se JEDEN SNÍMEK, ne video. Telefon si na něj stihne zaostřit
+ * a nastavit expozici – při skenování z běžícího obrazu na to čas není.
+ *
+ * Výsledek se VŽDY dává k potvrzení. Špatná číslice v sériovém čísle je
+ * horší než nepřečtený kód, protože se na ni přijde až mnohem později.
+ */
+async function sberPrectiAi() {
+  const btn = document.getElementById('sberAiBtn');
+
+  // Kamera musí běžet – čte se z živého náhledu.
+  if (!sberBezi) {
+    sberStav('Nejdřív zapni kameru tlačítkem Skenovat kód.', 'err');
+    return;
+  }
+
+  const video = document.getElementById('sberVideo');
+  if (!video || !video.videoWidth) {
+    sberStav('Kamera ještě není připravená, zkus to za vteřinu.', 'err');
+    return;
+  }
+
+  btn.disabled = true;
+  const puvodni = btn.innerHTML;
+  btn.textContent = '\u{1F916} Čtu\u2026';
+  sberStav('Namiř na štítek tak, aby bylo číslo ostré.');
+
+  try {
+    // Vyšší rozlišení – malé číslice na štítku potřebují detail.
+    const cap = document.createElement('canvas');
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const sc = Math.min(1568 / vw, 1568 / vh, 1);
+    cap.width  = Math.round(vw * sc);
+    cap.height = Math.round(vh * sc);
+    cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height);
+    const dataUrl = cap.toDataURL('image/jpeg', 0.92);
+
+    const prompt = 'Photo of a product label (hard drive, SSD or electronic device). '
+      + 'Read the SERIAL NUMBER printed as text, usually below or next to a barcode '
+      + 'and labeled "S/N", "SN", "Serial" or "Serial No". '
+      + 'It is typically 8 to 20 characters, digits or digits with letters. '
+      + 'Read every character carefully one by one. '
+      + 'Ignore: model names, part numbers ("Part No"), capacity, dates, '
+      + 'certification marks and website addresses. '
+      + 'Reply with ONLY the serial number itself, no label, no spaces, nothing else. '
+      + 'If you cannot read it, reply "NONE". /no_think';
+
+    const res = await groqVisionCall(dataUrl, prompt);
+
+    if (res && res.rateLimited) {
+      sberStav('AI je přetížená (limit) \u2013 zkus za chvíli nebo číslo opiš.', 'err');
+      return;
+    }
+    if (res && res.modelBad) {
+      sberStav('AI model není dostupný \u2013 správce musí změnit groq_vision_model.', 'err');
+      return;
+    }
+    if (!res || !res.text || /NONE/i.test(res.text)) {
+      sberStav('Číslo se přečíst nepodařilo. Zkus jiný úhel, nebo ho opiš.', 'err');
+      return;
+    }
+
+    // Model občas přidá popisek nebo mezery – vezmeme jen samotné číslo.
+    const cisté = String(res.text)
+      .replace(/["'`]/g, '')
+      .replace(/^(S\/?N|SN|Serial(\s*No\.?)?)\s*[:=-]?\s*/i, '')
+      .replace(/\s+/g, '')
+      .trim();
+
+    if (cisté.length < 5) {
+      sberStav('Přečtené číslo vypadá neúplně. Zkus to znovu nebo ho opiš.', 'err');
+      return;
+    }
+
+    sberPotvrd(cisté);
+    sberStav('');
+
+  } catch (e) {
+    sberStav('Čtení selhalo: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = puvodni;
+  }
+}
+
+/** Ukáže přečtené číslo k odsouhlasení. Nic se neuloží bez potvrzení. */
+function sberPotvrd(cislo) {
+  const stary = document.getElementById('sberPotvrdBox');
+  if (stary) stary.remove();
+
+  const box = document.createElement('div');
+  box.className = 'sber-potvrd';
+  box.id = 'sberPotvrdBox';
+  box.innerHTML = `
+    <div style="font-size:12px;opacity:.75">AI přečetla:</div>
+    <div class="cislo" id="sberPotvrdCislo">${cislo}</div>
+    <div class="tlacitka">
+      <button class="ano" onclick="sberPotvrdit()">Souhlasí</button>
+      <button class="ne"  onclick="sberOpravit()">Opravit</button>
+    </div>`;
+
+  document.getElementById('sberObsah').insertBefore(
+    box, document.getElementById('sberSeznam'));
+}
+
+function sberPotvrdit() {
+  const el = document.getElementById('sberPotvrdCislo');
+  if (!el) return;
+  const c = el.textContent.trim();
+  document.getElementById('sberPotvrdBox').remove();
+  sberPridej(c);
+  sberZastavSken();
+}
+
+/** Nabídne číslo k ruční opravě – většinou stačí přepsat jednu číslici. */
+function sberOpravit() {
+  const el = document.getElementById('sberPotvrdCislo');
+  const c = el ? el.textContent.trim() : '';
+  const box = document.getElementById('sberPotvrdBox');
+  if (box) box.remove();
+
+  const vstup = document.getElementById('sberRucne');
+  vstup.value = c;
+  vstup.focus();
+  vstup.select();
+  sberStav('Oprav číslo a potvrď Enterem.');
+}
+
 async function sberSkenuj() {
   if (sberBezi) { sberZastavSken(); return; }
 
@@ -2287,13 +2467,13 @@ async function sberSkenuj() {
     });
   } catch (e) { sberStav('Kamera není dostupná: ' + e.message, 'err'); return; }
 
-  // Použijeme existující náhled kamery ze skenování QR, ať se nemusí
-  // vytvářet druhý.
-  const v = document.getElementById('qr-video') || document.createElement('video');
+  // Vlastní náhled přímo v panelu – technik musí vidět, na co míří.
+  const v = document.getElementById('sberVideo');
   v.srcObject = sberProud;
   v.setAttribute('playsinline', '');
   v.muted = true;
   await v.play().catch(() => {});
+  document.getElementById('sberKamera').classList.add('vidno');
 
   sberBezi = true;
   document.getElementById('sberSkenBtn').textContent = 'Zastavit skenování';
@@ -2327,6 +2507,10 @@ function sberZastavSken() {
   try { if (sberCtecka) sberCtecka.reset(); } catch (_) {}
   try { if (sberProud) sberProud.getTracks().forEach(t => t.stop()); } catch (_) {}
   sberCtecka = null; sberProud = null; sberBezi = false;
+  const k = document.getElementById('sberKamera');
+  if (k) k.classList.remove('vidno');
+  const v = document.getElementById('sberVideo');
+  if (v) v.srcObject = null;
   const b = document.getElementById('sberSkenBtn');
   if (b) { b.textContent = 'Skenovat kód'; b.classList.remove('bezi'); }
 }
