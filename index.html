@@ -1065,6 +1065,28 @@
         <button class="job-banner-scan-btn" id="uploadBannerScanBtn" onclick="showTab('qr')">🔲 Naskenovat QR kód</button>
       </div>
 
+      <!-- ── Sběr sériových čísel ────────────────────────────────────────
+           ZAPÍNÁ SE V NASTAVENÍ, ale skenuje se TADY. Do v3.3.56 bylo obojí
+           v nastavení, takže technik musel kvůli každému disku odejít
+           z hlavní obrazovky a zase zpátky. -->
+      <div class="upload-panel" id="sberPanel" style="display:none">
+        <!-- Obsah sběru – ukáže se až po zapnutí. -->
+        <div id="sberObsah" style="display:none">
+          <div class="sber-kamera" id="sberKamera">
+            <video id="sberVideo" playsinline muted></video>
+            <div class="sber-hledacek"></div>
+          </div>
+          <button class="sber-btn" id="sberSkenBtn" onclick="sberSkenuj()">Skenovat kód</button>
+          <button class="sber-btn sber-ai" id="sberAiBtn" onclick="sberPrectiAi()">
+            🤖 Přečíst číslo pod kódem
+          </button>
+          <input class="sber-vstup" id="sberRucne" inputmode="numeric" autocomplete="off"
+                 placeholder="nebo číslo opiš a dej Enter">
+          <div class="sber-stav" id="sberStav"></div>
+          <div class="sber-seznam" id="sberSeznam"></div>
+        </div>
+      </div>
+
       <div class="upload-panel" id="typesPanel">
         <div class="section-label">Vyber typ dokumentu:</div>
         <div class="types" id="types">
@@ -1336,21 +1358,6 @@
         </div>
 
 
-        <!-- Obsah sběru – ukáže se až po zapnutí. -->
-        <div id="sberObsah" style="display:none;padding:0 14px 14px">
-          <div class="sber-kamera" id="sberKamera">
-            <video id="sberVideo" playsinline muted></video>
-            <div class="sber-hledacek"></div>
-          </div>
-          <button class="sber-btn" id="sberSkenBtn" onclick="sberSkenuj()">Skenovat kód</button>
-          <button class="sber-btn sber-ai" id="sberAiBtn" onclick="sberPrectiAi()">
-            🤖 Přečíst číslo pod kódem
-          </button>
-          <input class="sber-vstup" id="sberRucne" inputmode="numeric" autocomplete="off"
-                 placeholder="nebo číslo opiš a dej Enter">
-          <div class="sber-stav" id="sberStav"></div>
-          <div class="sber-seznam" id="sberSeznam"></div>
-        </div>
         <div class="settings-row">
           <div class="settings-icon">📋</div>
           <div class="settings-info">
@@ -1500,7 +1507,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.5.1
+        PhotoBridge&nbsp;&nbsp;v1.5.2
       </div>
 
     </div>
@@ -2256,6 +2263,16 @@ function sberVykresliPrepinac() {
   if (!btn || !sub || !obsah) return;
 
   obsah.style.display = sberZapnuto ? '' : 'none';
+
+  // Panel na HLAVNÍ obrazovce – tam se skenuje. V nastavení zůstává jen
+  // zapínání, ať technik nemusí kvůli každému disku přepínat obrazovky.
+  const panel = document.getElementById('sberPanel');
+  if (panel) panel.style.display = sberZapnuto ? '' : 'none';
+
+  // Při sběru nedává výběr typu ani zakázka smysl.
+  const typy = document.getElementById('typesPanel');
+  if (typy) typy.style.display = sberZapnuto ? 'none' : '';
+
   btn.textContent = sberZapnuto ? 'Vypnout' : 'Zapnout';
   btn.classList.toggle('sber-aktivni', sberZapnuto);
   sub.textContent = sberZapnuto
