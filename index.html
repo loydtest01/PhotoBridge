@@ -1127,7 +1127,7 @@
         </div>
       </div>
 
-      <div class="upload-panel">
+      <div class="upload-panel" id="akcePanel">
         <div class="btn-row">
           <button class="btn-pb btn-photo" id="btnPhoto" onclick="triggerPhoto()">
             <span class="btn-icon">📷</span><span>Foto</span>
@@ -1507,7 +1507,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.5.2
+        PhotoBridge&nbsp;&nbsp;v1.5.3
       </div>
 
     </div>
@@ -2269,9 +2269,13 @@ function sberVykresliPrepinac() {
   const panel = document.getElementById('sberPanel');
   if (panel) panel.style.display = sberZapnuto ? '' : 'none';
 
-  // Při sběru nedává výběr typu ani zakázka smysl.
-  const typy = document.getElementById('typesPanel');
-  if (typy) typy.style.display = sberZapnuto ? 'none' : '';
+  // Při sběru se nefotí – schováme všechno, co k focení patří:
+  // výběr typu, panel se zakázkou, tlačítka Foto/Video/Nahrát
+  // i spodní záložku QR. Zůstane jen skener a seznam čísel.
+  for (const id of ['typesPanel', 'uploadJobBanner', 'akcePanel', 'tabQR']) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = sberZapnuto ? 'none' : '';
+  }
 
   btn.textContent = sberZapnuto ? 'Vypnout' : 'Zapnout';
   btn.classList.toggle('sber-aktivni', sberZapnuto);
