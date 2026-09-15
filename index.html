@@ -842,6 +842,40 @@
     display: flex; gap: 8px;
   }
   .sber-seznam .poradi { opacity: .5; min-width: 24px; }
+  /* ── Správa ──────────────────────────────────────────────────── */
+  .spr-box { font-size: 13px; line-height: 1.6; }
+  .spr-hint { font-size: 12px; opacity: .7; margin-bottom: 8px; line-height: 1.5; }
+
+  .spr-btn {
+    padding: 9px 14px; border: 1px solid rgba(255,255,255,.18); border-radius: 9px;
+    background: rgba(255,255,255,.08); color: inherit; cursor: pointer;
+    font-size: 13px; font-weight: 600; font-family: inherit;
+  }
+  .spr-btn.spr-hlavni { width: 100%; background: #6c63ff; color: #fff; border: none; }
+
+  .spr-vstup {
+    width: 100%; padding: 11px; margin-bottom: 8px; border-radius: 9px;
+    background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.15);
+    color: inherit; font-size: 15px; font-family: 'Consolas', monospace;
+  }
+  .spr-stav { font-size: 12px; min-height: 16px; margin-top: 6px; }
+  .spr-stav.ok  { color: #00c98a; }
+  .spr-stav.err { color: #ff5c6c; }
+
+  /* Graf – vodorovné sloupce. Na mobilu se čte líp než koláč
+     a nepotřebuje knihovnu. */
+  .spr-radek { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+  .spr-jmeno { width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .spr-pruh  { flex: 1; height: 16px; background: rgba(255,255,255,.08); border-radius: 8px; overflow: hidden; }
+  .spr-pruh span { display: block; height: 100%; background: #6c63ff; }
+  .spr-pocet { width: 44px; text-align: right; font-weight: 700; }
+
+  .spr-polozka {
+    display: flex; gap: 8px; padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .spr-polozka .vedlejsi { margin-left: auto; opacity: .6; font-size: 11px; }
+  .spr-zaostal { color: #ffb020; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -1507,7 +1541,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.5.3
+        PhotoBridge&nbsp;&nbsp;v1.6.1
       </div>
 
     </div>
@@ -1521,12 +1555,63 @@
   </div>
 
   <!-- Tab bar -->
+  <!-- ════════ SPRÁVA (jen pro správce) ════════ -->
+  <div class="screen" id="screenSprava" style="display:none">
+    <div class="upload-panel">
+      <div class="section-label">Provoz</div>
+      <div id="spr-prehled" class="spr-box">Načítám…</div>
+    </div>
+
+    <div class="upload-panel">
+      <div class="section-label">Kdo kolik nafotil</div>
+      <div style="display:flex;gap:7px;margin-bottom:10px">
+        <button class="spr-btn" onclick="sprStat(7)">7 dní</button>
+        <button class="spr-btn" onclick="sprStat(30)">30 dní</button>
+        <button class="spr-btn" onclick="sprStat(90)">90 dní</button>
+      </div>
+      <div id="spr-graf"></div>
+    </div>
+
+    <div class="upload-panel">
+      <div class="section-label">Počítače a verze</div>
+      <button class="spr-btn spr-hlavni" onclick="sprVerze()">Zjistit verze</button>
+      <div id="spr-verze" class="spr-box" style="margin-top:9px"></div>
+    </div>
+
+    <div class="upload-panel">
+      <div class="section-label">Nestažené fotky</div>
+      <button class="spr-btn spr-hlavni" onclick="sprFronta()">Načíst frontu</button>
+      <div id="spr-fronta" class="spr-box" style="margin-top:9px"></div>
+    </div>
+
+    <div class="upload-panel">
+      <div class="section-label">Nouzová brzda</div>
+      <div class="spr-hint">
+        Zakázané verze se na žádný počítač nenainstalují. Prázdné pole = nic
+        není zakázané.
+      </div>
+      <input class="spr-vstup" id="spr-zakazane" placeholder="např. 3.3.21, 3.3.22">
+      <button class="spr-btn spr-hlavni" onclick="sprUlozZakazane()">Uložit</button>
+      <div id="spr-zak-stav" class="spr-stav"></div>
+    </div>
+
+    <div class="upload-panel">
+      <div class="section-label">Účty</div>
+      <div id="spr-ucty" class="spr-box">Načítám…</div>
+    </div>
+  </div>
+
   <div class="tabbar">
     <button class="tab-btn active" id="tabQR"     onclick="showTab('qr')">
       <span class="tab-icon">🔲</span><span>QR</span>
     </button>
     <button class="tab-btn" id="tabUpload" onclick="showTab('upload')">
       <span class="tab-icon">📤</span><span>Upload</span>
+    </button>
+    <!-- Správa – vidí ji jen účet ze seznamu správců. Ostatním se
+         záložka vůbec nezobrazí. -->
+    <button class="tab-btn" id="tabSprava" onclick="showTab('sprava')" style="display:none">
+      <span class="tab-icon">🛡</span><span>Správa</span>
     </button>
     <button class="tab-btn" id="tabQueue" onclick="showTab('queue')" style="display:none;position:relative">
       <span class="tab-icon">⏳</span><span>Fronta</span>
@@ -2210,6 +2295,311 @@ function rtsPosilatPrimo() {
   if (RTS_CENTRALNI && RTS_CENTRALNI.mode === 'disk') return false;
   if (RTS_CENTRALNI && RTS_CENTRALNI.mode === 'api')  return true;
   return localStorage.getItem('pb_rts_direct') === 'on';
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SPRÁVA – přehled pro správce přímo v telefonu
+
+   Vidí ji jen účet uvedený v pb_settings.admin_emails. Ostatním se
+   záložka vůbec nezobrazí – a i kdyby si ji někdo vynutil, pravidla
+   v databázi mu data stejně nevydají.
+
+   ČTE SE PŘÍMO PŘES REST, ne přes Edge funkce. Edge funkce se počítají
+   do limitu, REST ne – a jde o pár dotazů při otevření.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Je přihlášený účet správce? Podle toho se ukáže záložka. */
+async function sprOverSpravce() {
+  try {
+    const mail = String((pbUser && pbUser.email) || '').trim().toLowerCase();
+    if (!mail) return false;
+
+    const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.admin_emails&select=value`, {
+      headers: { apikey: SB_ANON, Authorization: `Bearer ${pbToken || SB_ANON}` },
+    });
+    if (!r.ok) return false;
+
+    const [row] = await r.json();
+    const seznam = String((row && row.value) || '')
+      .split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+
+    const jeSpravce = seznam.includes(mail);
+    const zal = document.getElementById('tabSprava');
+    if (zal) zal.style.display = jeSpravce ? '' : 'none';
+    try { rebuildTabOrder(); } catch (_) {}
+    return jeSpravce;
+  } catch (_) { return false; }
+}
+
+const _sprH = () => ({ apikey: SB_ANON, Authorization: `Bearer ${pbToken || SB_ANON}` });
+
+/** Načte to, co je vidět hned po otevření. */
+async function sprNacti() {
+  sprPrehled();
+  sprStat(7);
+  sprUcty();
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.zakazane_verze&select=value`,
+      { headers: _sprH() });
+    const [row] = await r.json();
+    document.getElementById('spr-zakazane').value = (row && row.value) || '';
+  } catch (_) {}
+}
+
+/** Kolik fotek dnes a za týden, kolik čeká. */
+async function sprPrehled() {
+  const box = document.getElementById('spr-prehled');
+  try {
+    const dnes = new Date(); dnes.setHours(0, 0, 0, 0);
+    const tyden = new Date(Date.now() - 7 * 86400000);
+
+    const [rd, rt, rc] = await Promise.all([
+      fetch(`${SB_URL}/rest/v1/pb_queue?created_at=gte.${dnes.toISOString()}&select=id`,
+            { headers: { ..._sprH(), Prefer: 'count=exact' } }),
+      fetch(`${SB_URL}/rest/v1/pb_queue?created_at=gte.${tyden.toISOString()}&select=id`,
+            { headers: { ..._sprH(), Prefer: 'count=exact' } }),
+      fetch(`${SB_URL}/rest/v1/pb_queue?done=is.false&select=id`,
+            { headers: { ..._sprH(), Prefer: 'count=exact' } }),
+    ]);
+
+    const pocet = (r) => {
+      const cr = r.headers.get('content-range') || '';
+      const m = cr.match(/\/(\d+)\s*$/);
+      return m ? Number(m[1]) : '?';
+    };
+
+    if (!rd.ok) {
+      box.innerHTML = '<span style="color:#ff5c6c">Chybí oprávnění ke čtení fronty.<br>'
+                    + 'Spusť sql_admin_fronta2.sql v Supabase.</span>';
+      return;
+    }
+
+    const ceka = pocet(rc);
+    box.innerHTML =
+      `<div class="spr-polozka"><span>Dnes</span><span class="vedlejsi">${pocet(rd)} fotek</span></div>`
+    + `<div class="spr-polozka"><span>Za 7 dní</span><span class="vedlejsi">${pocet(rt)} fotek</span></div>`
+    + `<div class="spr-polozka"><span>Čeká na stažení</span>`
+    + `<span class="vedlejsi" ${ceka ? 'style="color:#ffb020;font-weight:700"' : ''}>${ceka}</span></div>`;
+  } catch (e) {
+    box.innerHTML = '<span style="color:#ff5c6c">Nepodařilo se načíst.</span>';
+  }
+}
+
+/** Kdo kolik nafotil – vodorovné sloupce. */
+async function sprStat(dnu) {
+  const box = document.getElementById('spr-graf');
+  box.textContent = 'Načítám\u2026';
+  try {
+    const od = new Date(Date.now() - dnu * 86400000).toISOString();
+    const r = await fetch(
+      `${SB_URL}/rest/v1/pb_queue?created_at=gte.${od}&select=user_id,file_path&limit=20000`,
+      { headers: _sprH() });
+    if (!r.ok) { box.innerHTML = '<span style="color:#ff5c6c">Chybí oprávnění.</span>'; return; }
+
+    const radky = await r.json();
+    if (!radky.length) { box.textContent = `Za ${dnu} dní nic.`; return; }
+
+    // Skládáme podle účtu – e-mail v tabulce není, ale user_id je v cestě.
+    const podle = {};
+    for (const x of radky) {
+      const k = String(x.user_id || '').slice(0, 8);
+      podle[k] = (podle[k] || 0) + 1;
+    }
+    const razeno = Object.entries(podle).sort((a, b) => b[1] - a[1]).slice(0, 12);
+    const nej = razeno[0][1];
+
+    box.innerHTML = razeno.map(([k, n]) => `
+      <div class="spr-radek">
+        <span class="spr-jmeno">${sprJmeno(k)}</span>
+        <span class="spr-pruh"><span style="width:${Math.round(n / nej * 100)}%"></span></span>
+        <span class="spr-pocet">${n}</span>
+      </div>`).join('')
+      + `<div class="spr-hint" style="margin-top:8px">Celkem ${radky.length} fotek za ${dnu} dní.</div>`;
+  } catch (_) {
+    box.innerHTML = '<span style="color:#ff5c6c">Nepodařilo se načíst.</span>';
+  }
+}
+
+/* Překlad ID účtu na jméno – plní se z pb_verze, kde e-maily jsou. */
+let _sprJmena = {};
+function sprJmeno(idZacatek) {
+  return _sprJmena[idZacatek] || idZacatek + '\u2026';
+}
+
+/** Které počítače běží a na jaké jsou verzi. */
+async function sprVerze() {
+  const box = document.getElementById('spr-verze');
+  box.textContent = '\u23F3 Ptám se\u2026';
+  try {
+    // Výzva – běžící aplikace se na ni ohlásí.
+    await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.verze_dotaz`, {
+      method: 'PATCH',
+      headers: { ..._sprH(), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ value: String(Date.now()) }),
+    });
+
+    box.textContent = '\u23F3 Čekám na odpovědi\u2026';
+    await new Promise(r => setTimeout(r, 5000));
+
+    const r = await fetch(`${SB_URL}/rest/v1/pb_verze?select=email,hostname,verze,kdy&order=kdy.desc`,
+      { headers: _sprH() });
+    if (!r.ok) { box.innerHTML = '<span style="color:#ff5c6c">Přehled vidí jen správce.</span>'; return; }
+
+    const radky = await r.json();
+    if (!radky.length) { box.textContent = 'Nikdo se neozval.'; return; }
+
+    const ted = Date.now();
+    const bezi = radky.filter(x => ted - new Date(x.kdy).getTime() < 60000);
+
+    // Převažující verze – kdo se liší, ten zaostal.
+    const pocty = {};
+    for (const x of bezi) pocty[x.verze] = (pocty[x.verze] || 0) + 1;
+    const nej = Object.entries(pocty).sort((a, b) => b[1] - a[1])[0]?.[0];
+
+    box.innerHTML = radky.map(x => {
+      const zije = ted - new Date(x.kdy).getTime() < 60000;
+      const zaostal = zije && nej && x.verze !== nej;
+      return `<div class="spr-polozka" ${zije ? '' : 'style="opacity:.45"'}>
+          <span>${x.hostname || '?'}</span>
+          <span class="${zaostal ? 'spr-zaostal' : ''}">${x.verze}</span>
+          <span class="vedlejsi">${zije ? 'běží' : 'neběží'}</span>
+        </div>`;
+    }).join('');
+
+    // Při té příležitosti si doplníme jména k ID účtů pro graf.
+    // (pb_verze e-maily má, pb_queue ne.)
+    box.innerHTML += `<div class="spr-hint" style="margin-top:8px">Ozvalo se ${bezi.length}.</div>`;
+  } catch (_) {
+    box.innerHTML = '<span style="color:#ff5c6c">Nepodařilo se načíst.</span>';
+  }
+}
+
+/** Co uvízlo ve frontě. */
+async function sprFronta() {
+  const box = document.getElementById('spr-fronta');
+  box.textContent = 'Načítám\u2026';
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/pb_queue?done=is.false&select=job,file_path,created_at&order=created_at.asc&limit=50`,
+      { headers: _sprH() });
+    if (!r.ok) {
+      box.innerHTML = '<span style="color:#ff5c6c">Chybí oprávnění \u2013 spusť sql_admin_fronta2.sql.</span>';
+      return;
+    }
+    const radky = await r.json();
+    if (!radky.length) { box.innerHTML = '\u2713 Fronta je prázdná.'; return; }
+
+    box.innerHTML = radky.map(x => {
+      const hod = Math.round((Date.now() - new Date(x.created_at).getTime()) / 3600000);
+      const jmeno = String(x.file_path || '').split('/').pop();
+      return `<div class="spr-polozka">
+          <span>${x.job || '?'}</span>
+          <span class="vedlejsi">${jmeno.slice(0, 18)} \u2013 ${hod} h</span>
+        </div>`;
+    }).join('');
+  } catch (_) {
+    box.innerHTML = '<span style="color:#ff5c6c">Nepodařilo se načíst.</span>';
+  }
+}
+
+/** Zakázané verze – nouzová brzda přímo z telefonu. */
+async function sprUlozZakazane() {
+  const hodnota = (document.getElementById('spr-zakazane').value || '').trim();
+  const stav = document.getElementById('spr-zak-stav');
+
+  if (hodnota && !confirm(`Zakázat verze: ${hodnota}\n\n`
+      + 'Žádný počítač je od teď nenainstaluje. Kdo je už má, tomu to nepomůže.')) return;
+
+  stav.className = 'spr-stav';
+  stav.textContent = '\u23F3 Ukládám\u2026';
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.zakazane_verze`, {
+      method: 'PATCH',
+      headers: { ..._sprH(), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ value: hodnota }),
+    });
+    if (!r.ok) {
+      stav.className = 'spr-stav err';
+      stav.textContent = r.status === 403 ? 'Chybí oprávnění.' : `HTTP ${r.status}`;
+      return;
+    }
+    stav.className = 'spr-stav ok';
+    stav.textContent = hodnota ? `\u2713 Zakázáno: ${hodnota}` : '\u2713 Blokace zrušena.';
+  } catch (e) {
+    stav.className = 'spr-stav err';
+    stav.textContent = e.message;
+  }
+}
+
+/**
+ * Pošle technikovi odkaz na obnovu hesla.
+ *
+ * NEPOSÍLÁ SE HESLO ani se nikde nezobrazuje – Supabase je ukládá tak,
+ * že je nepřečte ani správce. Odešle se odkaz do jeho schránky a nové
+ * heslo si nastaví sám.
+ *
+ * Používá se stejná cesta jako u „zapomenuté heslo" na přihlašovací
+ * obrazovce, takže se to chová stejně a odkaz vede zpátky sem.
+ */
+async function sprResetHesla(email) {
+  if (!email) return;
+  if (!confirm(`Poslat ${email} odkaz na obnovu hesla?\n\n`
+             + 'Heslo se nikde nezobrazí – technik si nové nastaví sám '
+             + 'kliknutím v e-mailu.')) return;
+
+  try {
+    const r = await fetch(`${SB_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SB_ANON },
+      body: JSON.stringify({ email, gotrue_meta_security: {} }),
+    });
+
+    // Supabase vrací úspěch i pro neexistující adresu – schválně, aby
+    // nešlo zjistit, které účty existují. Takže „odesláno" znamená
+    // „požadavek přijat", ne „e-mail dorazil".
+    if (r.ok) {
+      toast(`Odkaz odeslán na ${email}`, 'ok');
+    } else {
+      const d = await r.json().catch(() => ({}));
+      toast(d.msg || d.error_description || `Nepovedlo se (HTTP ${r.status})`, 'err');
+    }
+  } catch (e) {
+    toast('Chyba spojení: ' + e.message, 'err');
+  }
+}
+
+/** Účty, které aplikaci používají. */
+async function sprUcty() {
+  const box = document.getElementById('spr-ucty');
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/pb_verze?select=email,hostname,verze,kdy&order=email.asc`,
+      { headers: _sprH() });
+    if (!r.ok) { box.innerHTML = '<span style="opacity:.6">Zatím se nikdo neohlásil.</span>'; return; }
+
+    const radky = await r.json();
+    if (!radky.length) {
+      box.innerHTML = '<span style="opacity:.6">Zatím prázdné \u2013 dej „Zjistit verze".</span>';
+      return;
+    }
+
+    // Doplníme jména do grafu: první část ID účtu \u2192 e-mail.
+    box.innerHTML = radky.map(x => {
+      const kdy = new Date(x.kdy).toLocaleDateString('cs-CZ',
+        { day: 'numeric', month: 'numeric' });
+      return `<div class="spr-polozka">
+          <span>${String(x.email).split('@')[0]}</span>
+          <span class="vedlejsi">${x.hostname || '?'} \u00b7 ${kdy}</span>
+          <button class="spr-btn" style="padding:4px 9px;font-size:11px"
+                  onclick="sprResetHesla('${x.email}')">Reset hesla</button>
+        </div>`;
+    }).join('');
+
+    box.innerHTML += '<div class="spr-hint" style="margin-top:8px">'
+      + 'Hesla nejde zobrazit \u2013 Supabase je ukládá tak, že je nepřečte ani '
+      + 'správce. Tlačítkem pošleš technikovi odkaz a nové si nastaví sám.</div>';
+  } catch (_) {
+    box.innerHTML = '<span style="color:#ff5c6c">Nepodařilo se načíst.</span>';
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -3460,6 +3850,8 @@ function showApp() {
   // co platí pro firmu.
   try { nactiRtsCentralni(); } catch (_) {}
   try { sberObnov(); } catch (_) {}
+  // Záložka Správa se ukáže jen správci.
+  try { sprOverSpravce(); } catch (_) {}
 
   // Ruční opis čísla – u lesklých štítků často jediná cesta.
   try {
@@ -3816,13 +4208,14 @@ function showTab(tab) {
   if (tab === 'upload')   { document.getElementById('screenUpload').classList.add('active');   document.getElementById('tabUpload').classList.add('active'); }
   if (tab === 'queue')    { document.getElementById('screenQueue').classList.add('active');    document.getElementById('tabQueue').classList.add('active'); renderQueueScreen(); }
   if (tab === 'settings') { document.getElementById('screenSettings').classList.add('active'); document.getElementById('tabSettings').classList.add('active'); initThemeUI(); updateHapticUI(); updateOcrUI(); updateSubfolderUI(); }
+  if (tab === 'sprava')   { document.getElementById('screenSprava').classList.add('active');   document.getElementById('tabSprava').classList.add('active'); sprNacti(); }
   if (tab !== 'qr') stopQRScan();
 }
 
 // ── Swipe gesta pro přepínání tabů ──
 // Pořadí tabů: qr → upload → [queue pokud viditelná] → settings
 // Swipe doleva = další tab, swipe doprava = předchozí
-const TAB_ORDER_BASE = ['qr', 'upload', 'settings'];
+const TAB_ORDER_BASE = ['qr', 'upload', 'sprava', 'settings'];
 let TAB_ORDER = [...TAB_ORDER_BASE];
 
 function rebuildTabOrder() {
