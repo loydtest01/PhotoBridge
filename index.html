@@ -1541,9 +1541,55 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.6.1
+        PhotoBridge&nbsp;&nbsp;v1.6.2
       </div>
 
+    </div>
+
+    <!-- ════════ SPRÁVA (jen pro správce) ════════ -->
+    <div class="screen" id="screenSprava">
+      <div class="upload-panel">
+        <div class="section-label">Provoz</div>
+        <div id="spr-prehled" class="spr-box">Načítám…</div>
+      </div>
+
+      <div class="upload-panel">
+        <div class="section-label">Kdo kolik nafotil</div>
+        <div style="display:flex;gap:7px;margin-bottom:10px">
+          <button class="spr-btn" onclick="sprStat(7)">7 dní</button>
+          <button class="spr-btn" onclick="sprStat(30)">30 dní</button>
+          <button class="spr-btn" onclick="sprStat(90)">90 dní</button>
+        </div>
+        <div id="spr-graf"></div>
+      </div>
+
+      <div class="upload-panel">
+        <div class="section-label">Počítače a verze</div>
+        <button class="spr-btn spr-hlavni" onclick="sprVerze()">Zjistit verze</button>
+        <div id="spr-verze" class="spr-box" style="margin-top:9px"></div>
+      </div>
+
+      <div class="upload-panel">
+        <div class="section-label">Nestažené fotky</div>
+        <button class="spr-btn spr-hlavni" onclick="sprFronta()">Načíst frontu</button>
+        <div id="spr-fronta" class="spr-box" style="margin-top:9px"></div>
+      </div>
+
+      <div class="upload-panel">
+        <div class="section-label">Nouzová brzda</div>
+        <div class="spr-hint">
+          Zakázané verze se na žádný počítač nenainstalují. Prázdné pole = nic
+          není zakázané.
+        </div>
+        <input class="spr-vstup" id="spr-zakazane" placeholder="např. 3.3.21, 3.3.22">
+        <button class="spr-btn spr-hlavni" onclick="sprUlozZakazane()">Uložit</button>
+        <div id="spr-zak-stav" class="spr-stav"></div>
+      </div>
+
+      <div class="upload-panel">
+        <div class="section-label">Účty</div>
+        <div id="spr-ucty" class="spr-box">Načítám…</div>
+      </div>
     </div>
   </div>
 
@@ -1555,52 +1601,6 @@
   </div>
 
   <!-- Tab bar -->
-  <!-- ════════ SPRÁVA (jen pro správce) ════════ -->
-  <div class="screen" id="screenSprava" style="display:none">
-    <div class="upload-panel">
-      <div class="section-label">Provoz</div>
-      <div id="spr-prehled" class="spr-box">Načítám…</div>
-    </div>
-
-    <div class="upload-panel">
-      <div class="section-label">Kdo kolik nafotil</div>
-      <div style="display:flex;gap:7px;margin-bottom:10px">
-        <button class="spr-btn" onclick="sprStat(7)">7 dní</button>
-        <button class="spr-btn" onclick="sprStat(30)">30 dní</button>
-        <button class="spr-btn" onclick="sprStat(90)">90 dní</button>
-      </div>
-      <div id="spr-graf"></div>
-    </div>
-
-    <div class="upload-panel">
-      <div class="section-label">Počítače a verze</div>
-      <button class="spr-btn spr-hlavni" onclick="sprVerze()">Zjistit verze</button>
-      <div id="spr-verze" class="spr-box" style="margin-top:9px"></div>
-    </div>
-
-    <div class="upload-panel">
-      <div class="section-label">Nestažené fotky</div>
-      <button class="spr-btn spr-hlavni" onclick="sprFronta()">Načíst frontu</button>
-      <div id="spr-fronta" class="spr-box" style="margin-top:9px"></div>
-    </div>
-
-    <div class="upload-panel">
-      <div class="section-label">Nouzová brzda</div>
-      <div class="spr-hint">
-        Zakázané verze se na žádný počítač nenainstalují. Prázdné pole = nic
-        není zakázané.
-      </div>
-      <input class="spr-vstup" id="spr-zakazane" placeholder="např. 3.3.21, 3.3.22">
-      <button class="spr-btn spr-hlavni" onclick="sprUlozZakazane()">Uložit</button>
-      <div id="spr-zak-stav" class="spr-stav"></div>
-    </div>
-
-    <div class="upload-panel">
-      <div class="section-label">Účty</div>
-      <div id="spr-ucty" class="spr-box">Načítám…</div>
-    </div>
-  </div>
-
   <div class="tabbar">
     <button class="tab-btn active" id="tabQR"     onclick="showTab('qr')">
       <span class="tab-icon">🔲</span><span>QR</span>
