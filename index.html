@@ -1541,7 +1541,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.6.3
+        PhotoBridge&nbsp;&nbsp;v1.6.4
       </div>
 
     </div>
@@ -2333,6 +2333,31 @@ async function sprOverSpravce() {
 
 const _sprH = () => ({ apikey: SB_ANON, Authorization: `Bearer ${pbToken || SB_ANON}` });
 
+/* Volání Edge funkce admin-queue. Fronta se od 16. 9. 2026 NEČTE přímo
+   přes REST: pravidla pb_queue_admin_select/_update jsou zahozená a
+   nevracejí se. Bez nich by REST vrátil HTTP 200 a jen vlastní řádky –
+   čísla by vypadala správně a počítala by jen jednoho člověka.
+   admin-queue má service_role a správce si ověřuje sama.
+
+   POZOR: neznámá akce se v admin-queue NEODMÍTÁ, propadne na výpis fronty
+   a vrátí ok:true. Proto se kontroluje, že se vrátila TÁŽ akce. */
+async function _sprAdmin(telo) {
+  const r = await fetch(`${SB_URL}/functions/v1/admin-queue`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SB_ANON,
+               Authorization: `Bearer ${pbToken || SB_ANON}` },
+    body:    JSON.stringify(telo),
+  });
+  const out = await r.json().catch(() => null);
+  if (!r.ok || !out || !out.ok) {
+    throw new Error((out && out.error) || `Funkce vrátila HTTP ${r.status}`);
+  }
+  if (telo.action && out.action !== telo.action) {
+    throw new Error('Funkce odpověděla na jinou akci – je nasazená starší verze?');
+  }
+  return out;
+}
+
 /** Načte to, co je vidět hned po otevření. */
 async function sprNacti() {
   sprPrehled();
@@ -2352,38 +2377,24 @@ async function sprNacti() {
 async function sprPrehled() {
   const box = document.getElementById('spr-prehled');
   try {
-    const dnes = new Date(); dnes.setHours(0, 0, 0, 0);
-    const tyden = new Date(Date.now() - 7 * 86400000);
-
-    const [rd, rt, rc] = await Promise.all([
-      fetch(`${SB_URL}/rest/v1/pb_queue?created_at=gte.${dnes.toISOString()}&select=id`,
-            { headers: { ..._sprH(), Prefer: 'count=exact' } }),
-      fetch(`${SB_URL}/rest/v1/pb_queue?created_at=gte.${tyden.toISOString()}&select=id`,
-            { headers: { ..._sprH(), Prefer: 'count=exact' } }),
-      fetch(`${SB_URL}/rest/v1/pb_queue?done=is.false&select=id`,
-            { headers: { ..._sprH(), Prefer: 'count=exact' } }),
+    // Dvě volání naráz – summary umí jen jedno období na dotaz.
+    const [dnes, tyden] = await Promise.all([
+      _sprAdmin({ action: 'summary', days: 1 }),
+      _sprAdmin({ action: 'summary', days: 7 }),
     ]);
 
-    const pocet = (r) => {
-      const cr = r.headers.get('content-range') || '';
-      const m = cr.match(/\/(\d+)\s*$/);
-      return m ? Number(m[1]) : '?';
-    };
-
-    if (!rd.ok) {
-      box.innerHTML = '<span style="color:#ff5c6c">Chybí oprávnění ke čtení fronty.<br>'
-                    + 'Spusť sql_admin_fronta2.sql v Supabase.</span>';
-      return;
-    }
-
-    const ceka = pocet(rc);
+    const ceka = Number(tyden.ceka || 0);
     box.innerHTML =
-      `<div class="spr-polozka"><span>Dnes</span><span class="vedlejsi">${pocet(rd)} fotek</span></div>`
-    + `<div class="spr-polozka"><span>Za 7 dní</span><span class="vedlejsi">${pocet(rt)} fotek</span></div>`
+      `<div class="spr-polozka"><span>Dnes</span><span class="vedlejsi">${dnes.fotek} fotek</span></div>`
+    + `<div class="spr-polozka"><span>Za 7 dní</span><span class="vedlejsi">${tyden.fotek} fotek</span></div>`
     + `<div class="spr-polozka"><span>Čeká na stažení</span>`
-    + `<span class="vedlejsi" ${ceka ? 'style="color:#ffb020;font-weight:700"' : ''}>${ceka}</span></div>`;
+    + `<span class="vedlejsi" ${ceka ? 'style="color:#ffb020;font-weight:700"' : ''}>${ceka}</span></div>`
+    + (tyden.useknuto
+        ? '<div class="spr-hint" style="margin-top:6px;color:#ffb020">Čísla jsou useknutá '
+          + '(narazil limit dotazu) – skutečnost je vyšší.</div>'
+        : '');
   } catch (e) {
-    box.innerHTML = '<span style="color:#ff5c6c">Nepodařilo se načíst.</span>';
+    box.innerHTML = `<span style="color:#ff5c6c">${e.message}</span>`;
   }
 }
 
@@ -2392,43 +2403,34 @@ async function sprStat(dnu) {
   const box = document.getElementById('spr-graf');
   box.textContent = 'Načítám\u2026';
   try {
-    const od = new Date(Date.now() - dnu * 86400000).toISOString();
-    const r = await fetch(
-      `${SB_URL}/rest/v1/pb_queue?created_at=gte.${od}&select=user_id,file_path&limit=20000`,
-      { headers: _sprH() });
-    if (!r.ok) { box.innerHTML = '<span style="color:#ff5c6c">Chybí oprávnění.</span>'; return; }
-
-    const radky = await r.json();
+    // summary vrací rovnou e-maily, takže se ID účtů nemusí na jména
+    // překládat oklikou. Dřív se skládalo podle prvních 8 znaků user_id
+    // a mapa jmen se nikdy nenaplnila – v grafu byly vidět kusy ID.
+    const out = await _sprAdmin({ action: 'summary', days: Number(dnu) || 7 });
+    const radky = Array.isArray(out.radky) ? out.radky : [];
     if (!radky.length) { box.textContent = `Za ${dnu} dní nic.`; return; }
 
-    // Skládáme podle účtu – e-mail v tabulce není, ale user_id je v cestě.
-    const podle = {};
-    for (const x of radky) {
-      const k = String(x.user_id || '').slice(0, 8);
-      podle[k] = (podle[k] || 0) + 1;
-    }
-    const razeno = Object.entries(podle).sort((a, b) => b[1] - a[1]).slice(0, 12);
-    const nej = razeno[0][1];
+    const razeno = radky.slice(0, 12);
+    const nej = razeno[0].celkem || 1;
 
-    box.innerHTML = razeno.map(([k, n]) => `
+    box.innerHTML = razeno.map(r => {
+      const jmeno = String(r.email || '?').split('@')[0];
+      return `
       <div class="spr-radek">
-        <span class="spr-jmeno">${sprJmeno(k)}</span>
-        <span class="spr-pruh"><span style="width:${Math.round(n / nej * 100)}%"></span></span>
-        <span class="spr-pocet">${n}</span>
-      </div>`).join('')
-      + `<div class="spr-hint" style="margin-top:8px">Celkem ${radky.length} fotek za ${dnu} dní.</div>`;
-  } catch (_) {
-    box.innerHTML = '<span style="color:#ff5c6c">Nepodařilo se načíst.</span>';
+        <span class="spr-jmeno">${jmeno}</span>
+        <span class="spr-pruh"><span style="width:${Math.round(r.celkem / nej * 100)}%"></span></span>
+        <span class="spr-pocet">${r.celkem}</span>
+      </div>`;
+    }).join('')
+      + `<div class="spr-hint" style="margin-top:8px">Celkem ${out.fotek} fotek za ${dnu} dní`
+      + `, ${out.lidi} ${out.lidi === 1 ? 'člověk' : 'lidí'}.`
+      + (out.useknuto ? ' Čísla jsou useknutá – skutečnost je vyšší.' : '')
+      + `</div>`;
+  } catch (e) {
+    box.innerHTML = `<span style="color:#ff5c6c">${e.message}</span>`;
   }
 }
 
-/* Překlad ID účtu na jméno. Plní ho sprUcty() z Edge funkce admin-ucty.
-   Z pb_verze to nejde – ta má e-mail, ale ne user_id, takže se ta dvě
-   čísla nemají jak spárovat. */
-let _sprJmena = {};
-function sprJmeno(idZacatek) {
-  return _sprJmena[idZacatek] || idZacatek + '\u2026';
-}
 
 /** Které počítače běží a na jaké jsou verzi. */
 async function sprVerze() {
@@ -2483,26 +2485,29 @@ async function sprFronta() {
   const box = document.getElementById('spr-fronta');
   box.textContent = 'Načítám\u2026';
   try {
-    const r = await fetch(
-      `${SB_URL}/rest/v1/pb_queue?done=is.false&select=job,file_path,created_at&order=created_at.asc&limit=50`,
-      { headers: _sprH() });
-    if (!r.ok) {
-      box.innerHTML = '<span style="color:#ff5c6c">Chybí oprávnění \u2013 spusť sql_admin_fronta2.sql.</span>';
-      return;
-    }
-    const radky = await r.json();
-    if (!radky.length) { box.innerHTML = '\u2713 Fronta je prázdná.'; return; }
+    // scope:"all" → fronty všech techniků. Funkce si právo správce ověří
+    // sama přes service_role; přímý dotaz na pb_queue by od 16. 9. vrátil
+    // jen vlastní řádky, a to bez jediné chyby.
+    const out = await _sprAdmin({ scope: 'all' });
+    const polozky = Array.isArray(out.polozky) ? out.polozky : [];
+    if (!polozky.length) { box.innerHTML = '\u2713 Fronta je prázdná.'; return; }
 
-    box.innerHTML = radky.map(x => {
-      const hod = Math.round((Date.now() - new Date(x.created_at).getTime()) / 3600000);
+    box.innerHTML = polozky.slice(0, 50).map(x => {
+      const hod   = Number(x.stari_hodin || 0);
       const jmeno = String(x.file_path || '').split('/').pop();
+      const kdo   = String(x.email || '?').split('@')[0];
+      // Přes hodinu = počítač ji nestáhl. Přes den = potřeba zásah.
+      const barva = hod >= 24 ? '#ff5c6c' : hod >= 1 ? '#ffb020' : '';
       return `<div class="spr-polozka">
-          <span>${x.job || '?'}</span>
-          <span class="vedlejsi">${jmeno.slice(0, 18)} \u2013 ${hod} h</span>
+          <span>${x.job || '?'} \u00b7 ${kdo}</span>
+          <span class="vedlejsi" ${barva ? `style="color:${barva};font-weight:700"` : ''}>${jmeno.slice(0, 18)} \u2013 ${hod < 1 ? '<1' : Math.round(hod)} h</span>
         </div>`;
-    }).join('');
-  } catch (_) {
-    box.innerHTML = '<span style="color:#ff5c6c">Nepodařilo se načíst.</span>';
+    }).join('')
+      + (polozky.length > 50
+          ? `<div class="spr-hint" style="margin-top:8px">\u2026a dalších ${polozky.length - 50}.</div>`
+          : '');
+  } catch (e) {
+    box.innerHTML = `<span style="color:#ff5c6c">${e.message}</span>`;
   }
 }
 
@@ -2588,13 +2593,6 @@ async function sprUcty() {
     if (!r.ok || !out || !out.ok) {
       box.innerHTML = `<span style="color:#ff5c6c">${(out && out.error) || 'Nepodařilo se načíst.'}</span>`;
       return;
-    }
-
-    // Překlad pro graf. Klíč je prvních 8 znaků ID, protože tak se
-    // účty skládají v sprStat() – pb_queue e-mail neobsahuje.
-    _sprJmena = {};
-    for (const u of out.ucty) {
-      if (u.id && u.email) _sprJmena[String(u.id).slice(0, 8)] = String(u.email).split('@')[0];
     }
 
     box.innerHTML = out.ucty.map(u => {
