@@ -1541,7 +1541,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.6.2
+        PhotoBridge&nbsp;&nbsp;v1.6.3
       </div>
 
     </div>
@@ -2336,8 +2336,10 @@ const _sprH = () => ({ apikey: SB_ANON, Authorization: `Bearer ${pbToken || SB_A
 /** Načte to, co je vidět hned po otevření. */
 async function sprNacti() {
   sprPrehled();
+  // Účty se načítají PRVNÍ a čeká se na ně: plní překlad ID → jméno,
+  // bez kterého graf „Kdo kolik nafotil" ukazuje jen začátky ID účtů.
+  await sprUcty();
   sprStat(7);
-  sprUcty();
   try {
     const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.zakazane_verze&select=value`,
       { headers: _sprH() });
@@ -2420,7 +2422,9 @@ async function sprStat(dnu) {
   }
 }
 
-/* Překlad ID účtu na jméno – plní se z pb_verze, kde e-maily jsou. */
+/* Překlad ID účtu na jméno. Plní ho sprUcty() z Edge funkce admin-ucty.
+   Z pb_verze to nejde – ta má e-mail, ale ne user_id, takže se ta dvě
+   čísla nemají jak spárovat. */
 let _sprJmena = {};
 function sprJmeno(idZacatek) {
   return _sprJmena[idZacatek] || idZacatek + '\u2026';
@@ -2568,33 +2572,48 @@ async function sprResetHesla(email) {
   }
 }
 
-/** Účty, které aplikaci používají. */
+/** Účty, které aplikaci používají. Zdroj je Edge funkce admin-ucty –
+    auth.users se anonymním klíčem přečíst nedá a pb_verze má jen ty,
+    jejichž počítač se už někdy ohlásil. */
 async function sprUcty() {
   const box = document.getElementById('spr-ucty');
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/pb_verze?select=email,hostname,verze,kdy&order=email.asc`,
-      { headers: _sprH() });
-    if (!r.ok) { box.innerHTML = '<span style="opacity:.6">Zatím se nikdo neohlásil.</span>'; return; }
-
-    const radky = await r.json();
-    if (!radky.length) {
-      box.innerHTML = '<span style="opacity:.6">Zatím prázdné \u2013 dej „Zjistit verze".</span>';
+    const r = await fetch(`${SB_URL}/functions/v1/admin-ucty`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SB_ANON,
+                 Authorization: `Bearer ${pbToken || SB_ANON}` },
+      body:    JSON.stringify({ akce: 'seznam' }),
+    });
+    const out = await r.json().catch(() => null);
+    if (!r.ok || !out || !out.ok) {
+      box.innerHTML = `<span style="color:#ff5c6c">${(out && out.error) || 'Nepodařilo se načíst.'}</span>`;
       return;
     }
 
-    // Doplníme jména do grafu: první část ID účtu \u2192 e-mail.
-    box.innerHTML = radky.map(x => {
-      const kdy = new Date(x.kdy).toLocaleDateString('cs-CZ',
-        { day: 'numeric', month: 'numeric' });
+    // Překlad pro graf. Klíč je prvních 8 znaků ID, protože tak se
+    // účty skládají v sprStat() – pb_queue e-mail neobsahuje.
+    _sprJmena = {};
+    for (const u of out.ucty) {
+      if (u.id && u.email) _sprJmena[String(u.id).slice(0, 8)] = String(u.email).split('@')[0];
+    }
+
+    box.innerHTML = out.ucty.map(u => {
+      const kdy = u.naposledy
+        ? new Date(u.naposledy).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' })
+        : 'nikdy';
+      const stav = u.zablokovan     ? ' \u00b7 zablokován'
+                 : u.ceka_na_heslo  ? ' \u00b7 čeká na heslo'
+                 : '';
       return `<div class="spr-polozka">
-          <span>${String(x.email).split('@')[0]}</span>
-          <span class="vedlejsi">${x.hostname || '?'} \u00b7 ${kdy}</span>
+          <span>${String(u.email).split('@')[0]}</span>
+          <span class="vedlejsi">${kdy}${stav}</span>
           <button class="spr-btn" style="padding:4px 9px;font-size:11px"
-                  onclick="sprResetHesla('${x.email}')">Reset hesla</button>
+                  onclick="sprResetHesla('${u.email}')">Reset hesla</button>
         </div>`;
     }).join('');
 
     box.innerHTML += '<div class="spr-hint" style="margin-top:8px">'
+      + `Celkem ${out.celkem} účtů. Datum je poslední přihlášení. `
       + 'Hesla nejde zobrazit \u2013 Supabase je ukládá tak, že je nepřečte ani '
       + 'správce. Tlačítkem pošleš technikovi odkaz a nové si nastaví sám.</div>';
   } catch (_) {
