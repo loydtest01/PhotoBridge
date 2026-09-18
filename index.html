@@ -1541,7 +1541,7 @@
 
       <!-- Verze aplikace -->
       <div style="text-align:center;padding:18px 0 4px;font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:0.06em;">
-        PhotoBridge&nbsp;&nbsp;v1.6.4
+        PhotoBridge&nbsp;&nbsp;v1.6.5
       </div>
 
     </div>
@@ -2308,27 +2308,46 @@ function rtsPosilatPrimo() {
    do limitu, REST ne – a jde o pár dotazů při otevření.
    ══════════════════════════════════════════════════════════════════════ */
 
-/** Je přihlášený účet správce? Podle toho se ukáže záložka. */
-async function sprOverSpravce() {
+/** Je přihlášený účet správce? Podle toho se ukáže záložka.
+ *
+ *  ZKOUŠÍ TO VÍCKRÁT. Funkce běží v showApp(), tedy ve chvíli, kdy ještě
+ *  nemusí být hotové přihlášení – pbToken se doplňuje asynchronně. Do
+ *  v1.6.5 se v takovém případě vrátilo false a záložka zůstala schovaná
+ *  až do dalšího otevření aplikace.
+ *
+ *  PRÁZDNÝ VÝSLEDEK JE CHYBA, NE ODPOVĚĎ. Když pravidlo v databázi klíč
+ *  nepustí, vrátí se HTTP 200 a prázdné pole – a admin_emails prázdný být
+ *  nemůže, admin-queue to přímo zakazuje. Takže prázdno znamená „nešlo se
+ *  zeptat", ne „nejsi správce".
+ */
+async function sprOverSpravce(pokus = 0) {
+  const znovu = () => {
+    if (pokus >= 4) return false;          // ~6 s a dost, dál už to nemá smysl
+    setTimeout(() => sprOverSpravce(pokus + 1), 1500);
+    return false;
+  };
+
   try {
     const mail = String((pbUser && pbUser.email) || '').trim().toLowerCase();
-    if (!mail) return false;
+    if (!mail || !pbToken) return znovu();   // přihlášení ještě nedoběhlo
 
     const r = await fetch(`${SB_URL}/rest/v1/pb_settings?key=eq.admin_emails&select=value`, {
-      headers: { apikey: SB_ANON, Authorization: `Bearer ${pbToken || SB_ANON}` },
+      headers: { apikey: SB_ANON, Authorization: `Bearer ${pbToken}` },
     });
-    if (!r.ok) return false;
+    if (!r.ok) return znovu();
 
     const [row] = await r.json();
-    const seznam = String((row && row.value) || '')
-      .split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+    const hodnota = String((row && row.value) || '').trim();
+    if (!hodnota) return znovu();            // viz komentář výše
+
+    const seznam = hodnota.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
 
     const jeSpravce = seznam.includes(mail);
     const zal = document.getElementById('tabSprava');
     if (zal) zal.style.display = jeSpravce ? '' : 'none';
     try { rebuildTabOrder(); } catch (_) {}
     return jeSpravce;
-  } catch (_) { return false; }
+  } catch (_) { return znovu(); }
 }
 
 const _sprH = () => ({ apikey: SB_ANON, Authorization: `Bearer ${pbToken || SB_ANON}` });
