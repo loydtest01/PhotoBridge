@@ -533,6 +533,7 @@ button.btn-nav-outline { background: transparent !important; -webkit-appearance:
             <button class="btn btn-sm" onclick="pdbCreateJob()">➕ Nová úloha (obrázky)</button>
             <button class="btn btn-sm" onclick="pdbCreateJob('discover')">🔎 Hledat nové sady</button>
             <button class="btn btn-sm" onclick="pdbRunJob(this)">▶ Spustit dávku teď</button>
+          <button class="adm-btn" onclick="pdbRunMany(this, 30)" title="Zpracuje až 30 úloh za sebou (jde zastavit)" style="background:rgba(245,200,66,.15);border:1px solid rgba(245,200,66,.4);color:#f5c842;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px">⏩ 30 dávek</button>
           </div>
           <div id="pdb-jobs"><div class="loading">Klikni na „Načíst"…</div></div>
         </div>
@@ -2214,6 +2215,28 @@ async function pdbRunJob(btn) {
   if (d.ok)        { alert('Dávka doběhla:\n' + JSON.stringify(d.result, null, 2)); }
   else             { alert('Chyba: ' + (d.error || JSON.stringify(d))); }
   pdbLoadJobs();
+}
+
+// Víc dávek za sebou bez vyskakovacích oken (každá dávka = jedna úloha: jedna sada / jeden jazyk)
+let _pdbHromadneStop = false;
+async function pdbRunMany(btn, kolik) {
+  if (btn.dataset.bezi === '1') { _pdbHromadneStop = true; return; }
+  _pdbHromadneStop = false; btn.dataset.bezi = '1';
+  const orig = btn.textContent;
+  let hotovo = 0, chyb = 0, posledni = '';
+  for (let i = 0; i < kolik && !_pdbHromadneStop; i++) {
+    btn.textContent = `⏸ Zastavit (${i + 1}/${kolik})`;
+    const d = await pdbFetch('/v1/admin/jobs', 'POST', { action: 'run' });
+    if (!d || !d.ok) { chyb++; posledni = (d && d.error) || 'chyba'; if (chyb >= 3) break; continue; }
+    const r = d.result || {};
+    if (r.note && /žádná/.test(r.note)) { posledni = 'fronta je prázdná ✅'; break; }
+    hotovo++;
+    posledni = r.error ? '⚠️ ' + r.error : (r.set ? `${r.lang || ''} ${r.set}: ${r.vlozeno ?? r.ok ?? r.ceny ?? ''}` : r.lang ? `discover ${r.lang}: založeno ${r.zalozeno_uloh ?? 0}` : JSON.stringify(r).slice(0, 80));
+    if (i % 3 === 2) pdbLoadJobs();
+  }
+  btn.dataset.bezi = ''; btn.textContent = orig;
+  pdbLoadJobs();
+  alert(`Zpracováno dávek: ${hotovo}${chyb ? ', chyb: ' + chyb : ''}\nPoslední: ${posledni}`);
 }
 
 async function pdbLoadJobs() {
