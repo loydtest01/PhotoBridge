@@ -1,0 +1,4160 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <link rel="icon" type="image/png" href="favicon.ico">
+
+  <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+  <!-- ═══ PWA meta ═══ -->
+  <link rel="manifest" href="app-manifest.json">
+  <meta name="theme-color" content="#0a0608">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PokéTrade">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <!-- ═══ /PWA meta ═══ -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profil trenéra – PokéTrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+<style>
+:root {
+  --yellow: #f5c842; --yellow2: #ffd83a;
+  --text: #f0ece4; --text2: rgba(240,236,228,0.65); --text3: rgba(240,236,228,0.35);
+  --bg1: rgba(12,10,18,0.88); --bg2: rgba(18,14,26,0.92); --bg3: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.14);
+  --red: #f87171; --green: #4ade80; --blue: #74b4ff;
+  --orange: #fb923c;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #06040c;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url('wallpaper.png');
+  background-size: cover; background-position: center 30%;
+  filter: brightness(0.18) saturate(0.5);
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 70%, rgba(255,80,0,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 50% at 85% 70%, rgba(30,80,255,0.07) 0%, transparent 70%),
+    linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.65) 100%);
+}
+
+/* ═══ TOPBAR ═══ */
+.app-topbar {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(8,4,6,0.82);
+  border-bottom: 1px solid rgba(245,200,66,0.12);
+  backdrop-filter: blur(18px);
+  display: flex; align-items: center;
+  height: 56px; padding: 0 20px; gap: 0;
+}
+.app-logo {
+  font-family: 'Unbounded', sans-serif; font-size: 14px; font-weight: 800;
+  color: #fff; display: flex; align-items: center; gap: 6px;
+  text-decoration: none; margin-right: 28px; white-space: nowrap;
+}
+.app-logo strong { color: var(--yellow); }
+.nav-lnks { display: flex; gap: 2px; flex: 1; }
+.nav-lnks a {
+  padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  color: var(--text2); text-decoration: none; transition: all .15s;
+}
+.nav-lnks a:hover  { background: rgba(255,255,255,0.07); color: var(--text); }
+.nav-lnks a.active { background: rgba(245,200,66,0.12); color: var(--yellow); }
+.topbar-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.user-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px 4px 6px; font-size: 13px;
+  cursor: pointer; text-decoration: none; color: var(--text);
+}
+.user-avatar {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--yellow); color: #000;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+  background-size: cover; background-position: center; overflow: hidden; flex-shrink: 0;
+}
+
+/* ═══ LAYOUT ═══ */
+.page-wrap {
+  position: relative; z-index: 1;
+  max-width: 900px; margin: 0 auto;
+  padding: 32px 20px 80px;
+}
+
+/* ═══ HERO PROFIL ═══ */
+.profile-hero {
+  background: rgba(12,10,18,0.80);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 20px;
+  backdrop-filter: blur(22px);
+  padding: 32px;
+  margin-bottom: 24px;
+  display: flex; gap: 28px; align-items: flex-start;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.profile-avatar-wrap { position: relative; flex-shrink: 0; }
+.profile-avatar {
+  width: 88px; height: 88px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--yellow) 0%, #ff8c00 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Unbounded', sans-serif; font-size: 32px; font-weight: 800;
+  color: #000; letter-spacing: -1px;
+  box-shadow: 0 0 0 3px rgba(245,200,66,0.25), 0 0 24px rgba(245,200,66,0.15);
+  background-size: cover; background-position: center; overflow: hidden;
+}
+.avatar-edit-btn {
+  position: absolute; bottom: 0; right: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--yellow); border: 2px solid rgba(8,8,12,0.9);
+  color: #000; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: transform .15s, background .15s; z-index: 2;
+}
+.avatar-edit-btn:hover { transform: scale(1.15); background: #ffd700; }
+
+/* ═══ AVATAR MODAL ═══ */
+.av-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 20px; opacity: 0; transition: opacity .2s;
+  overflow-y: auto;
+}
+.av-overlay.show { opacity: 1; }
+.av-modal {
+  background: rgba(14,12,22,0.97); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; width: 100%; max-width: 480px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+  transform: translateY(16px); transition: transform .2s;
+  overflow: hidden; display: flex; flex-direction: column;
+  margin: auto;
+}
+.av-overlay.show .av-modal { transform: translateY(0); }
+.av-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.av-title { font-family: 'Unbounded',sans-serif; font-size: 13px; font-weight: 700; color: var(--text); }
+.av-close { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 20px; line-height: 1; padding: 0; }
+.av-close:hover { color: var(--text); }
+.av-tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.av-tab {
+  flex: 1; padding: 11px; font-size: 12px; font-weight: 600; text-align: center;
+  cursor: pointer; color: var(--text3); background: none; border: none;
+  border-bottom: 2px solid transparent; transition: all .15s; font-family: inherit;
+}
+.av-tab.active { color: var(--yellow); border-bottom-color: var(--yellow); }
+.av-body {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(100svh - 140px);
+}
+.av-drop {
+  border: 2px dashed rgba(255,255,255,0.15); border-radius: 14px;
+  padding: 28px 20px; text-align: center; cursor: pointer;
+  transition: border-color .15s; color: var(--text3); font-size: 13px;
+  margin-bottom: 14px;
+}
+.av-drop:hover, .av-drop.drag { border-color: var(--yellow); color: var(--text); }
+.av-drop-icon { font-size: 32px; margin-bottom: 8px; }
+.av-drop small { display: block; font-size: 11px; margin-top: 4px; opacity: .6; }
+/* Canvas cropper */
+.av-cropper-wrap {
+  position: relative; border-radius: 14px; overflow: hidden;
+  background: #000; margin-bottom: 14px; display: none;
+  touch-action: none;
+}
+.av-cropper-wrap canvas { display: block; width: 100%; cursor: grab; }
+.av-cropper-wrap canvas:active { cursor: grabbing; }
+.av-crop-hint { font-size: 11px; color: var(--text3); text-align: center; margin-bottom: 14px; }
+.av-zoom-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.av-zoom-row input[type=range] { flex: 1; accent-color: var(--yellow); }
+.av-zoom-label { font-size: 11px; color: var(--text3); width: 32px; text-align: right; }
+.av-actions {
+  display: flex; gap: 10px;
+  position: sticky; bottom: 0;
+  background: rgba(14,12,22,0.97);
+  padding-top: 12px; margin-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.av-btn-save {
+  flex: 1; padding: 11px; border-radius: 10px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--yellow), #ff8c00);
+  color: #000; font-weight: 700; font-size: 13px; font-family: inherit;
+  transition: opacity .15s;
+}
+.av-btn-save:hover { opacity: .88; }
+.av-btn-save:disabled { opacity: .4; cursor: not-allowed; }
+.av-btn-cancel {
+  padding: 11px 18px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04); color: var(--text2); cursor: pointer;
+  font-size: 13px; font-family: inherit; transition: background .15s;
+}
+.av-btn-cancel:hover { background: rgba(255,255,255,0.09); }
+.av-card-hint {
+  font-size: 12px; color: var(--text3); line-height: 1.6;
+  background: rgba(245,200,66,0.06); border: 1px solid rgba(245,200,66,0.15);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 14px;
+}
+.profile-online-dot {
+  position: absolute; bottom: 4px; right: 4px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--green); border: 2px solid #06040c;
+}
+
+.profile-info { flex: 1; min-width: 0; }
+.profile-username {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 22px; font-weight: 700;
+  color: #fff; margin-bottom: 6px;
+}
+.profile-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.badge-verified { background: rgba(116,180,255,0.12); color: var(--blue); border: 1px solid rgba(116,180,255,0.2); }
+.badge-seller   { background: rgba(245,200,66,0.10);  color: var(--yellow); border: 1px solid rgba(245,200,66,0.2); }
+.badge-power    { background: rgba(251,146,60,0.12);  color: var(--orange); border: 1px solid rgba(251,146,60,0.2); }
+
+.profile-meta { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 12px; }
+.profile-meta-item { font-size: 12.5px; color: var(--text3); display: flex; align-items: center; gap: 5px; }
+.profile-meta-item span { color: var(--text2); }
+
+.profile-bio { font-size: 13.5px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; max-width: 520px; }
+
+.profile-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-msg {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: linear-gradient(135deg, var(--yellow) 0%, #ff8c00 100%);
+  color: #0a0608; font-weight: 700; font-size: 13px;
+  border: none; border-radius: 10px; padding: 9px 18px;
+  cursor: pointer; transition: all .2s; text-decoration: none;
+  box-shadow: 0 4px 16px rgba(255,140,0,0.3);
+}
+.btn-msg:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,140,0,0.45); }
+.btn-outline-sm {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: 1px solid var(--border2);
+  color: var(--text2); font-size: 13px; font-weight: 500;
+  border-radius: 10px; padding: 9px 16px;
+  cursor: pointer; transition: all .2s; text-decoration: none;
+}
+.btn-outline-sm:hover { background: var(--bg3); color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+/* ═══ STATS STRIP ═══ */
+.stats-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 24px;
+}
+.stat-card {
+  background: rgba(12,10,18,0.75);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 16px;
+  text-align: center;
+  backdrop-filter: blur(14px);
+  transition: border-color .2s;
+}
+.stat-card:hover { border-color: rgba(245,200,66,0.25); }
+.stat-num {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 22px; font-weight: 700;
+  color: var(--yellow); margin-bottom: 4px;
+}
+.stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ═══ RATINGS SECTION ═══ */
+.section-title {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 13px; font-weight: 700;
+  color: var(--text2); text-transform: uppercase;
+  letter-spacing: 0.08em; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border);
+}
+
+.ratings-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 16px; margin-bottom: 24px;
+}
+
+.rating-card {
+  background: rgba(12,10,18,0.80);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px 24px;
+  backdrop-filter: blur(18px);
+}
+
+.rating-card-title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--text3); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 6px;
+}
+.role-icon { font-size: 18px; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
+
+/* Velký score */
+.rating-score-row {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
+}
+.big-score {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 42px; font-weight: 800;
+  color: #fff; line-height: 1;
+}
+.big-score-meta { flex: 1; }
+.big-stars { display: flex; gap: 3px; margin-bottom: 4px; }
+.star { font-size: 18px; color: #2d2720; }
+.star.filled { color: var(--yellow); }
+.star.half { color: var(--yellow); opacity: 0.5; }
+.score-count { font-size: 12px; color: var(--text3); }
+
+/* Histogram */
+.histogram { margin-bottom: 18px; }
+.histo-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
+}
+.histo-label { font-size: 11px; color: var(--text3); width: 14px; text-align: right; flex-shrink: 0; }
+.histo-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+.histo-bar { height: 100%; border-radius: 3px; background: var(--yellow); transition: width 0.8s cubic-bezier(0.34,1.56,0.64,1); }
+.histo-count { font-size: 11px; color: var(--text3); width: 20px; text-align: right; flex-shrink: 0; }
+
+/* Kategoriální hodnocení */
+.cat-ratings { display: flex; flex-direction: column; gap: 12px; }
+.cat-row { display: flex; flex-direction: column; gap: 5px; }
+.cat-row-top { display: flex; justify-content: space-between; align-items: center; }
+.cat-name { font-size: 12px; color: var(--text2); }
+.cat-pct {
+  font-size: 12px; font-weight: 700;
+  color: var(--green);
+}
+.cat-pct.mid { color: var(--orange); }
+.cat-pct.low { color: var(--red); }
+.cat-bar-wrap { height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+.cat-bar {
+  height: 100%; border-radius: 3px;
+  transition: width 1s cubic-bezier(0.34,1.56,0.64,1) 0.3s;
+}
+.cat-bar.high { background: var(--green); }
+.cat-bar.mid  { background: var(--orange); }
+.cat-bar.low  { background: var(--red); }
+
+/* ═══ TABS ═══ */
+.tabs-wrap { display: flex; gap: 4px; margin-bottom: 20px; }
+.tab-btn {
+  padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  border: 1px solid transparent; cursor: pointer; transition: all .15s;
+  color: var(--text3); background: transparent;
+  display: flex; align-items: center; gap: 6px;
+}
+.tab-btn:hover { background: var(--bg3); color: var(--text2); }
+.tab-btn.active {
+  background: rgba(245,200,66,0.10);
+  border-color: rgba(245,200,66,0.25);
+  color: var(--yellow);
+}
+.tab-count {
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 1px 7px;
+  font-size: 11px; color: var(--text3);
+}
+.tab-btn.active .tab-count { background: rgba(245,200,66,0.15); color: var(--yellow); }
+
+/* ═══ REVIEW CARDS ═══ */
+.reviews-list { display: flex; flex-direction: column; gap: 12px; }
+
+.review-card {
+  background: rgba(12,10,18,0.75);
+  border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+  backdrop-filter: blur(14px);
+  transition: border-color .2s;
+  animation: fadeInUp 0.35s ease both;
+}
+.review-card:hover { border-color: var(--border2); }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.review-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.review-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: var(--text2);
+  border: 1px solid var(--border);
+}
+.review-meta { flex: 1; min-width: 0; }
+.review-username {
+  font-size: 13.5px; font-weight: 600; color: var(--text);
+  text-decoration: none;
+}
+.review-username:hover { color: var(--yellow); }
+.review-date { font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+
+.review-stars { display: flex; gap: 2px; margin-left: auto; flex-shrink: 0; }
+.review-star { font-size: 14px; color: #2d2720; }
+.review-star.filled { color: var(--yellow); }
+
+.review-body { font-size: 13.5px; color: var(--text2); line-height: 1.65; margin-bottom: 12px; }
+
+.review-cats {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.review-cat-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--text3);
+}
+.review-cat-chip .mini-stars { display: flex; gap: 1px; }
+.review-cat-chip .mini-star { font-size: 10px; color: #2d2720; }
+.review-cat-chip .mini-star.filled { color: var(--yellow); }
+
+.review-listing-ref {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px; color: var(--text3);
+  display: flex; align-items: center; gap: 6px;
+}
+.review-listing-ref a { color: var(--blue); text-decoration: none; }
+.review-listing-ref a:hover { text-decoration: underline; }
+
+/* Sentiment badge */
+.sentiment {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.04em; margin-left: 8px;
+}
+.sentiment.pos { background: rgba(74,222,128,0.10); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+.sentiment.neu { background: rgba(251,146,60,0.10); color: var(--orange); border: 1px solid rgba(251,146,60,0.2); }
+.sentiment.neg { background: rgba(248,113,113,0.10); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+
+/* Prázdný stav */
+.empty-state {
+  text-align: center; padding: 48px 24px;
+  background: rgba(12,10,18,0.6); border: 1px dashed var(--border);
+  border-radius: 14px;
+}
+.empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+.empty-state p { font-size: 14px; color: var(--text3); }
+
+/* Načítání */
+.skeleton-card {
+  background: rgba(12,10,18,0.75);
+  border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 0.6; } 50% { opacity: 0.3; }
+}
+.skel-line {
+  height: 12px; border-radius: 6px;
+  background: rgba(255,255,255,0.07); margin-bottom: 8px;
+}
+
+/* ═══ WRITE REVIEW MODAL ═══ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: rgba(14,10,20,0.97);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; padding: 32px;
+  width: 100%; max-width: 520px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.8);
+  transform: translateY(20px) scale(0.97); transition: transform 0.25s;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-overlay.open .modal-box { transform: translateY(0) scale(1); }
+.modal-title {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 16px; font-weight: 700; margin-bottom: 4px; color: #fff;
+}
+.modal-subtitle { font-size: 13px; color: var(--text3); margin-bottom: 24px; }
+
+.review-form { display: flex; flex-direction: column; gap: 20px; }
+
+.form-field { display: flex; flex-direction: column; gap: 8px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Hvězdičkový výběr */
+.star-picker { display: flex; gap: 6px; }
+.star-pick {
+  font-size: 28px; cursor: pointer; color: #2d2720;
+  transition: color .1s, transform .1s;
+  user-select: none;
+}
+.star-pick:hover, .star-pick.active { color: var(--yellow); transform: scale(1.2); }
+
+/* Kategoriální hvězdičky (menší) */
+.cat-star-group {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.cat-star-item { display: flex; flex-direction: column; gap: 6px; }
+.cat-star-label { font-size: 11.5px; color: var(--text2); }
+.mini-star-picker { display: flex; gap: 3px; }
+.mini-star-pick {
+  font-size: 18px; cursor: pointer; color: #2d2720;
+  transition: color .1s, transform .1s; user-select: none;
+}
+.mini-star-pick:hover, .mini-star-pick.active { color: var(--yellow); transform: scale(1.15); }
+
+textarea.form-textarea {
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 12px 14px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; line-height: 1.6;
+  resize: vertical; min-height: 100px; transition: border-color .2s;
+}
+textarea.form-textarea:focus {
+  outline: none;
+  border-color: rgba(245,200,66,0.45);
+  box-shadow: 0 0 0 3px rgba(245,200,66,0.08);
+}
+textarea.form-textarea::placeholder { color: rgba(255,255,255,0.2); }
+.char-counter { font-size: 11px; color: var(--text3); text-align: right; margin-top: 2px; }
+
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--yellow) 0%, #ff8c00 100%);
+  color: #0a0608; font-weight: 700; font-size: 13px;
+  border: none; border-radius: 10px; padding: 10px 22px;
+  cursor: pointer; transition: all .2s;
+  box-shadow: 0 4px 16px rgba(255,140,0,0.3);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,140,0,0.45); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-cancel {
+  background: transparent; border: 1px solid var(--border2);
+  color: var(--text2); font-size: 13px;
+  border-radius: 10px; padding: 10px 18px;
+  cursor: pointer; transition: all .2s;
+}
+.btn-cancel:hover { background: var(--bg3); }
+
+/* Notification toast */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 2000;
+  background: rgba(20,16,28,0.95); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 14px 18px;
+  font-size: 13.5px; color: var(--text);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  transform: translateY(80px); opacity: 0;
+  transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  display: flex; align-items: center; gap: 10px;
+  max-width: 320px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: rgba(74,222,128,0.3); }
+.toast.error   { border-color: rgba(248,113,113,0.3); }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .profile-hero { flex-direction: column; align-items: center; text-align: center; }
+  .profile-meta { justify-content: center; }
+  .profile-actions { justify-content: center; }
+  .ratings-grid { grid-template-columns: 1fr; }
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+  .cat-star-group { grid-template-columns: 1fr; }
+  .profile-badges { justify-content: center; }
+}
+@media (max-width: 420px) {
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+  .page-wrap { padding: 20px 14px 60px; }
+}
+
+/* ═══ GROQ AI SEKCE ═══ */
+.groq-section { margin-bottom: 24px; }
+.groq-card {
+  background: rgba(12,10,18,0.80);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 16px; padding: 22px 24px;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 6px 32px rgba(0,0,0,0.4);
+}
+.groq-status {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 13px; color: var(--text2);
+  margin-bottom: 18px; padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.groq-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--text3); flex-shrink: 0; transition: background .3s;
+}
+.groq-dot.active  { background: var(--green); box-shadow: 0 0 8px rgba(74,222,128,0.5); }
+.groq-dot.error   { background: var(--red); }
+.groq-dot.loading { background: var(--yellow); animation: groqPulse .8s infinite; }
+@keyframes groqPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.groq-info-box {
+  background: rgba(116,180,255,0.07);
+  border: 1px solid rgba(116,180,255,0.15);
+  border-radius: 10px; padding: 12px 14px;
+  font-size: 12.5px; color: var(--text2); line-height: 1.6; margin-bottom: 18px;
+}
+.groq-info-box a { color: var(--blue); text-decoration: none; }
+.groq-info-box a:hover { text-decoration: underline; }
+.groq-label {
+  display: block; font-size: 11.5px; font-weight: 600;
+  color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.06em; margin-bottom: 7px;
+}
+.groq-key-row { display: flex; gap: 8px; align-items: center; }
+.groq-input {
+  flex: 1; background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border2); border-radius: 10px;
+  padding: 10px 14px; font-size: 13px; font-family: monospace;
+  color: var(--text); outline: none; transition: border-color .2s;
+}
+.groq-input:focus { border-color: rgba(245,200,66,0.4); }
+.groq-input::placeholder { color: var(--text3); }
+.groq-eye-btn {
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 11px; cursor: pointer; font-size: 15px; transition: background .15s;
+}
+.groq-eye-btn:hover { background: rgba(255,255,255,0.12); }
+.groq-select {
+  width: 100%; background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border2); border-radius: 10px;
+  padding: 10px 14px; font-size: 13px; color: var(--text);
+  outline: none; cursor: pointer; appearance: none; color-scheme: dark;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+.groq-select option { background: #0e0c14; color: #f0ece4; }
+.groq-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.btn-groq-save {
+  background: linear-gradient(135deg, var(--yellow) 0%, #ff8c00 100%);
+  color: #0a0608; font-weight: 700; font-size: 13px;
+  border: none; border-radius: 10px; padding: 10px 20px;
+  cursor: pointer; transition: all .2s; box-shadow: 0 4px 14px rgba(255,140,0,0.3);
+}
+.btn-groq-save:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(255,140,0,0.45); }
+.btn-groq-save:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-groq-delete {
+  background: transparent; border: 1px solid rgba(248,113,113,0.3);
+  color: var(--red); font-size: 13px; border-radius: 10px; padding: 10px 16px;
+  cursor: pointer; transition: all .2s;
+}
+.btn-groq-delete:hover { background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.5); }
+.btn-groq-test {
+  background: rgba(116,180,255,0.1); border: 1px solid rgba(116,180,255,0.2);
+  color: var(--blue); font-size: 13px; border-radius: 10px; padding: 9px 18px;
+  cursor: pointer; transition: all .2s;
+}
+.btn-groq-test:hover { background: rgba(116,180,255,0.18); }
+.groq-feedback { margin-top: 12px; font-size: 13px; min-height: 20px; line-height: 1.5; }
+.groq-feedback.ok    { color: var(--green); }
+.groq-feedback.error { color: var(--red); }
+.groq-test-result {
+  margin-top: 10px; font-size: 13px; line-height: 1.6; color: var(--text2);
+  background: rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 12px;
+  display: none; white-space: pre-wrap; font-family: 'DM Sans', sans-serif;
+}
+
+
+/* ═══ ZABEZPEČENÍ ÚČTU ═══ */
+.security-section { margin-top: 32px; }
+
+/* ═══ RODINA ═══ */
+.family-section { margin-top: 32px; }
+.family-tabs { display: flex; gap: 4px; margin-bottom: 18px; flex-wrap: wrap; }
+.family-tab-btn {
+  padding: 7px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.08);
+  background: transparent; color: rgba(240,236,228,0.65); font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.family-tab-btn.active { background: rgba(245,200,66,0.12); border-color: rgba(245,200,66,0.3); color: #f5c842; }
+.family-tab-btn:hover:not(.active) { background: rgba(255,255,255,0.05); }
+.family-member-card {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+  transition: border-color .15s, background .15s; cursor: pointer;
+}
+.family-member-card:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.14); }
+.family-member-avatar {
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #4ade80, #22d3ee);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Unbounded', sans-serif; font-size: 14px; font-weight: 800;
+  color: #000; background-size: cover; background-position: center;
+}
+.family-member-info { flex: 1; min-width: 0; }
+.family-member-name { font-weight: 600; font-size: 14px; color: #f0ece4; }
+.family-member-nick { font-size: 12px; color: rgba(240,236,228,0.65); margin-top: 2px; }
+.family-member-albums { font-size: 11px; color: rgba(240,236,228,0.35); margin-top: 3px; }
+.family-member-actions { display: flex; gap: 8px; align-items: center; }
+.family-btn-remove {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(248,113,113,0.2);
+  background: rgba(248,113,113,0.06); color: #f87171; font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.family-btn-remove:hover { background: rgba(248,113,113,0.15); border-color: rgba(248,113,113,0.4); }
+.family-album-list { margin-left: 54px; margin-top: -4px; margin-bottom: 12px; display: none; }
+.family-album-list.open { display: block; }
+.family-album-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+  margin-bottom: 6px; font-size: 13px; color: rgba(240,236,228,0.65); transition: all .15s;
+}
+.family-album-item:hover { background: rgba(255,255,255,0.05); color: #f0ece4; }
+.family-album-item-name { flex: 1; }
+.family-album-btn {
+  padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: all .15s; text-decoration: none;
+  white-space: nowrap; border: 1px solid rgba(245,200,66,0.25);
+  background: rgba(245,200,66,0.08); color: #f5c842;
+}
+.family-album-btn:hover { background: rgba(245,200,66,0.16); }
+.family-album-btn.blue {
+  border-color: rgba(116,180,255,0.25); background: rgba(116,180,255,0.08); color: #74b4ff;
+}
+.family-album-btn.blue:hover { background: rgba(116,180,255,0.16); }
+.family-invite-box {
+  background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 14px; padding: 18px; margin-top: 16px;
+}
+.family-invite-title { font-size: 13px; font-weight: 600; color: rgba(240,236,228,0.65); margin-bottom: 6px; }
+.family-invite-hint { font-size: 12px; color: rgba(240,236,228,0.35); margin-bottom: 10px; }
+.family-invite-row { display: flex; gap: 8px; }
+.family-invite-input {
+  flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 10px 14px; color: #f0ece4; font-size: 13px;
+  font-family: inherit; outline: none; transition: border-color .15s;
+}
+.family-invite-input:focus { border-color: rgba(245,200,66,0.4); }
+.family-invite-btn {
+  padding: 10px 16px; border-radius: 10px; border: none;
+  background: linear-gradient(135deg, #f5c842, #ff8c00);
+  color: #000; font-weight: 700; font-size: 13px; font-family: inherit;
+  cursor: pointer; white-space: nowrap; transition: opacity .15s;
+}
+.family-invite-btn:hover { opacity: .88; }
+.family-invite-btn:disabled { opacity: .45; cursor: not-allowed; }
+.family-feedback { font-size: 12px; margin-top: 8px; min-height: 16px; }
+.family-feedback.ok { color: #4ade80; }
+.family-feedback.err { color: #f87171; }
+.family-pending-card {
+  background: rgba(245,200,66,0.04); border: 1px solid rgba(245,200,66,0.18);
+  border-radius: 14px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+}
+.family-pending-from { font-size: 13px; font-weight: 600; color: #f5c842; }
+.family-pending-sub { font-size: 12px; color: rgba(240,236,228,0.65); margin-top: 2px; }
+.family-pending-actions { display: flex; gap: 8px; }
+.family-btn-accept {
+  padding: 6px 14px; border-radius: 8px; border: none;
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  color: #000; font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: opacity .15s;
+}
+.family-btn-accept:hover { opacity: .85; }
+.family-btn-decline {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(248,113,113,0.3);
+  background: transparent; color: #f87171; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.family-btn-decline:hover { background: rgba(248,113,113,0.1); }
+.family-empty { color: rgba(240,236,228,0.35); font-size: 13px; text-align: center; padding: 20px 0; }
+.family-share-album-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08); margin-bottom: 8px;
+}
+.family-share-album-name { font-size: 13px; color: #f0ece4; }
+.family-toggle {
+  position: relative; width: 38px; height: 20px; cursor: pointer;
+  background: rgba(255,255,255,0.1); border-radius: 10px; transition: background .2s;
+  border: none; flex-shrink: 0;
+}
+.family-toggle.on { background: #4ade80; }
+.family-toggle::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .2s;
+}
+.family-toggle.on::after { transform: translateX(18px); }
+.family-share-hint { font-size: 12px; color: rgba(240,236,228,0.35); margin-bottom: 12px; }
+.security-card {
+  background: rgba(12,10,18,0.80);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-bottom: 12px;
+  transition: border-color .15s;
+}
+.security-card:hover { border-color: rgba(255,255,255,0.14); }
+.security-card-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.security-card-left { display: flex; align-items: center; gap: 12px; }
+.security-card-icon { font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 10px; flex-shrink: 0; }
+.security-card-title { font-size: 14px; font-weight: 700; color: var(--text, #f0ece4); }
+.security-card-sub { font-size: 12px; color: var(--text3, rgba(240,236,228,0.35)); margin-top: 2px; }
+.security-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+}
+.security-badge.active { background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+.security-badge.inactive { background: rgba(255,255,255,0.05); color: rgba(240,236,228,0.4); border: 1px solid rgba(255,255,255,0.1); }
+.security-card-body { margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.07); }
+.security-card-body.hidden { display: none; }
+.sec-input-row { display: flex; gap: 8px; align-items: stretch; margin-bottom: 10px; }
+.sec-input {
+  flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; padding: 10px 14px; font-size: 13px;
+  color: var(--text, #f0ece4); outline: none; transition: border-color .2s; font-family: inherit;
+}
+.sec-input:focus { border-color: rgba(245,200,66,0.4); }
+.sec-input::placeholder { color: rgba(240,236,228,0.3); }
+.sec-btn {
+  background: linear-gradient(135deg, var(--yellow, #f5c842) 0%, #ff8c00 100%);
+  color: #0a0608; font-weight: 700; font-size: 13px;
+  border: none; border-radius: 10px; padding: 10px 18px;
+  cursor: pointer; transition: all .2s; font-family: inherit; white-space: nowrap;
+}
+.sec-btn:hover { transform: translateY(-1px); }
+.sec-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.sec-btn-outline {
+  background: transparent; color: var(--text2, rgba(240,236,228,0.65));
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 9px 16px;
+  font-size: 13px; cursor: pointer; transition: all .15s; font-family: inherit;
+}
+.sec-btn-outline:hover { background: rgba(255,255,255,0.07); color: var(--text, #f0ece4); }
+.sec-btn-danger {
+  background: transparent; color: #f87171;
+  border: 1px solid rgba(248,113,113,0.3); border-radius: 10px; padding: 9px 16px;
+  font-size: 13px; cursor: pointer; transition: all .15s; font-family: inherit;
+}
+.sec-btn-danger:hover { background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.5); }
+.sec-feedback { font-size: 12px; min-height: 18px; margin-top: 8px; line-height: 1.5; }
+.sec-feedback.ok    { color: #4ade80; }
+.sec-feedback.error { color: #f87171; }
+.sec-feedback.info  { color: rgba(116,180,255,0.9); }
+.totp-qr-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 20px; margin-bottom: 14px; text-align: center;
+}
+.totp-qr-wrap img { width: 180px; height: 180px; border-radius: 8px; background: #fff; padding: 6px; }
+.totp-qr-label { font-size: 12px; color: var(--text3, rgba(240,236,228,0.35)); line-height: 1.6; }
+.totp-secret-box {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 14px;
+}
+.totp-secret-code { font-family: 'Courier New', monospace; font-size: 13px; color: var(--yellow, #f5c842); letter-spacing: 0.1em; flex: 1; word-break: break-all; }
+.totp-copy-btn { background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text3); padding: 2px 4px; border-radius: 4px; transition: color .15s; }
+.totp-copy-btn:hover { color: var(--yellow, #f5c842); }
+.sec-label { display: block; font-size: 11px; font-weight: 600; color: var(--text3, rgba(240,236,228,0.35)); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.sec-hint { font-size: 12px; color: var(--text3, rgba(240,236,228,0.35)); line-height: 1.6; margin-bottom: 14px; }
+
+/* ═══ SETTINGS ACCORDION ═══ */
+.settings-accordion {
+  margin-bottom: 24px;
+}
+.acc-item {
+  background: rgba(12,10,18,0.80);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 14px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+  transition: border-color .2s;
+}
+.acc-item:hover { border-color: rgba(255,255,255,0.16); }
+.acc-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; cursor: pointer; user-select: none;
+  gap: 10px;
+}
+.acc-header-left { display: flex; align-items: center; gap: 10px; }
+.acc-icon { font-size: 18px; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; }
+.acc-title { font-size: 13px; font-weight: 600; color: var(--text2); }
+.acc-subtitle { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.acc-chevron {
+  font-size: 14px; color: var(--text2);
+  transition: transform .25s cubic-bezier(0.34,1.56,0.64,1);
+  flex-shrink: 0; opacity: 0.8;
+}
+.acc-item.open .acc-chevron { transform: rotate(180deg); }
+.acc-body {
+  max-height: 0; overflow: hidden;
+  transition: max-height .3s ease;
+  padding: 0 20px;
+}
+.acc-item.open .acc-body { max-height: 600px; }
+.acc-item.open .acc-body.acc-body-groq { max-height: 900px; }
+.acc-body-inner { padding-bottom: 18px; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 16px; }
+.acc-label {
+  display: block; font-size: 11px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
+}
+.curr-btn {
+  flex: 1; padding: 7px 0; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: var(--text2); font-family: inherit;
+  font-size: 12px; cursor: pointer; transition: all .15s;
+}
+.curr-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+.curr-btn.curr-active {
+  background: rgba(245,200,66,0.18);
+  border-color: rgba(245,200,66,0.45);
+  color: #f5c842; font-weight: 700;
+}
+.acc-rate-info { font-size: 11px; color: var(--text3); margin-top: 7px; }
+.acc-sync-select {
+  width: 100%; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: var(--text2); font-family: inherit; font-size: 13px; cursor: pointer;
+  appearance: none; color-scheme: dark;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.acc-sync-select option { background: #0e0c14; color: #f0ece4; }
+.acc-last-sync { font-size: 11px; color: var(--text3); margin-top: 7px; }
+
+
+.nav-icon { width:26px; height:26px; object-fit:contain; vertical-align:middle; margin-right:5px; mix-blend-mode:screen; filter:brightness(1.3); }
+
+/* ═══ SETTINGS DROPDOWN ═══ */
+.settings-drop-wrap { position: relative; }
+.settings-drop {
+  display: none; position: absolute; top: calc(100% + 8px); right: 0;
+  width: 400px; max-height: 82vh;
+  background: rgba(14,12,20,0.97);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 14px;
+  backdrop-filter: blur(20px); box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+  z-index: 300; overflow: hidden; flex-direction: column;
+}
+.settings-drop.open { display: flex; }
+.settings-drop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.settings-drop-title { font-family: 'Unbounded', sans-serif; font-size: 13px; font-weight: 800; color: #fff; }
+.settings-drop-body { overflow-y: auto; padding: 8px; flex: 1; }
+.settings-drop-body::-webkit-scrollbar { width: 4px; }
+.settings-drop-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* Accordion uvnitř dropdownu */
+.sdrop-acc-item {
+  border-radius: 10px; margin-bottom: 4px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  transition: border-color .15s;
+}
+.sdrop-acc-item:hover { border-color: rgba(255,255,255,0.13); }
+.sdrop-acc-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; cursor: pointer; user-select: none; gap: 8px;
+}
+.sdrop-acc-left { display: flex; align-items: center; gap: 9px; }
+.sdrop-acc-icon { font-size: 16px; display: inline-flex; align-items: center; justify-content: center; width: 24px; flex-shrink: 0; }
+.sdrop-acc-title { font-size: 13px; font-weight: 600; color: var(--text2); }
+.sdrop-acc-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.sdrop-acc-chevron { font-size: 11px; color: var(--text3); transition: transform .22s cubic-bezier(0.34,1.56,0.64,1); flex-shrink: 0; }
+.sdrop-acc-item.open .sdrop-acc-chevron { transform: rotate(180deg); }
+.sdrop-acc-body {
+  max-height: 0; overflow: hidden;
+  transition: max-height .3s ease;
+  padding: 0 14px;
+}
+.sdrop-acc-item.open .sdrop-acc-body { max-height: 520px; }
+.sdrop-acc-item.open .sdrop-acc-body.sdrop-acc-body-groq { max-height: 900px; }
+.sdrop-acc-inner { padding-bottom: 14px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px; }
+
+/* ═══ PRICE ALERT WIDGET ═══ */
+.price-alert-banner {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: linear-gradient(135deg, rgba(245,200,66,0.07) 0%, rgba(255,140,0,0.05) 100%);
+  border: 1px solid rgba(245,200,66,0.18);
+  border-radius: 10px; padding: 12px 14px;
+  font-size: 12px; color: var(--text2); line-height: 1.6;
+}
+.price-alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.price-alert-text strong { color: var(--yellow); display: block; margin-bottom: 3px; font-size: 11.5px; }
+.price-alert-input-row { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.price-alert-input-wrap { position: relative; display: flex; align-items: center; flex: 1; max-width: 180px; }
+.price-alert-currency-icon { position: absolute; left: 11px; font-size: 13px; color: var(--yellow); font-weight: 700; pointer-events: none; }
+.price-alert-inp { padding-left: 26px !important; padding-right: 40px !important; }
+.price-alert-unit { position: absolute; right: 11px; font-size: 11px; color: var(--text3); pointer-events: none; }
+.price-alert-presets { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 10px; }
+.price-alert-preset-label { font-size: 11px; color: var(--text3); }
+.preset-chip {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px; padding: 3px 10px; font-size: 11.5px; color: var(--text2);
+  cursor: pointer; transition: all .15s; font-family: inherit;
+}
+.preset-chip:hover { background: rgba(245,200,66,0.12); border-color: rgba(245,200,66,0.35); color: var(--yellow); }
+.price-alert-feedback { font-size: 12px; min-height: 18px; margin-top: 8px; line-height: 1.5; }
+.price-alert-feedback.ok    { color: var(--green); }
+.price-alert-feedback.error { color: var(--red); }
+
+
+</style>
+  <!-- ═══ PWA init + mobile CSS ═══ -->
+  <link rel="stylesheet" href="mobile-responsive.css">
+  <script src="demo-karty.js"></script>
+<script src="pwa-init.js"></script>
+  <!-- ═══ /PWA init ═══ -->
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<script>window.TOPBAR_ACTIVE = 'profile';</script>
+<script src="i18n.js"></script>
+  <script src="topbar.js"></script>
+<header class="app-topbar">
+  <a href="/" class="app-logo">
+    <img src="pokemon.png" alt="Pokémon" style="width:28px;height:28px;object-fit:contain;vertical-align:middle;border-radius:6px"> Poké<strong>Trade</strong>
+  </a>
+  <nav class="nav-lnks" id="mainNav"></nav>
+  <div class="topbar-right">
+    <!-- 1. Chat -->
+    <div class="chat-dropdown-wrap" id="chatDropWrap">
+      <button class="chat-icon-btn" id="chatIconBtn" onclick="toggleChatDrop()" title="Zprávy">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span class="chat-badge" id="chatBadge" style="display:none">0</span>
+      </button>
+      <div class="chat-drop" id="chatDrop">
+        <div class="chat-drop-head">
+          <span class="chat-drop-title">Zprávy</span>
+          <a href="chat.html" class="chat-drop-all">Zobrazit vše →</a>
+        </div>
+        <div class="chat-drop-list" id="chatDropList">
+          <div class="chat-drop-empty">
+            <div style="font-size:24px;margin-bottom:6px;opacity:0.4">💬</div>
+            <div>Žádné zprávy</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <a href="profile.html" class="user-chip" id="userChip" style="display:none" title="Můj profil">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <span id="userName"></span>
+    </a>
+    <a href="login.html" id="loginLink" class="btn-nav-outline" style="display:none;font-size:13px">Přihlásit se</a>
+    <button id="logoutBtn" onclick="doLogout()" class="btn-nav-outline" style="display:none;font-size:13px;background:transparent;color:rgba(240,236,228,0.65);border:1px solid rgba(255,255,255,0.18);font-family:inherit;-webkit-appearance:none;appearance:none;"><img src="energi/odhlasit_se.png" class="nav-icon"> Odhlásit</button>
+  </div>
+</header>
+
+<div class="page-wrap">
+  <!-- Hlavní obsah -->
+  <div id="profileContent" style="display:none">
+
+    <!-- HERO -->
+    <div class="profile-hero">
+      <div class="profile-avatar-wrap">
+        <div class="profile-avatar" id="heroAvatar">?</div>
+        <div class="profile-online-dot" id="onlineDot" style="display:none"></div>
+        <button class="avatar-edit-btn" id="avatarEditBtn" style="display:none" onclick="openAvatarModal()" title="Změnit profilovku">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
+      <div class="profile-info">
+        <div class="profile-username" id="heroUsername">Načítám…</div>
+        <div class="profile-badges" id="heroBadges"></div>
+        <div class="profile-meta">
+          <div class="profile-meta-item">📅 Trenér od <span id="heroJoined">–</span></div>
+          <div class="profile-meta-item" id="heroLocWrap" style="display:none">📍 <span id="heroLocation">–</span></div>
+          <div class="profile-meta-item">🃏 Nabídek celkem: <span id="heroListings">0</span></div>
+        </div>
+        <div class="profile-bio" id="heroBio"></div>
+        <div class="profile-actions">
+          <button class="btn-msg" id="btnSendMsg" onclick="openMessageModal()">
+            ✉️ Napsat zprávu
+          </button>
+          <button class="btn-outline-sm" id="btnLeaveReview" onclick="openReviewModal()" style="display:none">
+            ⭐ Ohodnotit
+          </button>
+          <a href="#" class="btn-outline-sm" id="btnSeeListings">
+            🃏 Zobrazit nabídky
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS STRIP -->
+    <div class="stats-strip">
+      <div class="stat-card" title="Počet unikátních kupujících (každý kupující se počítá jen jednou)">
+        <div class="stat-num" id="statSales">0</div>
+        <div class="stat-label">Unikátních kupujících</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statSellerScore" style="color:var(--yellow)">–</div>
+        <div class="stat-label">Hvězdičky (prodejce)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statBuyerScore" style="color:var(--blue)">–</div>
+        <div class="stat-label">Hvězdičky (kupující)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statPositive" style="color:var(--green)">–%</div>
+        <div class="stat-label">Kladných hodnocení</div>
+      </div>
+    </div>
+
+    <!-- HODNOCENÍ PRODEJCE + KUPUJÍCÍHO -->
+    <div class="section-title">Hodnocení</div>
+    <div class="ratings-grid" id="ratingsGrid">
+
+      <!-- Prodejce -->
+      <div class="rating-card">
+        <div class="rating-card-title">
+          <span class="role-icon">🏷️</span> Jako prodejce
+        </div>
+        <div class="rating-score-row">
+          <div class="big-score" id="sellerBigScore">–</div>
+          <div class="big-score-meta">
+            <div class="big-stars" id="sellerBigStars"></div>
+            <div class="score-count" id="sellerScoreCount">0 hodnocení</div>
+          </div>
+        </div>
+        <div class="histogram" id="sellerHistogram"></div>
+        <div class="cat-ratings">
+          <div class="cat-row">
+            <div class="cat-row-top">
+              <span class="cat-name">💬 Komunikace</span>
+              <span class="cat-pct" id="sellerPctComm">–%</span>
+            </div>
+            <div class="cat-bar-wrap"><div class="cat-bar high" id="sellerBarComm" style="width:0%"></div></div>
+          </div>
+          <div class="cat-row">
+            <div class="cat-row-top">
+              <span class="cat-name">📦 Rychlost dodání</span>
+              <span class="cat-pct" id="sellerPctDelivery">–%</span>
+            </div>
+            <div class="cat-bar-wrap"><div class="cat-bar high" id="sellerBarDelivery" style="width:0%"></div></div>
+          </div>
+          <div class="cat-row">
+            <div class="cat-row-top">
+              <span class="cat-name">🎴 Přesnost stavu karty</span>
+              <span class="cat-pct" id="sellerPctAccuracy">–%</span>
+            </div>
+            <div class="cat-bar-wrap"><div class="cat-bar high" id="sellerBarAccuracy" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kupující -->
+      <div class="rating-card">
+        <div class="rating-card-title">
+          <span class="role-icon">🛒</span> Jako kupující
+        </div>
+        <div class="rating-score-row">
+          <div class="big-score" id="buyerBigScore">–</div>
+          <div class="big-score-meta">
+            <div class="big-stars" id="buyerBigStars"></div>
+            <div class="score-count" id="buyerScoreCount">0 hodnocení</div>
+          </div>
+        </div>
+        <div class="histogram" id="buyerHistogram"></div>
+        <div class="cat-ratings">
+          <div class="cat-row">
+            <div class="cat-row-top">
+              <span class="cat-name">💸 Rychlost platby</span>
+              <span class="cat-pct" id="buyerPctPayment">–%</span>
+            </div>
+            <div class="cat-bar-wrap"><div class="cat-bar high" id="buyerBarPayment" style="width:0%"></div></div>
+          </div>
+          <div class="cat-row">
+            <div class="cat-row-top">
+              <span class="cat-name">📬 Převzetí zásilky</span>
+              <span class="cat-pct" id="buyerPctPickup">–%</span>
+            </div>
+            <div class="cat-bar-wrap"><div class="cat-bar high" id="buyerBarPickup" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REVIEW TABS + LIST -->
+    <div class="section-title">Komentáře</div>
+    <div class="tabs-wrap">
+      <button class="tab-btn active" onclick="switchTab('seller')" id="tabSeller">
+        🏷️ O prodejci <span class="tab-count" id="tabSellerCount">0</span><span class="tab-count" id="tabSellerDupCount" style="display:none;background:rgba(251,146,60,0.12);color:var(--orange)" title="Z toho se do skóre nepočítá"></span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('buyer')" id="tabBuyer">
+        🛒 O kupujícím <span class="tab-count" id="tabBuyerCount">0</span>
+      </button>
+    </div>
+    <div id="reviewsList" class="reviews-list"></div>
+    <div id="noReviews" class="empty-state" style="display:none">
+      <div class="empty-icon">⭐</div>
+      <p>Zatím žádné komentáře v této kategorii</p>
+    </div>
+
+  </div><!-- /profileContent -->
+
+  <!-- ═══ DASHBOARD SEKCE (jen vlastní profil) ═══ -->
+  <div id="dashboardSection" style="display:none">
+
+    <div class="dash-section" style="margin-top:24px">
+      <h2 style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px;">Moje aktivní nabídky</h2>
+      <div id="myListings" class="listings-grid">
+        <div class="loading-cards"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      </div>
+    </div>
+
+    <div class="dash-section" style="margin-top:24px">
+      <h2 style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px;">Příchozí nabídky <span class="badge-count" id="offerCount">0</span></h2>
+      <div id="incomingOffers" class="offers-list">
+        <p class="empty-state">Žádné nabídky zatím 🕊️</p>
+      </div>
+    </div>
+
+    <!-- ═══ ZABEZPEČENÍ ÚČTU ═══ -->
+    <div class="security-section">
+      <div class="section-title" style="margin-top:32px">Zabezpečení účtu</div>
+
+      <!-- ZMĚNA EMAILU -->
+      <div class="security-card">
+        <div class="security-card-header">
+          <div class="security-card-left">
+            <div class="security-card-icon">✉️</div>
+            <div>
+              <div class="security-card-title">Emailová adresa</div>
+              <div class="security-card-sub" id="secCurrentEmail">Načítám…</div>
+            </div>
+          </div>
+          <button class="sec-btn-outline" onclick="secToggleEmailForm()">Změnit</button>
+        </div>
+        <div class="security-card-body hidden" id="secEmailBody">
+          <p class="sec-hint">Na nový email přijde potvrzovací odkaz. Změna se provede až po kliknutí na odkaz.</p>
+          <label class="sec-label">Nový email</label>
+          <div class="sec-input-row">
+            <input type="email" id="secNewEmailInp" class="sec-input" placeholder="novy@email.com">
+            <button class="sec-btn" onclick="secChangeEmail()">Odeslat</button>
+          </div>
+          <div class="sec-feedback" id="secEmailFeedback"></div>
+        </div>
+      </div>
+
+      <!-- DVOUFAKTOROVÉ OVĚŘENÍ (TOTP) -->
+      <div class="security-card">
+        <div class="security-card-header">
+          <div class="security-card-left">
+            <div class="security-card-icon">🔐</div>
+            <div>
+              <div class="security-card-title">Dvoufaktorové ověření (2FA)</div>
+              <div class="security-card-sub">Google Authenticator, Authy a jiné TOTP aplikace</div>
+            </div>
+          </div>
+          <span class="security-badge inactive" id="totpBadge">⏳ Načítám</span>
+        </div>
+        <div class="security-card-body" id="secTotpBody">
+
+          <div id="totpStateLoading" style="color:rgba(240,236,228,0.35);font-size:13px">Načítám stav 2FA…</div>
+
+          <!-- Aktivní -->
+          <div id="totpStateActive" style="display:none">
+            <p class="sec-hint">✅ 2FA je aktivní. Při přihlášení budete vyzváni k zadání kódu z vaší autentizační aplikace.</p>
+            <button class="sec-btn-danger" onclick="secDisableTotp()">🗑️ Deaktivovat 2FA</button>
+            <div class="sec-feedback" id="secTotpDisableFeedback"></div>
+          </div>
+
+          <!-- Neaktivní → krok 1 -->
+          <div id="totpStateSetup" style="display:none">
+            <p class="sec-hint">Naskenujte QR kód v aplikaci <strong>Google Authenticator</strong> nebo <strong>Authy</strong>, poté zadejte 6místný kód.</p>
+            <button class="sec-btn-outline" id="totpStartBtn" onclick="secStartTotpSetup()">📱 Zahájit nastavení 2FA</button>
+            <div class="sec-feedback" id="secTotpSetupFeedback"></div>
+          </div>
+
+          <!-- Krok 2: QR + kód -->
+          <div id="totpStateVerify" style="display:none">
+            <div class="totp-qr-wrap">
+              <img id="totpQrImg" src="" alt="QR kód">
+              <div class="totp-qr-label">Naskenujte v Google Authenticator nebo Authy</div>
+            </div>
+            <p class="sec-hint" style="margin-bottom:6px">Nebo zadejte kód manuálně:</p>
+            <div class="totp-secret-box">
+              <span class="totp-secret-code" id="totpSecretText"></span>
+              <button class="totp-copy-btn" onclick="secCopySecret()" title="Kopírovat">📋</button>
+            </div>
+            <label class="sec-label">Ověřovací kód z aplikace</label>
+            <div class="sec-input-row">
+              <input type="text" id="totpCodeInp" class="sec-input" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing:0.2em;font-size:18px;text-align:center">
+              <button class="sec-btn" onclick="secVerifyTotp()">Ověřit a aktivovat</button>
+            </div>
+            <div class="sec-feedback" id="secTotpVerifyFeedback"></div>
+            <button class="sec-btn-outline" style="margin-top:8px;font-size:12px" onclick="secCancelTotpSetup()">Zrušit</button>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /security-section -->
+
+    <!-- ═══ RODINA ═══ -->
+    <div class="family-section" id="familySection" style="display:none">
+      <div class="section-title" style="margin-top:32px">👨‍👩‍👧‍👦 Moje Rodina</div>
+
+      <div class="family-tabs">
+        <button class="family-tab-btn active" onclick="familySwitchTab('members')" id="famTabMembers">👥 Členové</button>
+        <button class="family-tab-btn" onclick="familySwitchTab('sharing')" id="famTabSharing">🃏 Sdílení alb</button>
+        <button class="family-tab-btn" onclick="familySwitchTab('pending')" id="famTabPending">
+          ⏳ Žádosti<span id="famPendingBadge" style="display:none;background:rgba(245,200,66,0.18);color:#f5c842;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0</span>
+        </button>
+      </div>
+
+      <!-- Členové -->
+      <div id="famPanelMembers">
+        <div id="famMembersList">
+          <div class="family-empty" id="famMembersEmpty">Zatím žádní členové rodiny 🕊️</div>
+        </div>
+        <div class="family-invite-box">
+          <div class="family-invite-title">➕ Přidat člena rodiny</div>
+          <div class="family-invite-hint">Zadej email uživatele — dostane pozvánku. Propojení je oboustranné a trvalé.</div>
+          <div class="family-invite-row">
+            <input type="email" id="famInviteEmail" class="family-invite-input" placeholder="email@priklad.cz">
+            <button class="family-invite-btn" id="famInviteBtn" onclick="familySendInvite()">Pozvat</button>
+          </div>
+          <div class="family-feedback" id="famInviteFeedback"></div>
+        </div>
+      </div>
+
+      <!-- Sdílení alb -->
+      <div id="famPanelSharing" style="display:none">
+        <div class="family-share-hint">Vyber alba, která uvidí tvoje rodina. Sdílení je trvalé — bez vypršení.</div>
+        <div id="famShareAlbumsList"><div class="family-empty">Načítám alba…</div></div>
+        <div class="family-feedback" id="famShareFeedback"></div>
+      </div>
+
+      <!-- Čekající žádosti -->
+      <div id="famPanelPending" style="display:none">
+        <div id="famPendingList">
+          <div class="family-empty" id="famPendingEmpty">Žádné čekající žádosti ✅</div>
+        </div>
+      </div>
+    </div><!-- /family-section -->
+
+    <!-- ═══ TRADE MATCHING SEKCE ═══ -->
+    <a id="vymeny"></a>
+    <div class="family-section" id="tradeMatchSection" style="display:none">
+      <div class="section-title" style="margin-top:32px">🔄 Trade Matching</div>
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:20px;margin-top:12px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">🤝 Automatické párování výměn</div>
+            <div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:10px;">
+              Systém tě automaticky upozorní, když někdo jiný hledá kartu, kterou nabízíš — a naopak. Zobrazíš se ve výsledcích mutual matchingu.<br>
+              <span style="color:rgba(240,236,228,0.4);font-size:11px;">Výchozí stav: vypnuto. Aktivací souhlasíš s porovnáváním tvých nabídek s ostatními uživateli.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text3);">
+              <div>✅ Dostaneš notifikaci: <em style="color:var(--text2);">„Jana hledá tvůj Charizard EX"</em></div>
+              <div>✅ Vidíš: <em style="color:var(--text2);">kdo chce co ty máš + má co ty chceš</em></div>
+              <div style="opacity:.6">🕐 Připravujeme: trade kruhy A→B→C→A (3-cestné výměny)</div>
+            </div>
+          </div>
+          <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <label class="family-toggle" id="tradeMatchToggle" onclick="toggleTradeMatching()" title="Zapnout/vypnout trade matching"></label>
+            <span style="font-size:11px;color:var(--text3);" id="tradeMatchStatus">Vypnuto</span>
+          </div>
+        </div>
+        <div id="tradeMatchFeedback" style="font-size:12px;min-height:16px;margin-top:10px;"></div>
+        <div id="vymenySeznam" style="margin-top:6px;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.07);">
+          <button onclick="hledejZajemce('chce')" style="flex:1;min-width:180px;padding:9px 12px;border-radius:10px;border:1px solid rgba(74,222,128,0.35);background:rgba(74,222,128,0.1);color:#4ade80;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;">🔎 Kdo chce moje karty</button>
+          <button onclick="hledejZajemce('ma')" style="flex:1;min-width:180px;padding:9px 12px;border-radius:10px;border:1px solid rgba(245,200,66,0.35);background:rgba(245,200,66,0.1);color:#f5c842;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;">🎯 Kdo má, co hledám</button>
+        </div>
+        <div id="zajemciSeznam" style="margin-top:10px;"></div>
+      </div>
+    </div>
+    <!-- ═══ / TRADE MATCHING SEKCE ═══ -->
+
+  </div>
+
+</div><!-- /page-wrap -->
+
+<!-- ═══ MODAL: UPLOAD ═══ -->
+<div class="modal-overlay" id="uploadModal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>📦 Nahrávám nabídku</h3>
+      <button class="modal-close" onclick="closeUploadModal()">✕</button>
+    </div>
+    <div id="uploadProgress">
+      <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+      <p id="progressLabel">Čtu soubor...</p>
+    </div>
+    <div id="uploadPreview" style="display:none">
+      <div class="preview-summary" id="previewSummary"></div>
+      <div class="preview-cards" id="previewCards"></div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeUploadModal()">Zrušit</button>
+        <button class="btn-primary" onclick="confirmUpload()" id="confirmBtn">✅ Zveřejnit nabídku</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: NAPSAT ZPRÁVU ═══ -->
+<div class="modal-overlay" id="messageModal">
+  <div class="modal-box">
+    <div class="modal-title">✉️ Napsat zprávu</div>
+    <div class="modal-subtitle" id="msgModalSubtitle">Zpráva pro …</div>
+    <div class="review-form">
+      <div class="form-field">
+        <label class="form-label">Zpráva</label>
+        <textarea class="form-textarea" id="msgText" placeholder="Napiš svou zprávu…" rows="5" oninput="updateMsgCounter()"></textarea>
+        <div class="char-counter"><span id="msgCounter">0</span> / 1000</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('messageModal')">Zrušit</button>
+      <button class="btn-primary" onclick="sendMessage()" id="btnSendMsgSubmit">Odeslat ✉️</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: HODNOCENÍ ═══ -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal-box">
+    <div class="modal-title">⭐ Zanechat hodnocení</div>
+    <div class="modal-subtitle" id="revModalSubtitle">Hodnotíš …</div>
+    <div class="review-form">
+
+      <!-- Typ recenzenta -->
+      <div class="form-field">
+        <label class="form-label">Jaká byla tvoje role?</label>
+        <div style="display:flex;gap:10px">
+          <button class="btn-outline-sm" id="roleBtn-buyer"  onclick="setReviewerRole('buyer')"  style="flex:1">🛒 Kupoval/a jsem</button>
+          <button class="btn-outline-sm" id="roleBtn-seller" onclick="setReviewerRole('seller')" style="flex:1">🏷️ Prodával/a jsem</button>
+        </div>
+      </div>
+
+      <!-- Celkové hvězdičky -->
+      <div class="form-field">
+        <label class="form-label">Celkové hodnocení</label>
+        <div class="star-picker" id="overallStars">
+          <span class="star-pick" data-v="1" onclick="setOverallStars(1)">★</span>
+          <span class="star-pick" data-v="2" onclick="setOverallStars(2)">★</span>
+          <span class="star-pick" data-v="3" onclick="setOverallStars(3)">★</span>
+          <span class="star-pick" data-v="4" onclick="setOverallStars(4)">★</span>
+          <span class="star-pick" data-v="5" onclick="setOverallStars(5)">★</span>
+        </div>
+      </div>
+
+      <!-- Kategoriální hvězdičky (přepínají se dle role) -->
+      <div class="form-field" id="catRatingsWrap">
+        <label class="form-label">Detailní hodnocení</label>
+        <div class="cat-star-group" id="catStarGroup">
+          <!-- naplní se JS -->
+        </div>
+      </div>
+
+      <!-- Komentář -->
+      <div class="form-field">
+        <label class="form-label">Komentář</label>
+        <textarea class="form-textarea" id="revComment" placeholder="Popiš svou zkušenost… (nepovinné)" rows="4" oninput="updateRevCounter()"></textarea>
+        <div class="char-counter"><span id="revCounter">0</span> / 1000</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('reviewModal')">Zrušit</button>
+      <button class="btn-primary" onclick="submitReview()" id="btnSubmitReview">Odeslat hodnocení</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+<script src="groq-client.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+//  GLOBÁLNÍ STAV
+// ═══════════════════════════════════════════════════════════
+let profileUserId   = null;   // ID profilového uživatele z URL
+let profileUsername = '';
+let currentUser     = null;   // přihlášený uživatel
+let allReviews      = { seller: [], buyer: [] };
+let currentTab      = 'seller';
+let reviewerRole    = null;   // 'buyer' | 'seller'
+let overallStarsVal = 0;
+let catStarsVal     = {};
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+(async function init() {
+  // Načti přihlášeného uživatele
+  try {
+    const raw = localStorage.getItem('sb_user');
+    if (raw) currentUser = JSON.parse(raw);
+  } catch {}
+
+  // Topbar
+  if (currentUser) {
+    const uname = currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || '?';
+    if(document.getElementById('userChip')) document.getElementById('userChip').style.display = 'flex';
+    if(document.getElementById('loginLink')) document.getElementById('loginLink').style.display = 'none';
+    if(document.getElementById('logoutBtn')) document.getElementById('logoutBtn').style.display = '';
+    if(document.getElementById('userAvatar')) document.getElementById('userAvatar').textContent = uname[0].toUpperCase();
+    if(document.getElementById('userName')) document.getElementById('userName').textContent = uname;
+  } else {
+    if(document.getElementById('loginLink')) document.getElementById('loginLink').style.display = 'inline-flex';
+  }
+
+  // Získej user ID z URL ?user=UUID nebo ?username=jmeno
+  const params = new URLSearchParams(location.search);
+  const userParam = params.get('user') || params.get('id');
+  const usernameParam = params.get('username');
+
+  if (!userParam && !usernameParam) {
+    // Pokud není parametr, zobraz vlastní profil
+    if (currentUser?.id) {
+      profileUserId = currentUser.id;
+    } else {
+      // Nepřihlášený bez parametru: místo vyhození ukázat, co profil umí
+      if (window.PT_DEMO) PT_DEMO.vyzva(document.querySelector('.page-wrap'), {
+        ikona: '👤', titulek: 'Tvůj sběratelský profil',
+        popis: 'Profil ukazuje tvoje hodnocení jako prodejce i kupujícího, nabídky v obchodě a vzájemné výměny s ostatními sběrateli.',
+        vyhody: ['⭐ Hodnocení od ostatních sběratelů', '🤝 Vzájemné výměny na jednom místě', '🛒 Tvoje nabídky v obchodě', '👨‍👩‍👧 Rodinné sdílení sbírky'],
+        navrat: 'profile.html' });
+      else window.location.href = 'login.html?return=profile.html';
+      return;
+    }
+  } else if (userParam) {
+    profileUserId = userParam;
+  } else {
+    // Hledej podle username v profiles
+    await resolveUsernameToId(usernameParam);
+  }
+
+  if (!profileUserId) {
+    showToast('❌ Profil nenalezen', 'error');
+    return;
+  }
+
+  await Promise.all([loadProfile(), loadReviews()]);
+  showContent();
+})();
+
+// ─── Převod username → id ─────────────────────────────────
+async function resolveUsernameToId(username) {
+  try {
+    const res = await supabaseRequest(
+      `rest/v1/public_profiles?username=eq.${encodeURIComponent(username)}&select=id`
+    );
+    if (Array.isArray(res) && res.length > 0) profileUserId = res[0].id;
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NAČTI PROFIL
+// ═══════════════════════════════════════════════════════════
+async function loadProfile() {
+  try {
+    // Vlastní profil celý, cizí jen veřejná část (e-mail apod. ostatní nevidí)
+    const _ja = (typeof currentUser !== 'undefined' && currentUser && currentUser.id === profileUserId);
+    const data = await supabaseRequest(
+      _ja ? `rest/v1/profiles?id=eq.${profileUserId}&select=*`
+          : `rest/v1/public_profiles?id=eq.${profileUserId}&select=*`
+    );
+    if (!Array.isArray(data) || data.length === 0) {
+      // Pokud profiles tabulka neexistuje nebo uživatel není tam, zkus auth.users metadata
+      loadProfileFallback();
+      return;
+    }
+    const p = data[0];
+    profileUsername = p.username || p.email?.split('@')[0] || 'Trenér';
+    renderProfile(p);
+  } catch {
+    loadProfileFallback();
+  }
+}
+
+function loadProfileFallback() {
+  // Minimální fallback – jen ID
+  profileUsername = 'Trenér';
+  renderProfile({ username: 'Trenér', joined_at: null, bio: null, location: null });
+}
+
+function renderProfile(p) {
+  const uname = p.username || 'Trenér';
+  profileUsername = uname;
+  document.title = `${uname} – PokéTrade`;
+
+  const initials = uname.slice(0,2).toUpperCase();
+  const heroEl = document.getElementById('heroAvatar');
+  heroEl.textContent = initials;
+  // Pokud má profilový uživatel vlastní fotku, zobraz ji
+  if (p.avatar_url) {
+    heroEl.textContent = '';
+    heroEl.style.backgroundImage = `url(${p.avatar_url})`;
+    heroEl.style.backgroundSize = 'cover';
+    heroEl.style.backgroundPosition = 'center';
+    // Ulož do cache jen pro vlastní profil → topbar ji okamžitě použije
+    try {
+      const _cu = JSON.parse(localStorage.getItem('sb_user') || 'null');
+      if (_cu && _cu.id && _cu.id === profileUserId) {
+        localStorage.setItem('pkc_avatar_local', p.avatar_url);
+        if (window._topbarRefreshUser) window._topbarRefreshUser();
+      }
+    } catch(e) {}
+  }
+  document.getElementById('heroUsername').textContent = uname;
+
+  // Datum
+  const joined = p.joined_at || p.created_at;
+  document.getElementById('heroJoined').textContent =
+    joined ? new Date(joined).toLocaleDateString('cs-CZ', { month: 'long', year: 'numeric' }) : '–';
+
+  // Lokace
+  if (p.location) {
+    document.getElementById('heroLocWrap').style.display = 'flex';
+    document.getElementById('heroLocation').textContent = p.location;
+  }
+
+  // Bio
+  if (p.bio) document.getElementById('heroBio').textContent = p.bio;
+  else document.getElementById('heroBio').style.display = 'none';
+
+  // Badges
+  const badgesEl = document.getElementById('heroBadges');
+  const totalRev = (p.seller_review_count || 0) + (p.buyer_review_count || 0);
+  if (totalRev > 0)  badgesEl.innerHTML += `<span class="badge badge-seller">⭐ Hodnocený</span>`;
+  if (totalRev >= 10) badgesEl.innerHTML += `<span class="badge badge-power">🔥 Power Seller</span>`;
+  badgesEl.innerHTML += `<span class="badge badge-verified">✓ Ověřený</span>`;
+
+  // Stats strip
+  document.getElementById('statSellerScore').textContent = p.seller_avg_stars ? `${parseFloat(p.seller_avg_stars).toFixed(1)} ★` : '–';
+  document.getElementById('statBuyerScore').textContent  = p.buyer_avg_stars  ? `${parseFloat(p.buyer_avg_stars).toFixed(1)} ★`  : '–';
+
+  // Link na nabídky
+  document.getElementById('btnSeeListings').href = `marketplace.html?seller=${profileUserId}`;
+
+  // Skryj "Napsat zprávu" pokud vlastní profil, zobraz dashboard sekce
+  if (currentUser?.id === profileUserId) {
+    document.getElementById('btnSendMsg').style.display = 'none';
+    document.getElementById('btnLeaveReview').style.display = 'none';
+    // Zobraz avatar edit tlacitko
+    const editBtn = document.getElementById('avatarEditBtn');
+    if (editBtn) editBtn.style.display = 'flex';
+    // Zobraz dashboard
+    const ds = document.getElementById('dashboardSection');
+    if (ds) { ds.style.display = ''; loadMyListings(); loadIncomingOffers(); if (typeof securityInit === 'function') securityInit(); if (typeof familyInit === 'function') familyInit(); if (typeof tradeMatchInit === 'function') tradeMatchInit(p); }
+  } else if (currentUser) {
+    document.getElementById('btnLeaveReview').style.display = 'inline-flex';
+  }
+
+  document.getElementById('msgModalSubtitle').textContent = `Zpráva pro ${uname}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NAČTI HODNOCENÍ
+// ═══════════════════════════════════════════════════════════
+// ── Deduplikace hodnocení (Aukro styl) ──────────────────────
+// Pro výpočet skóre a počtu prodejů se počítá jen 1. (nejstarší)
+// hodnocení za každý unikátní pár hodnotící→hodnocený.
+// V seznamu komentářů se zobrazí všechny, ale "duplicitní" jsou označeny.
+function deduplicateByReviewer(reviews) {
+  const seen = new Set();
+  // Seřadit od nejstarší (první = ta co platí)
+  return [...reviews]
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    .map(r => {
+      const key = r.reviewer_id;
+      if (seen.has(key)) return { ...r, _duplicate: true };
+      seen.add(key);
+      return { ...r, _duplicate: false };
+    });
+}
+
+async function loadReviews() {
+  try {
+    const data = await supabaseRequest(
+      `rest/v1/reviews?reviewed_id=eq.${profileUserId}&order=created_at.desc&select=*`
+    );
+    if (!Array.isArray(data)) return;
+
+    const sellerRaw = data.filter(r => r.reviewer_role === 'buyer');
+    const buyerRaw  = data.filter(r => r.reviewer_role === 'seller');
+
+    // Deduplikace: přidá příznak _duplicate pro vizuální označení
+    allReviews.seller = deduplicateByReviewer(sellerRaw);
+    allReviews.buyer  = deduplicateByReviewer(buyerRaw);
+
+    renderRatingCards();
+    renderReviews('seller');
+  } catch (e) {
+    console.warn('Hodnocení se nepodařilo načíst:', e);
+  }
+}
+
+function renderRatingCards() {
+  renderRoleStats('seller', allReviews.seller);
+  renderRoleStats('buyer',  allReviews.buyer);
+
+  // Pro statistiky používáme jen unikátní hodnocení (bez duplicit)
+  const sellerUniq = allReviews.seller.filter(r => !r._duplicate);
+  const buyerUniq  = allReviews.buyer.filter(r => !r._duplicate);
+  const allUniq    = [...sellerUniq, ...buyerUniq];
+  const allPos     = allUniq.filter(r => r.is_positive).length;
+  document.getElementById('statPositive').textContent = allUniq.length
+    ? `${Math.round(100 * allPos / allUniq.length)}%` : '–%';
+  // Počet prodejů = počet unikátních kupujících (ne duplicitních)
+  document.getElementById('statSales').textContent = sellerUniq.length;
+
+  document.getElementById('tabSellerCount').textContent = allReviews.seller.length;
+  document.getElementById('tabBuyerCount').textContent  = allReviews.buyer.length;
+
+  // Zobraz počet duplicit (nepočítaných do skóre)
+  const sellerDups = allReviews.seller.filter(r => r._duplicate).length;
+  const sellerDupEl = document.getElementById('tabSellerDupCount');
+  if (sellerDupEl) {
+    if (sellerDups > 0) {
+      sellerDupEl.textContent = `+${sellerDups} ×`;
+      sellerDupEl.title = `${sellerDups} hodnocení od stejného uživatele se nepočítají do skóre`;
+      sellerDupEl.style.display = '';
+    } else {
+      sellerDupEl.style.display = 'none';
+    }
+  }
+}
+
+function renderRoleStats(role, reviews) {
+  const prefix = role; // 'seller' | 'buyer'
+  // Pro skóre a histogram používáme jen unikátní hodnocení
+  const uniqueReviews = reviews.filter(r => !r._duplicate);
+  const n = uniqueReviews.length;
+  if (n === 0) return;
+
+  const avg = uniqueReviews.reduce((s, r) => s + r.stars_overall, 0) / n;
+
+  document.getElementById(`${prefix}BigScore`).textContent = avg.toFixed(1);
+  document.getElementById(`${prefix}ScoreCount`).textContent = `${n} hodnocení`;
+
+  // Velké hvězdičky
+  document.getElementById(`${prefix}BigStars`).innerHTML = renderStarsHtml(avg, true);
+
+  // Celkový stat
+  if (role === 'seller') document.getElementById('statSellerScore').textContent = `${avg.toFixed(1)} ★`;
+  else document.getElementById('statBuyerScore').textContent = `${avg.toFixed(1)} ★`;
+
+  // Histogram
+  const counts = [5,4,3,2,1].map(s => uniqueReviews.filter(r => r.stars_overall === s).length);
+  let histoHtml = '';
+  [5,4,3,2,1].forEach((s, i) => {
+    const pct = n ? Math.round(100 * counts[i] / n) : 0;
+    histoHtml += `
+      <div class="histo-row">
+        <span class="histo-label">${s}</span>
+        <div class="histo-bar-wrap"><div class="histo-bar" style="width:${pct}%"></div></div>
+        <span class="histo-count">${counts[i]}</span>
+      </div>`;
+  });
+  document.getElementById(`${prefix}Histogram`).innerHTML = histoHtml;
+
+  // Kategoriální %
+  if (role === 'seller') {
+    setBarPct('sellerPctComm',     'sellerBarComm',     avgPct(uniqueReviews, 'stars_communication'));
+    setBarPct('sellerPctDelivery', 'sellerBarDelivery', avgPct(uniqueReviews, 'stars_delivery_speed'));
+    setBarPct('sellerPctAccuracy', 'sellerBarAccuracy', avgPct(uniqueReviews, 'stars_item_accuracy'));
+  } else {
+    setBarPct('buyerPctPayment', 'buyerBarPayment', avgPct(uniqueReviews, 'stars_payment_speed'));
+    setBarPct('buyerPctPickup',  'buyerBarPickup',  avgPct(uniqueReviews, 'stars_pickup'));
+  }
+}
+
+function avgPct(reviews, field) {
+  const valid = reviews.filter(r => r[field] != null);
+  if (!valid.length) return null;
+  const pos = valid.filter(r => r[field] >= 4).length;
+  return Math.round(100 * pos / valid.length);
+}
+
+function setBarPct(pctId, barId, pct) {
+  const pctEl = document.getElementById(pctId);
+  const barEl = document.getElementById(barId);
+  if (pct === null) { pctEl.textContent = '–'; return; }
+  pctEl.textContent = `${pct}%`;
+  pctEl.className = 'cat-pct' + (pct >= 80 ? '' : pct >= 50 ? ' mid' : ' low');
+  barEl.className  = 'cat-bar' + (pct >= 80 ? ' high' : pct >= 50 ? ' mid' : ' low');
+  setTimeout(() => { barEl.style.width = pct + '%'; }, 100);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER REVIEWS LIST
+// ═══════════════════════════════════════════════════════════
+function renderReviews(tab) {
+  currentTab = tab;
+  const reviews = allReviews[tab];
+  const list = document.getElementById('reviewsList');
+  const empty = document.getElementById('noReviews');
+
+  if (!reviews.length) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  list.innerHTML = reviews.map((r, i) => {
+    // Jméno hodnotitele zapisuje jeho prohlížeč → ošetřit (jinak šlo podvrhnout HTML/skript)
+    const unameRaw = r.reviewer_username || 'Trenér';
+    const uname = escHtml(unameRaw);
+    const initials = escHtml(unameRaw.slice(0,2).toUpperCase());
+    const date = new Date(r.created_at).toLocaleDateString('cs-CZ', { day:'numeric', month:'long', year:'numeric' });
+    const sentimentClass = r.is_positive ? 'pos' : r.is_neutral ? 'neu' : 'neg';
+    const sentimentLabel = r.is_positive ? '👍 Kladné' : r.is_neutral ? '😐 Neutrální' : '👎 Záporné';
+
+    // Kategoriální čipy
+    const cats = tab === 'seller' ? [
+      { label: '💬 Komunikace', val: r.stars_communication },
+      { label: '📦 Dodání', val: r.stars_delivery_speed },
+      { label: '🎴 Stav karty', val: r.stars_item_accuracy },
+    ] : [
+      { label: '💸 Platba', val: r.stars_payment_speed },
+      { label: '📬 Převzetí', val: r.stars_pickup },
+    ];
+    const catChips = cats.filter(c => c.val != null).map(c => `
+      <span class="review-cat-chip">
+        ${c.label}
+        <span class="mini-stars">${renderMiniStars(c.val)}</span>
+      </span>`).join('');
+
+    const dupBadge = r._duplicate
+      ? `<span class="sentiment neu" title="Tento uživatel již dříve zanechal hodnocení. Do skóre se počítá jen první.">⚠️ Nepočítá se</span>`
+      : '';
+
+    return `
+      <div class="review-card" style="animation-delay:${i * 0.06}s${r._duplicate ? ';opacity:0.65' : ''}">
+        <div class="review-header">
+          <div class="review-avatar">${initials}</div>
+          <div class="review-meta">
+            <a class="review-username" href="profile.html?user=${r.reviewer_id}">${uname}</a>
+            <div class="review-date">${date}</div>
+          </div>
+          <div class="review-stars">${renderStarsHtml(r.stars_overall)}</div>
+          <span class="sentiment ${sentimentClass}">${sentimentLabel}</span>
+          ${dupBadge}
+        </div>
+        ${r.comment ? `<div class="review-body">${escHtml(r.comment)}</div>` : ''}
+        ${catChips ? `<div class="review-cats">${catChips}</div>` : ''}
+        ${r.listing_id ? `<div class="review-listing-ref">📎 K nabídce: <a href="marketplace.html?open=${encodeURIComponent(r.listing_id)}">zobrazit kartu</a></div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function switchTab(tab) {
+  document.getElementById('tabSeller').classList.toggle('active', tab === 'seller');
+  document.getElementById('tabBuyer').classList.toggle('active',  tab === 'buyer');
+  renderReviews(tab);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HELPERS – HVĚZDIČKY
+// ═══════════════════════════════════════════════════════════
+function renderStarsHtml(score, big = false) {
+  const cls = big ? 'star' : 'review-star';
+  const filledCls = big ? 'star filled' : 'review-star filled';
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    html += `<span class="${i <= Math.round(score) ? filledCls : cls}">★</span>`;
+  }
+  return html;
+}
+function renderMiniStars(val) {
+  let html = '';
+  for (let i = 1; i <= 5; i++)
+    html += `<span class="mini-star${i <= val ? ' filled' : ''}">★</span>`;
+  return html;
+}
+
+function escHtml(str) {
+  return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MODAL – ZPRÁVA
+// ═══════════════════════════════════════════════════════════
+function openMessageModal() {
+  if (!currentUser) { window.location.href = 'login.html'; return; }
+  openModal('messageModal');
+}
+function updateMsgCounter() {
+  document.getElementById('msgCounter').textContent = document.getElementById('msgText').value.length;
+}
+async function sendMessage() {
+  if (!currentUser) return;
+  const text = document.getElementById('msgText').value.trim();
+  if (!text) return showToast('⚠️ Zpráva nesmí být prázdná', 'error');
+
+  document.getElementById('btnSendMsgSubmit').disabled = true;
+  try {
+    await supabaseRequest('rest/v1/messages', 'POST', {
+      sender_id: currentUser.id,
+      receiver_id: profileUserId,
+      sender_username: currentUser.user_metadata?.username || currentUser.email?.split('@')[0],
+      receiver_username: profileUsername,
+      text
+    });
+    closeModal('messageModal');
+    document.getElementById('msgText').value = '';
+    showToast('✅ Zpráva odeslána!', 'success');
+  } catch (e) {
+    showToast('❌ Nepodařilo se odeslat zprávu', 'error');
+  }
+  document.getElementById('btnSendMsgSubmit').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MODAL – HODNOCENÍ
+// ═══════════════════════════════════════════════════════════
+function openReviewModal() {
+  if (!currentUser) { window.location.href = 'login.html'; return; }
+  reviewerRole    = null;
+  overallStarsVal = 0;
+  catStarsVal     = {};
+  document.getElementById('revModalSubtitle').textContent = `Hodnotíš uživatele ${profileUsername}`;
+  document.getElementById('revComment').value = '';
+  document.getElementById('revCounter').textContent = '0';
+  document.querySelectorAll('.star-pick').forEach(s => s.classList.remove('active'));
+  setReviewerRole(null);
+  openModal('reviewModal');
+}
+
+function setReviewerRole(role) {
+  reviewerRole = role;
+  ['buyer','seller'].forEach(r => {
+    const btn = document.getElementById(`roleBtn-${r}`);
+    if (btn) btn.style.background = r === role
+      ? 'rgba(245,200,66,0.15)' : 'transparent';
+    if (btn) btn.style.borderColor = r === role
+      ? 'rgba(245,200,66,0.4)' : 'rgba(255,255,255,0.14)';
+    if (btn) btn.style.color = r === role ? 'var(--yellow)' : 'rgba(240,236,228,0.65)';
+  });
+
+  // Kategoriální hvězdičky dle role
+  const group = document.getElementById('catStarGroup');
+  catStarsVal = {};
+
+  const cats = role === 'buyer' ? [
+    { key: 'communication',   label: '💬 Komunikace' },
+    { key: 'delivery_speed',  label: '📦 Rychlost dodání' },
+    { key: 'item_accuracy',   label: '🎴 Přesnost stavu' },
+  ] : role === 'seller' ? [
+    { key: 'payment_speed', label: '💸 Rychlost platby' },
+    { key: 'pickup',        label: '📬 Převzetí zásilky' },
+  ] : [];
+
+  group.innerHTML = cats.map(c => `
+    <div class="cat-star-item">
+      <span class="cat-star-label">${c.label}</span>
+      <div class="mini-star-picker" id="catPicker-${c.key}">
+        ${[1,2,3,4,5].map(v =>
+          `<span class="mini-star-pick" onclick="setCatStar('${c.key}',${v})" data-v="${v}">★</span>`
+        ).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function setOverallStars(val) {
+  overallStarsVal = val;
+  document.querySelectorAll('.star-pick').forEach(s => {
+    s.classList.toggle('active', parseInt(s.dataset.v) <= val);
+  });
+}
+
+function setCatStar(key, val) {
+  catStarsVal[key] = val;
+  document.querySelectorAll(`#catPicker-${key} .mini-star-pick`).forEach(s => {
+    s.classList.toggle('active', parseInt(s.dataset.v) <= val);
+  });
+}
+
+function updateRevCounter() {
+  document.getElementById('revCounter').textContent = document.getElementById('revComment').value.length;
+}
+
+async function submitReview() {
+  if (!currentUser) return;
+
+  // Prevence self-hodnocení
+  if (currentUser.id === profileUserId) {
+    showToast('❌ Nemůžeš hodnotit sám sebe.', 'error');
+    return;
+  }
+
+  if (!reviewerRole) return showToast('⚠️ Vyber svou roli (kupující/prodávající)', 'error');
+  if (!overallStarsVal) return showToast('⚠️ Vyber celkové hodnocení', 'error');
+
+  // Kontrola duplicitního hodnocení (Aukro styl — první hodnocení platí)
+  try {
+    const existing = await supabaseRequest(
+      `rest/v1/reviews?reviewer_id=eq.${currentUser.id}&reviewed_id=eq.${profileUserId}&select=id,created_at`
+    );
+    if (Array.isArray(existing) && existing.length > 0) {
+      const existDate = new Date(existing[0].created_at).toLocaleDateString('cs-CZ');
+      showToast(`⚠️ Tohoto uživatele jsi již hodnotil/a (${existDate}). První hodnocení zůstává v platnosti.`, 'error');
+      closeModal('reviewModal');
+      return;
+    }
+  } catch(e) { /* pokud check selže, pokračuj */ }
+
+  const comment = document.getElementById('revComment').value.trim();
+  const body = {
+    reviewer_id:       currentUser.id,
+    reviewed_id:       profileUserId,
+    reviewer_username: currentUser.user_metadata?.username || currentUser.email?.split('@')[0],
+    reviewed_username: profileUsername,
+    reviewer_role:     reviewerRole,
+    stars_overall:     overallStarsVal,
+    comment:           comment || null,
+  };
+
+  if (reviewerRole === 'buyer') {
+    body.stars_communication  = catStarsVal.communication  || null;
+    body.stars_delivery_speed = catStarsVal.delivery_speed || null;
+    body.stars_item_accuracy  = catStarsVal.item_accuracy  || null;
+  } else {
+    body.stars_payment_speed = catStarsVal.payment_speed || null;
+    body.stars_pickup        = catStarsVal.pickup        || null;
+  }
+
+  document.getElementById('btnSubmitReview').disabled = true;
+  try {
+    // Hodnotit jde jen po dokončeném obchodu (hlídá to i databáze) → najít ho
+    const tok = localStorage.getItem('sb_token');
+    const kdo = reviewerRole === 'buyer'
+      ? `buyer_id=eq.${currentUser.id}&seller_id=eq.${profileUserId}`
+      : `seller_id=eq.${currentUser.id}&buyer_id=eq.${profileUserId}`;
+    const tx = await supabaseRequest(`rest/v1/transactions?${kdo}&status=eq.completed&select=id,listing_id&order=created_at.desc&limit=1`, 'GET', null, tok);
+    if (!Array.isArray(tx) || !tx.length) {
+      showToast('ℹ️ Hodnotit můžeš jen po dokončeném obchodu s tímto uživatelem (v roli, kterou jsi vybral/a). Hodnocení najdeš v Transakcích.', 'error');
+      document.getElementById('btnSubmitReview').disabled = false;
+      return;
+    }
+    body.transaction_id = tx[0].id;
+    if (tx[0].listing_id) body.listing_id = tx[0].listing_id;
+    const vysl = await supabaseRequest('rest/v1/reviews', 'POST', body, tok);
+    // supabaseRequest při chybě nevyhazuje, vrací objekt s chybou → dřív se hlásil úspěch i při neúspěchu
+    if (vysl && !Array.isArray(vysl) && (vysl.code || vysl.message || vysl.error)) {
+      throw new Error(vysl.message || (vysl.error && vysl.error.message) || vysl.code || 'chyba');
+    }
+    closeModal('reviewModal');
+    showToast('✅ Hodnocení bylo odesláno!', 'success');
+    await loadReviews();
+    renderRatingCards();
+    renderReviews(currentTab);
+  } catch(e) {
+    const msg = e.message?.includes('unique') ? 'Tuto osobu jsi již hodnotil/a' : 'Nepodařilo se odeslat hodnocení';
+    showToast(`❌ ${msg}`, 'error');
+  }
+  document.getElementById('btnSubmitReview').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MODAL HELPERS
+// ═══════════════════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); document.body.style.overflow='hidden'; }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow=''; }
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+
+// ═══════════════════════════════════════════════════════════
+//  SHOW CONTENT
+// ═══════════════════════════════════════════════════════════
+function showContent() {
+  const sk = document.getElementById('profileSkeleton');
+  if (sk) sk.style.display = 'none';
+  document.getElementById('profileContent').style.display  = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast${type ? ' '+type : ''} show`;
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NASTAVENÍ — accordion toggle
+// ═══════════════════════════════════════════════════════════
+function toggleAcc(id) {
+  const item = document.getElementById(id);
+  if (!item) return;
+  item.classList.toggle('open');
+}
+
+// ── Sync mód ──────────────────────────────────────────────
+const PROFILE_SYNC_KEY = 'pkc_album_sync_mode';
+function profileChangeSyncMode(mode) {
+  localStorage.setItem(PROFILE_SYNC_KEY, mode);
+  const labels = { hourly: 'Každou hodinu', realtime: 'Real-time (30s)', manual: 'Manuálně' };
+  const sub = document.getElementById('accSyncSub');
+  if (sub) sub.textContent = labels[mode] || mode;
+}
+
+// ── Měna ──────────────────────────────────────────────────
+function profileSetCurrency(cur) {
+  localStorage.setItem('pkc_currency', cur);
+  window._pkc_currency = cur;
+  profileUpdateCurrencyUI();
+}
+function profileUpdateCurrencyUI() {
+  const cur = localStorage.getItem('pkc_currency') || 'EUR';
+  window._pkc_currency = cur;
+  const btnEUR = document.getElementById('profileCurrBtnEUR');
+  const btnCZK = document.getElementById('profileCurrBtnCZK');
+  if (btnEUR) btnEUR.classList.toggle('curr-active', cur === 'EUR');
+  if (btnCZK) btnCZK.classList.toggle('curr-active', cur === 'CZK');
+  const sub = document.getElementById('accCurrencySub');
+  if (sub) sub.textContent = cur === 'CZK' ? 'Kč CZK' : '€ EUR';
+  // rate info
+  const rateEl = document.getElementById('profileEurRateInfo');
+  if (rateEl) {
+    if (window._profileEurRate) {
+      rateEl.textContent = '1 € = ' + window._profileEurRate.toFixed(2) + ' Kč';
+    } else {
+      rateEl.textContent = 'Načítám kurz…';
+      fetch('https://open.er-api.com/v6/latest/EUR')
+        .then(r => r.json())
+        .then(d => {
+          window._profileEurRate = d?.rates?.CZK || null;
+          if (rateEl && window._profileEurRate)
+            rateEl.textContent = '1 € = ' + window._profileEurRate.toFixed(2) + ' Kč';
+        }).catch(() => { if (rateEl) rateEl.textContent = ''; });
+    }
+  }
+}
+
+// ── Jazyk ─────────────────────────────────────────────────
+function profileSetLang(lang) {
+  // Jazyk webu řídí i18n.js (pt_lang) — dřív se ukládal jen starý klíč a nic se nepřepnulo
+  if (typeof window.albumSettingsSetLang === 'function') return window.albumSettingsSetLang(lang);
+  if (lang === 'cz') lang = 'cs';
+  try { localStorage.setItem('pt_lang', lang); localStorage.setItem('pkc_lang', lang === 'cs' ? 'cz' : lang); } catch (e) {}
+  location.reload();
+}
+function profileUpdateLangUI(lang) {
+  const btnCZ = document.getElementById('profileLangBtnCZ');
+  const btnEN = document.getElementById('profileLangBtnEN');
+  if (btnCZ) btnCZ.classList.toggle('curr-active', lang === 'cz');
+  if (btnEN) btnEN.classList.toggle('curr-active', lang === 'en');
+  const sub = document.getElementById('accLangSub');
+  if (sub) sub.textContent = lang === 'en' ? 'EN' : 'CZ';
+}
+
+// ── Init nastavení sekce ──────────────────────────────────
+(async function initSettingsSection() {
+  await new Promise(r => setTimeout(r, 350));
+  if (!currentUser || !profileUserId || currentUser.id !== profileUserId) return;
+
+  // Zobraz tlačítko nastavení v topbaru
+  const wrap = document.getElementById('settingsDropWrap');
+  if (wrap) wrap.style.display = 'block';
+
+  // Sync mód
+  const savedMode = localStorage.getItem(PROFILE_SYNC_KEY) || 'hourly';
+  const sel = document.getElementById('profileSyncSelect');
+  if (sel) sel.value = savedMode;
+  profileChangeSyncMode(savedMode);
+
+  // Last sync info
+  const lastSync = localStorage.getItem('pkc_last_sync');
+  const lastEl = document.getElementById('profileLastSyncInfo');
+  if (lastEl && lastSync) {
+    const d = new Date(lastSync);
+    lastEl.textContent = 'Naposledy: ' + d.toLocaleTimeString('cs-CZ');
+  }
+
+  // Měna
+  profileUpdateCurrencyUI();
+
+  // Jazyk
+  profileUpdateLangUI(localStorage.getItem('pkc_lang') || 'cz');
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  GROQ AI SEKCE — inicializace
+//  Spustí se po načtení profilu, zobrazí se jen vlastníkovi
+// ═══════════════════════════════════════════════════════════
+(async function initGroqSection() {
+  await new Promise(r => setTimeout(r, 300));
+  if (!currentUser || !profileUserId || currentUser.id !== profileUserId) return;
+
+  // Načti uloženou hranici pro upozornění na drahou kartičku a aktualizuj subtitle
+  const savedThreshold = localStorage.getItem('pkc_exp_threshold');
+  const threshInp = document.getElementById('expThresholdInp');
+  if (threshInp && savedThreshold !== null) threshInp.value = savedThreshold;
+  const alertVal = document.getElementById('accPriceAlertVal');
+  if (alertVal) alertVal.textContent = savedThreshold || '20';
+
+  window.setThresholdPreset = function(val) {
+    const inp = document.getElementById('expThresholdInp');
+    if (inp) { inp.value = val; inp.focus(); }
+  };
+
+  window.saveExpThreshold = function() {
+    const val = parseFloat(document.getElementById('expThresholdInp').value);
+    const fb  = document.getElementById('expThresholdFeedback');
+    if (isNaN(val) || val < 0) {
+      fb.textContent = '❌ Zadej platné číslo';
+      fb.className = 'price-alert-feedback error';
+      return;
+    }
+    localStorage.setItem('pkc_exp_threshold', val);
+    const alertVal = document.getElementById('accPriceAlertVal');
+    if (alertVal) alertVal.textContent = val;
+    fb.textContent = '✅ Uloženo – karty nad ' + val + ' EUR budou označeny ⭐';
+    fb.className = 'price-alert-feedback ok';
+    setTimeout(() => { fb.textContent = ''; fb.className = 'price-alert-feedback'; }, 3500);
+  };
+
+  const dot        = document.getElementById('groqDot');
+  const statusTxt  = document.getElementById('groqStatusText');
+  const keyInput   = document.getElementById('groqKeyInput');
+  const keysList   = document.getElementById('groqKeysList');
+  const addBtn     = document.getElementById('groqAddBtn');
+  const modelSel   = document.getElementById('groqModelSelect');
+  const deleteBtn  = document.getElementById('groqDeleteBtn');
+  // Sekce Groq klíčů se přesunula do Nastavení v horní liště — bez ní nic dál
+  // nedělat (dřív tady stránka spadla na chybě „null.style").
+  if (!dot || !statusTxt || !deleteBtn) return;
+  const feedback   = document.getElementById('groqFeedback');
+  const testWrap   = document.getElementById('groqTestWrap');
+  const testBtn    = document.getElementById('groqTestBtn');
+  const testResult = document.getElementById('groqTestResult');
+
+  if (!dot) return;
+
+  // Naplň select modely z GroqClient
+  if (window.GroqClient) {
+    GroqClient.getModels().forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id; opt.textContent = m.label;
+      modelSel.appendChild(opt);
+    });
+  }
+
+  // ── Pomocné funkce ─────────────────────────────────────────
+  function maskKey(k) {
+    return k.slice(0, 8) + '•'.repeat(Math.min(24, k.length - 8));
+  }
+  function parseKeys(raw) {
+    if (!raw) return [];
+    return raw.split(',').map(k => k.trim()).filter(k => k.length > 10);
+  }
+  function renderKeysList(keys) {
+    keysList.innerHTML = '';
+    if (!keys.length) {
+      keysList.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">Zatím žádné klíče – přidej první výše</div>';
+      return;
+    }
+    keys.forEach(function(k, i) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px';
+      row.innerHTML =
+        '<span style="font-size:11px;color:var(--text3);min-width:20px;font-weight:700">#' + (i+1) + '</span>' +
+        '<span style="font-family:monospace;font-size:13px;flex:1;color:var(--text)">' + maskKey(k) + '</span>' +
+        '<span style="font-size:10px;color:var(--text3);margin-right:4px">' + (i === 0 ? '🟢 aktivní' : '⏳ záloha') + '</span>' +
+        '<button onclick="removeGroqKey(' + i + ')" style="background:transparent;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:0 4px" title="Odebrat">✕</button>';
+      keysList.appendChild(row);
+    });
+  }
+
+  let _groqKeys = [];
+
+  window.removeGroqKey = async function(idx) {
+    if (!confirm('Odebrat klíč #' + (idx+1) + '?')) return;
+    _groqKeys.splice(idx, 1);
+    await saveAllKeys();
+    renderKeysList(_groqKeys);
+    setGroqFeedback(_groqKeys.length ? '✅ Klíč odebrán' : 'Všechny klíče odebrány', 'ok');
+    updateStatus();
+  };
+
+  async function saveAllKeys() {
+    const token = localStorage.getItem('sb_token');
+    const keyStr = _groqKeys.join(',');
+    const existing = await supabaseRequest(
+      'rest/v1/user_api_keys?user_id=eq.' + currentUser.id + '&select=id',
+      'GET', null, token
+    );
+    const hasRow = Array.isArray(existing) && existing.length > 0;
+    const res = await supabaseRequest(
+      hasRow ? 'rest/v1/user_api_keys?user_id=eq.' + currentUser.id : 'rest/v1/user_api_keys',
+      hasRow ? 'PATCH' : 'POST',
+      { user_id: currentUser.id, groq_key: keyStr, groq_model: modelSel.value, groq_enabled: true },
+      token
+    );
+    if (res && res.error) throw new Error(res.error.message || 'Chyba uložení');
+    if (window.GroqClient) await GroqClient.loadKey();
+  }
+
+  function updateStatus() {
+    // Sekce s AI klíči se přesunula do Nastavení — když tu prvky nejsou, nic nedělat
+    if (!dot || !statusTxt) return;
+    const n = _groqKeys.length;
+    const groqSub = document.getElementById('accGroqSub');
+    if (n > 0) {
+      dot.className = 'groq-dot active';
+      statusTxt.textContent = 'Groq AI aktivní – ' + n + ' klíč' + (n === 1 ? '' : n < 5 ? 'e' : 'ů');
+      if (groqSub) groqSub.textContent = 'Aktivní (' + n + '×)';
+      if (deleteBtn) deleteBtn.style.display = 'inline-flex';
+      if (testWrap) testWrap.style.display  = 'block';
+    } else {
+      dot.className = 'groq-dot';
+      statusTxt.textContent = 'Groq AI není nakonfigurováno';
+      if (groqSub) groqSub.textContent = 'Nekonfigurováno';
+      if (deleteBtn) deleteBtn.style.display = 'none';
+      if (testWrap) testWrap.style.display  = 'none';
+    }
+  }
+
+  // ── Načti klíče ze Supabase ────────────────────────────────
+  if (!dot || !statusTxt) return;   // sekce AI klíčů je teď v Nastavení (⚙) — na profilu není
+  dot.className = 'groq-dot loading';
+  statusTxt.textContent = 'Načítám nastavení…';
+  try {
+    const token = localStorage.getItem('sb_token');
+    const res = await supabaseRequest(
+      'rest/v1/user_api_keys?user_id=eq.' + currentUser.id + '&select=groq_key,groq_model,groq_enabled',
+      'GET', null, token
+    );
+    const data = Array.isArray(res) ? res[0] : null;
+    if (data && data.groq_key) {
+      _groqKeys = parseKeys(data.groq_key);
+      if (data.groq_model) modelSel.value = data.groq_model;
+      if (window.GroqClient) await GroqClient.loadKey();
+    }
+  } catch(e) { console.warn('[Groq] Chyba načítání:', e); }
+  renderKeysList(_groqKeys);
+  updateStatus();
+
+  // ── Přidat klíč ────────────────────────────────────────────
+  addBtn.addEventListener('click', async () => {
+    const key = keyInput.value.trim();
+    if (!key || key.length < 20) {
+      setGroqFeedback('Zadej platný Groq API klíč (začíná gsk_…)', 'error'); return;
+    }
+    if (_groqKeys.includes(key)) {
+      setGroqFeedback('Tento klíč už je přidán.', 'error'); return;
+    }
+
+    addBtn.disabled = true;
+    addBtn.textContent = '⏳';
+    setGroqFeedback('', '');
+
+    try {
+      if (window.GroqClient) {
+        const valid = await GroqClient.validateKey(key);
+        if (!valid) {
+          setGroqFeedback('❌ Klíč je neplatný nebo vypršel. Ověř ho na console.groq.com', 'error');
+          return;
+        }
+      }
+      _groqKeys.push(key);
+      await saveAllKeys();
+      renderKeysList(_groqKeys);
+      updateStatus();
+      keyInput.value = '';
+      setGroqFeedback('✅ Klíč #' + _groqKeys.length + ' přidán', 'ok');
+    } catch (e) {
+      _groqKeys.pop();
+      setGroqFeedback('❌ Chyba: ' + e.message, 'error');
+    } finally {
+      addBtn.disabled = false;
+      addBtn.textContent = '+ Přidat';
+    }
+  });
+
+  // ── Smazat všechny klíče ───────────────────────────────────
+  deleteBtn.addEventListener('click', async () => {
+    if (!confirm('Odebrat všechny Groq klíče? Groq funkce přestanou fungovat.')) return;
+    try {
+      const token = localStorage.getItem('sb_token');
+      await supabaseRequest(
+        'rest/v1/user_api_keys?user_id=eq.' + currentUser.id,
+        'DELETE', null, token
+      );
+      _groqKeys = [];
+      renderKeysList([]);
+      updateStatus();
+      setGroqFeedback('Všechny klíče byly odebrány.', 'ok');
+    } catch (e) {
+      setGroqFeedback('❌ ' + e.message, 'error');
+    }
+  });
+
+  // ── Test připojení ─────────────────────────────────────────
+  testBtn.addEventListener('click', async () => {
+    if (!window.GroqClient || !GroqClient.isReady()) {
+      await GroqClient.loadKey();
+    }
+    testBtn.disabled = true;
+    testBtn.textContent = '⏳ Testuji…';
+    testResult.style.display = 'block';
+    testResult.textContent = '';
+    try {
+      const reply = await GroqClient.ask(
+        'Řekni mi jeden zajímavý fakt o Pokémonech (max 2 věty, česky).',
+        'Jsi přátelský Pokémon asistent.'
+      );
+      testResult.textContent = '✅ Připojení funguje!\n\n' + reply;
+    } catch (e) {
+      testResult.textContent = '❌ Chyba: ' + e.message;
+    } finally {
+      testBtn.disabled = false;
+      testBtn.textContent = '⚡ Otestovat připojení';
+    }
+  });
+
+  function setGroqFeedback(msg, type) {
+    feedback.textContent = msg;
+    feedback.className = 'groq-feedback ' + (type || '');
+  }
+})();
+
+
+/* ═══════════════════════════════════════════════════════
+   ZABEZPEČENÍ ÚČTU — Změna emailu + TOTP 2FA
+   ═══════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var _SBU = typeof SUPABASE_URL  !== 'undefined' ? SUPABASE_URL  : '';
+  var _SBA = typeof SUPABASE_ANON !== 'undefined' ? SUPABASE_ANON : '';
+  var _totpFactorId    = null;
+  var _totpChallengeId = null;
+  var _totpSecret      = null;
+
+  function _tok() { return localStorage.getItem('sb_token') || localStorage.getItem('sb_access_token') || null; }
+  function _authH() {
+    return { 'Content-Type': 'application/json', 'apikey': _SBA, 'Authorization': 'Bearer ' + _tok() };
+  }
+
+  /* ── Inicializace po načtení profilu ── */
+  window.securityInit = function () {
+    var user = null;
+    try { user = JSON.parse(localStorage.getItem('sb_user') || 'null'); } catch(e) {}
+    var email = user?.email || user?.user_metadata?.email || '';
+    var el = document.getElementById('secCurrentEmail');
+    if (el) el.textContent = email || 'Neznámý email';
+    _loadTotpState();
+  };
+
+  /* ─────────────────────────────────────────
+     ZMĚNA EMAILU
+  ───────────────────────────────────────── */
+  window.secToggleEmailForm = function () {
+    var body = document.getElementById('secEmailBody');
+    if (!body) return;
+    body.classList.toggle('hidden');
+    if (!body.classList.contains('hidden')) {
+      var inp = document.getElementById('secNewEmailInp');
+      if (inp) inp.focus();
+    }
+  };
+
+  window.secChangeEmail = function () {
+    var inp = document.getElementById('secNewEmailInp');
+    var fb  = document.getElementById('secEmailFeedback');
+    var newEmail = inp ? inp.value.trim() : '';
+
+    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      _secFb(fb, 'error', '❌ Zadej platný email');
+      return;
+    }
+    var btn = inp.nextElementSibling;
+    if (btn) { btn.disabled = true; btn.textContent = 'Odesílám…'; }
+    _secFb(fb, 'info', '⏳ Odesílám potvrzovací email…');
+
+    fetch(_SBU + '/auth/v1/user', {
+      method: 'PUT',
+      headers: _authH(),
+      body: JSON.stringify({ email: newEmail })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.error || d.msg) {
+        _secFb(fb, 'error', '❌ ' + (d.error_description || d.msg || d.error));
+      } else {
+        _secFb(fb, 'ok', '✅ Potvrzovací odkaz odeslán na ' + newEmail + '. Zkontroluj email a klikni na odkaz.');
+        if (inp) inp.value = '';
+      }
+    })
+    .catch(function () { _secFb(fb, 'error', '❌ Chyba sítě'); })
+    .finally(function () { if (btn) { btn.disabled = false; btn.textContent = 'Odeslat'; } });
+  };
+
+  /* ─────────────────────────────────────────
+     TOTP 2FA
+  ───────────────────────────────────────── */
+  function _loadTotpState() {
+    var t = _tok();
+    if (!t) { _totpShowState('setup'); return; }
+
+    // Seznam faktorů je v /auth/v1/user (pole factors); GET /auth/v1/factors neexistuje → dřív se vždy
+    // ukázalo „Neaktivní" a nové nastavení pak padalo na „AAL2 required" (faktor už existoval)
+    fetch(_SBU + '/auth/v1/user', { headers: _authH() })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var factors = (d && Array.isArray(d.factors)) ? d.factors : [];
+      var active = factors.find(function (f) { return f.factor_type === 'totp' && f.status === 'verified'; });
+      if (active) {
+        _totpFactorId = active.id;
+        _totpShowState('active');
+      } else {
+        // Smaž případné neověřené faktory z předchozího pokusu
+        var unverified = factors.filter(function (f) { return f.factor_type === 'totp' && f.status !== 'verified'; });
+        Promise.all(unverified.map(function (f) { return _totpDeleteFactor(f.id); }))
+          .then(function () { _totpShowState('setup'); });
+      }
+    })
+    .catch(function () { _totpShowState('setup'); });
+  }
+
+  function _totpShowState(state) {
+    document.getElementById('totpStateLoading').style.display = 'none';
+    document.getElementById('totpStateActive').style.display  = state === 'active'  ? '' : 'none';
+    document.getElementById('totpStateSetup').style.display   = state === 'setup'   ? '' : 'none';
+    document.getElementById('totpStateVerify').style.display  = state === 'verify'  ? '' : 'none';
+
+    var badge = document.getElementById('totpBadge');
+    if (badge) {
+      if (state === 'active') {
+        badge.className = 'security-badge active';
+        badge.textContent = '✅ Aktivní';
+      } else if (state === 'setup' || state === 'verify') {
+        badge.className = 'security-badge inactive';
+        badge.textContent = '🔓 Neaktivní';
+      } else {
+        badge.className = 'security-badge inactive';
+        badge.textContent = '⏳ Načítám';
+      }
+    }
+  }
+
+  window.secStartTotpSetup = function () {
+    var btn = document.getElementById('totpStartBtn');
+    var fb  = document.getElementById('secTotpSetupFeedback');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Generuji QR kód…'; }
+    _secFb(fb, '', '');
+
+    fetch(_SBU + '/auth/v1/factors', {
+      method: 'POST',
+      headers: _authH(),
+      // Jedinečný název — Supabase odmítne druhý faktor se stejným jménem (třeba po nedokončeném nastavení)
+      body: JSON.stringify({ factor_type: 'totp', friendly_name: 'PokéTrade 2FA ' + new Date().toISOString().slice(0, 16).replace('T', ' ') })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.error || !d.id) {
+        var duvod = d.error_description || d.msg || d.message || d.error || d.code || '';
+        if (/mfa.*(disabled|not enabled)|enroll.*disabled/i.test(duvod)) duvod = '2FA zatím není na serveru zapnuté (Supabase → Authentication → Multi-Factor → TOTP).';
+        _secFb(fb, 'error', '❌ Nepodařilo se vygenerovat 2FA' + (duvod ? ': ' + duvod : ''));
+        if (btn) { btn.disabled = false; btn.textContent = '📱 Zahájit nastavení 2FA'; }
+        return;
+      }
+      _totpFactorId = d.id;
+      _totpSecret   = d.totp?.secret || '';
+
+      // QR kód z URI
+      var uri = d.totp?.uri || '';
+      var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(uri);
+      var img = document.getElementById('totpQrImg');
+      if (img) img.src = qrUrl;
+      var sec = document.getElementById('totpSecretText');
+      if (sec) sec.textContent = _totpSecret;
+
+      _totpShowState('verify');
+      var codeInp = document.getElementById('totpCodeInp');
+      if (codeInp) { codeInp.value = ''; codeInp.focus(); }
+    })
+    .catch(function () {
+      _secFb(fb, 'error', '❌ Chyba sítě');
+      if (btn) { btn.disabled = false; btn.textContent = '📱 Zahájit nastavení 2FA'; }
+    });
+  };
+
+  window.secVerifyTotp = function () {
+    var code = (document.getElementById('totpCodeInp')?.value || '').replace(/\s/g, '');
+    var fb   = document.getElementById('secTotpVerifyFeedback');
+
+    if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+      _secFb(fb, 'error', '❌ Zadej 6místný číselný kód'); return;
+    }
+
+    _secFb(fb, 'info', '⏳ Ověřuji kód…');
+
+    // 1. Vytvoř challenge
+    fetch(_SBU + '/auth/v1/factors/' + _totpFactorId + '/challenge', {
+      method: 'POST', headers: _authH()
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (ch) {
+      if (ch.error || !ch.id) throw new Error(ch.error_description || 'Challenge selhala');
+      _totpChallengeId = ch.id;
+
+      // 2. Ověř kód
+      return fetch(_SBU + '/auth/v1/factors/' + _totpFactorId + '/verify', {
+        method: 'POST',
+        headers: _authH(),
+        body: JSON.stringify({ challenge_id: _totpChallengeId, code: code })
+      });
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.error) throw new Error(d.error_description || d.error);
+      // Uložení nového tokenu (Supabase vrátí novou session)
+      if (d.access_token) {
+        localStorage.setItem('sb_token', d.access_token);
+        localStorage.setItem('sb_access_token', d.access_token);
+      }
+      _secFb(fb, 'ok', '✅ 2FA aktivováno! Při každém přihlášení budete vyzváni k zadání kódu.');
+      setTimeout(function () { _totpShowState('active'); }, 1800);
+    })
+    .catch(function (e) {
+      _secFb(fb, 'error', '❌ ' + (e.message || 'Neplatný kód'));
+    });
+  };
+
+  window.secCancelTotpSetup = function () {
+    if (_totpFactorId) _totpDeleteFactor(_totpFactorId);
+    _totpFactorId = null; _totpSecret = null; _totpChallengeId = null;
+    _totpShowState('setup');
+  };
+
+  window.secDisableTotp = function () {
+    var fb = document.getElementById('secTotpDisableFeedback');
+    if (!_totpFactorId) { _secFb(fb, 'error', '❌ Factor ID nenalezeno'); return; }
+    if (!confirm('Opravdu chceš deaktivovat 2FA? Tvůj účet bude méně chráněný.')) return;
+    // Odebrat faktor jde jen s ověřením kódem (úroveň AAL2) — nejdřív ověřit kód z aplikace
+    var kod = (prompt('Zadej 6místný kód z aplikace Google Authenticator / Authy:') || '').replace(/\D/g, '');
+    if (kod.length !== 6) { _secFb(fb, 'error', '❌ Kód musí mít 6 číslic'); return; }
+    _secFb(fb, 'info', '⏳ Ověřuji kód…');
+
+    _totpZvysitAal(_totpFactorId, kod)
+    .then(function () { return _totpDeleteFactor(_totpFactorId); })
+    .then(function (r) {
+      if (r && (r.error || r.msg || r.code)) throw new Error(r.msg || r.error_description || r.error || r.code);
+      _totpFactorId = null;
+      _secFb(fb, 'ok', '✅ 2FA deaktivováno');
+      setTimeout(function () { _totpShowState('setup'); }, 1500);
+    })
+    .catch(function (e) { _secFb(fb, 'error', '❌ Nepodařilo se deaktivovat' + (e && e.message ? ': ' + e.message : '')); });
+  };
+
+  // Ověření kódem → nová relace s úrovní AAL2 (uloží se místo staré)
+  function _totpZvysitAal(factorId, kod) {
+    return fetch(_SBU + '/auth/v1/factors/' + factorId + '/challenge', { method: 'POST', headers: _authH(), body: '{}' })
+      .then(function (r) { return r.json(); })
+      .then(function (ch) {
+        if (!ch || !ch.id) throw new Error(ch && (ch.msg || ch.error_description) || 'challenge selhal');
+        return fetch(_SBU + '/auth/v1/factors/' + factorId + '/verify', { method: 'POST', headers: _authH(),
+          body: JSON.stringify({ challenge_id: ch.id, code: kod }) });
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (v) {
+        if (!v || !v.access_token) throw new Error(v && (v.msg || v.error_description) || 'špatný kód');
+        localStorage.setItem('sb_token', v.access_token);
+        if (v.refresh_token) { localStorage.setItem('sb_refresh_token', v.refresh_token); localStorage.setItem('sb_refresh', v.refresh_token); }
+        return v;
+      });
+  }
+
+  function _totpDeleteFactor(id) {
+    return fetch(_SBU + '/auth/v1/factors/' + id, {
+      method: 'DELETE', headers: _authH()
+    }).then(function (r) { return r.ok ? {} : r.json(); });
+  }
+
+  window.secCopySecret = function () {
+    if (_totpSecret) {
+      navigator.clipboard?.writeText(_totpSecret)
+        .then(function () { showToast('Kód zkopírován'); })
+        .catch(function () {});
+    }
+  };
+
+  function _secFb(el, type, msg) {
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'sec-feedback' + (type ? ' ' + type : '');
+  }
+
+  /* Spustí se když loadProfile() zobrazí dashboard */
+  window.securityInit = window.securityInit;
+
+})();
+
+function doLogout() {
+  ['sb_token','sb_user_id','sb_username','sb_refresh','sb_user','sb_refresh_token'].forEach(function(k){localStorage.removeItem(k)});
+  location.href = 'login.html';
+}
+
+</script>
+<script>
+/* ── Chat Dropdown + Notifikace ── */
+(function(){
+  'use strict';
+  var POLL=8000;
+  var SBU=typeof SUPABASE_URL!=='undefined'?SUPABASE_URL:'https://xrduqwrinzvmpixgmqta.supabase.co';
+  var SBA=typeof SUPABASE_ANON!=='undefined'?SUPABASE_ANON:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyZHVxd3Jpbnp2bXBpeGdtcXRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MDI0MjksImV4cCI6MjA5MDk3ODQyOX0.2p404Vy77CH_MsvQlnpxaO0H-KlSSt_oJlaFrmttFXs';
+  var tk=localStorage.getItem('sb_token');
+  var su=(function(){try{return JSON.parse(localStorage.getItem('sb_user')||'null')}catch(e){return null}})();
+  if(!tk||!su||!su.id)return;
+  var uid=su.id,convs=[],prevUn=0,dropO=false;
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function fmtT(iso){if(!iso)return'';var d=new Date(iso),n=new Date(),df=n-d;if(df<60000)return'teď';if(df<3600000)return Math.floor(df/60000)+' min';if(d.toDateString()===n.toDateString())return d.toLocaleTimeString('cs',{hour:'2-digit',minute:'2-digit'});var y=new Date(n);y.setDate(y.getDate()-1);if(d.toDateString()===y.toDateString())return'včera';return d.toLocaleDateString('cs',{day:'numeric',month:'numeric'})}
+  async function sbF(p){try{var r=await fetch(SBU+'/'+p,{headers:{'Content-Type':'application/json','apikey':SBA,'Authorization':'Bearer '+tk}});var d=await r.json();return Array.isArray(d)?d:[]}catch(e){return[]}}
+  window.toggleChatDrop=function(){var dr=document.getElementById('chatDrop');if(!dr)return;dropO=!dropO;dr.classList.toggle('open',dropO);if(dropO)renderDrop()};
+  document.addEventListener('click',function(e){var w=document.getElementById('chatDropWrap');if(w&&!w.contains(e.target)&&dropO){dropO=false;var dr=document.getElementById('chatDrop');if(dr)dr.classList.remove('open')}});
+  function renderDrop(){
+    var list=document.getElementById('chatDropList');if(!list)return;
+    if(!convs.length){list.innerHTML='<div class="chat-drop-empty"><div style="font-size:24px;margin-bottom:6px;opacity:0.4">💬</div><div>Žádné zprávy</div></div>';return}
+    list.innerHTML=convs.slice(0,8).map(function(c){
+      var isU1=c.user1_id===uid,partner=isU1?c.user2_username:c.user1_username;
+      var un=isU1?(c.unread_user1||0):(c.unread_user2||0);
+      var ini=(partner||'?')[0].toUpperCase(),msg=c.last_message_text||'Nová konverzace',tm=fmtT(c.last_message_at);
+      var hasL=msg.indexOf('📎')>=0||msg.indexOf('Nabídka')>=0;
+      return '<a class="cdrop-item'+(un>0?' unread':'')+'" href="chat.html?conv='+c.id+'">'
+        +'<div class="cdrop-avatar">'+esc(ini)+'</div>'
+        +'<div class="cdrop-info"><div class="cdrop-top"><div class="cdrop-name">'+esc(partner)+'</div><div class="cdrop-time">'+esc(tm)+'</div></div>'
+        +'<div class="cdrop-msg">'+esc(msg)+'</div>'
+        +(hasL?'<div class="cdrop-listing"><div class="cdrop-listing-dot"></div> Nabídka z marketplace</div>':'')
+        +'</div>'+(un>0?'<div class="cdrop-unread-dot"></div>':'')+'</a>'
+    }).join('');
+    if(window.Notification&&Notification.permission==='default'&&!localStorage.getItem('pkt_notif_dismissed')&&!document.getElementById('notifPrompt')){
+      var pr=document.createElement('div');pr.className='notif-prompt show';pr.id='notifPrompt';
+      pr.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(74,158,255,0.7)" stroke-width="2" style="flex-shrink:0"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span style="flex:1">Oznámení o nových zprávách?</span><button class="notif-prompt-btn notif-allow" onclick="requestNotifPerm()">Povolit</button><button class="notif-prompt-btn notif-dismiss" onclick="dismissNotifPrompt()">Ne</button>';
+      document.getElementById('chatDrop').appendChild(pr)
+    }
+  }
+  window.requestNotifPerm=async function(){if(!window.Notification)return;await Notification.requestPermission();var p=document.getElementById('notifPrompt');if(p)p.remove()};
+  window.dismissNotifPrompt=function(){localStorage.setItem('pkt_notif_dismissed','1');var p=document.getElementById('notifPrompt');if(p)p.remove()};
+  function showNotif(title,body){if(!window.Notification||Notification.permission!=='granted')return;try{var n=new Notification(title,{body:body,icon:'pokemon.png',tag:'poketrade-msg',renotify:true});n.onclick=function(){window.focus();window.location.href='chat.html';n.close()};setTimeout(function(){n.close()},6000)}catch(e){}}
+  async function poll(){
+    convs=await sbF('rest/v1/conversations?or=(user1_id.eq.'+uid+',user2_id.eq.'+uid+')&order=last_message_at.desc&limit=15');
+    var tot=convs.reduce(function(s,c){return s+(c.user1_id===uid?(c.unread_user1||0):(c.unread_user2||0))},0);
+    var bg=document.getElementById('chatBadge');
+    if(bg){if(tot>0){bg.textContent=tot>99?'99+':tot;bg.style.display=''}else{bg.style.display='none'}}
+    if(tot>prevUn&&prevUn>=0&&document.hidden){
+      var nc=convs.find(function(c){var u=c.user1_id===uid?(c.unread_user1||0):(c.unread_user2||0);return u>0&&c.last_sender_id!==uid});
+      if(nc){var pn=nc.user1_id===uid?nc.user2_username:nc.user1_username;showNotif(pn+' – PokéTrade',(nc.last_message_text||'Nová zpráva').slice(0,80))}
+    }
+    prevUn=tot;
+    if(dropO)renderDrop();
+    if(tot>0){var bt=document.title.replace(/^\(\d+\)\s*/,'');document.title='('+tot+') '+bt}else{document.title=document.title.replace(/^\(\d+\)\s*/,'')}
+  }
+  poll();setInterval(poll,POLL);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)poll()});
+})();
+</script>
+<script>
+/* ── Unified Header Auth Init ── */
+(function initHeaderAuth(){
+  var u = (typeof getUser === 'function') ? getUser() : null;
+  if (!u) {
+    try {
+      var raw = localStorage.getItem('sb_user');
+      var tk = localStorage.getItem('sb_token');
+      if (raw && tk) u = JSON.parse(raw);
+    } catch(e){}
+  }
+  var chip = document.getElementById('userChip');
+  var name = document.getElementById('userName');
+  var avatar = document.getElementById('userAvatar');
+  var loginLink = document.getElementById('loginLink');
+  var logoutBtn = document.getElementById('logoutBtn');
+  var profileBtn = document.getElementById('profileBtn');
+  if (u && u.id) {
+    var uname = (u.user_metadata && u.user_metadata.username) || u.email || '?';
+    if (chip) chip.style.display = '';
+    if (name) name.textContent = uname;
+    if (avatar) avatar.textContent = (uname[0]||'?').toUpperCase();
+    if (loginLink) loginLink.style.display = 'none';
+    if (logoutBtn) logoutBtn.style.display = '';
+    if (profileBtn) profileBtn.style.display = '';
+    // Load profile avatar
+    (async function(){
+      try {
+        var SBU = typeof SUPABASE_URL!=='undefined'?SUPABASE_URL:'https://xrduqwrinzvmpixgmqta.supabase.co';
+        var SBA = typeof SUPABASE_ANON!=='undefined'?SUPABASE_ANON:'';
+        var tk2 = localStorage.getItem('sb_token');
+        if (!tk2||!SBA) return;
+        var r = await fetch(SBU+'/rest/v1/profiles?id=eq.'+u.id+'&select=avatar_url',{headers:{'apikey':SBA,'Authorization':'Bearer '+tk2}});
+        var d = await r.json();
+        if (d&&d[0]&&d[0].avatar_url&&avatar) {
+          avatar.textContent='';
+          avatar.style.backgroundImage='url('+d[0].avatar_url+')';
+          avatar.style.backgroundSize='cover';
+          avatar.style.backgroundPosition='center';
+        }
+      } catch(e){}
+    })();
+  } else {
+    if (chip) chip.style.display = 'none';
+    if (loginLink) loginLink.style.display = '';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+    if (profileBtn) profileBtn.style.display = 'none';
+  }
+})();
+</script>
+<script>
+/* ═══ DASHBOARD FUNCTIONS (merged from dashboard.html) ═══ */
+var parsedPkte = null;
+
+async function loadMyListings() {
+  const token = localStorage.getItem('sb_token');
+  if (!currentUser) return;
+  const res = await supabaseRequest(
+    `rest/v1/listings?user_id=eq.${currentUser.id}&order=created_at.desc`,
+    'GET', null, token
+  );
+  const container = document.getElementById('myListings');
+  if (!container) return;
+  if (!res || res.error || !Array.isArray(res) || res.length === 0) {
+    container.innerHTML = `<p class="empty-state">Zatím nemáš žádné nabídky. Nahraj <code>.pkte</code> soubor! ↑</p>`;
+    return;
+  }
+  container.innerHTML = res.map(listing => {
+    const cards = listing.cards_data || [];
+    const preview = cards.slice(0, 4);
+    return `
+      <div class="listing-card">
+        <div class="lc-header">
+          <span class="lc-count">${cards.length} karet</span>
+          <span class="lc-date">${new Date(listing.created_at).toLocaleDateString('cs')}</span>
+          <button class="lc-delete" onclick="deleteListing('${listing.id}')" title="Smazat">🗑️</button>
+        </div>
+        <div class="lc-title">${escHtml(listing.title || 'Výměnná nabídka')}</div>
+        <div class="lc-cards-preview">
+          ${preview.map(c => {
+            const apiImg = c.images?.small || c.apiSmall || c.image_url || '';
+            const emoji  = getTypeEmoji(Array.isArray(c.types) ? c.types[0] : (c.type || c.supertype || ''));
+            return `<div class="mini-card" title="${escHtml(c.name || '?')}">${apiImg ? `<img src="${escHtml(apiImg)}" alt="${escHtml(c.name)}" loading="lazy">` : `<div class="mini-card-placeholder">${emoji}</div>`}</div>`;
+          }).join('')}
+          ${cards.length > 4 ? `<div class="mini-card more">+${cards.length - 4}</div>` : ''}
+        </div>
+        <div class="lc-footer">
+          <span class="lc-offers">${listing.offer_count || 0} nabídek</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function loadIncomingOffers() {
+  const token = localStorage.getItem('sb_token');
+  if (!currentUser) return;
+  const res = await supabaseRequest(
+    `rest/v1/offers?seller_id=eq.${currentUser.id}&status=eq.pending&order=created_at.desc`,
+    'GET', null, token
+  );
+  const container = document.getElementById('incomingOffers');
+  const badge = document.getElementById('offerCount');
+  if (!container) return;
+  if (badge) badge.textContent = (res && Array.isArray(res)) ? res.length : 0;
+  if (!res || res.error || !Array.isArray(res) || res.length === 0) {
+    container.innerHTML = `<p class="empty-state">Žádné nabídky zatím 🕊️</p>`;
+    return;
+  }
+  container.innerHTML = res.map(offer => `
+    <div class="offer-row">
+      <div class="offer-info">
+        <span class="offer-from">👤 ${escHtml(offer.buyer_username || 'Anonym')}</span>
+        <span class="offer-price">${offer.offered_price_czk ? offer.offered_price_czk + ' Kč' : 'výměna'}</span>
+        <span class="offer-date">${new Date(offer.created_at).toLocaleDateString('cs')}</span>
+      </div>
+      <div class="offer-actions">
+        <button class="btn-primary btn-sm" onclick="acceptOffer('${offer.id}')">✅ Přijmout</button>
+        <button class="btn-danger btn-sm" onclick="rejectOffer('${offer.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function handleDashDrop(e) {
+  e.preventDefault();
+  const uz = document.getElementById('uploadZone');
+  if (uz) uz.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processUploadFile(file);
+}
+function handleDashFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processUploadFile(file);
+}
+
+async function processUploadFile(file) {
+  if (!file.name.endsWith('.pkte') && !file.name.endsWith('.pktr')) {
+    alert('Nahrej prosím .pkte soubor (výměnná nabídka z aplikace)'); return;
+  }
+  openUploadModal();
+  setProgress(10, 'Čtu soubor...');
+  try {
+    const buffer = await file.arrayBuffer();
+    setProgress(30, 'Rozbaluji ZIP...');
+    const zipFiles = await readZip(buffer);
+    setProgress(60, 'Parsuju data...');
+    if (!zipFiles['data.json']) throw new Error('Soubor neobsahuje data.json');
+    const payload = JSON.parse(new TextDecoder().decode(zipFiles['data.json']));
+    if (!payload._meta || payload._meta.format !== 'pktr') throw new Error('Neplatný formát souboru');
+    setProgress(80, 'Připravuji náhled...');
+    const photoMap = {};
+    for (const [name, data] of Object.entries(zipFiles)) {
+      if (!name.startsWith('photos/')) continue;
+      const ext = name.split('.').pop().toLowerCase();
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      let bin = '';
+      const CHUNK = 8192;
+      for (let i = 0; i < data.length; i += CHUNK) bin += String.fromCharCode(...data.slice(i, i + CHUNK));
+      photoMap[name] = `data:${mime};base64,${btoa(bin)}`;
+    }
+    const cards = (payload.cards || []).map(card => {
+      if (!card.photos?.length) return card;
+      const photos = card.photos.map(entry => {
+        if (!entry) return null;
+        if (typeof entry === 'string') return entry;
+        if (entry.ref && photoMap[entry.ref]) return photoMap[entry.ref];
+        return null;
+      }).filter(Boolean);
+      return { ...card, photos };
+    });
+    parsedPkte = { payload, cards, exchangeItems: payload.exchangeItems || [], photoMap, fileName: file.name };
+    setProgress(100, 'Hotovo!');
+    showUploadPreview(parsedPkte);
+  } catch(err) { alert('Chyba: ' + err.message); closeUploadModal(); }
+}
+
+function showUploadPreview(data) {
+  document.getElementById('uploadProgress').style.display = 'none';
+  document.getElementById('uploadPreview').style.display = '';
+  const meta = data.payload._meta;
+  document.getElementById('previewSummary').innerHTML = `
+    <div class="preview-meta">
+      <span>📦 ${meta.cardCount || data.cards.length} karet</span>
+      <span>🖼️ ${meta.photoCount || 0} fotek</span>
+      <span>📅 ${new Date(meta.createdAt).toLocaleDateString('cs')}</span>
+    </div>`;
+  document.getElementById('previewCards').innerHTML = data.cards.slice(0, 12).map(card => {
+    const apiImg = card.images?.small || card.apiSmall || '';
+    const photo = card.photos?.[0] || '';
+    const displayImg = apiImg || photo;
+    return `<div class="preview-card-item"><div class="pci-img">${displayImg ? `<img src="${displayImg}" loading="lazy">` : '<div class="pci-placeholder">🃏</div>'}</div><div class="pci-name">${card.name || '?'}</div></div>`;
+  }).join('') + (data.cards.length > 12 ? `<div class="preview-more">a dalších ${data.cards.length - 12}...</div>` : '');
+}
+
+async function confirmUpload() {
+  if (!parsedPkte || !currentUser) return;
+  document.getElementById('confirmBtn').disabled = true;
+  document.getElementById('confirmBtn').textContent = '⏳ Nahrávám...';
+  const token = localStorage.getItem('sb_token');
+  const cardsForDb = parsedPkte.cards.map(card => ({
+    id: String(card.id), name: card.name, supertype: card.supertype,
+    types: card.types || [], subtype: card.subtype, rarity: card.rarity,
+    set: card.set, number: card.number, condition: card.condition,
+    apiSmall: card.images?.small || card.apiSmall || null,
+    apiLarge: card.images?.large || card.apiLarge || null,
+    priceCzk: card.pTrend ? Math.round(card.pTrend * 25) : (card.priceCzk || null),
+    priceEur: card.pTrend || null,
+    hasUserPhoto: (card.photos?.length || 0) > 0,
+    userPhotoThumb: card.photos?.[0] ? card.photos[0].substring(0, 100000) : null,
+  }));
+  const exchangeMap = {};
+  for (const item of (parsedPkte.exchangeItems || [])) {
+    exchangeMap[String(item.cardId)] = { priceCzk: item.priceCzk, priceEur: item.priceEur, count: item.count || 1 };
+  }
+  const res = await supabaseRequest('rest/v1/listings', 'POST', {
+    user_id: currentUser.id,
+    username: currentUser.user_metadata?.username || currentUser.email,
+    title: 'Výměnná nabídka ' + new Date().toLocaleDateString('cs'),
+    cards_data: cardsForDb, exchange_map: exchangeMap,
+    status: 'active', created_at: new Date().toISOString(), offer_count: 0,
+  }, token);
+  if (res?.error) alert('Chyba: ' + res.error.message);
+  else { closeUploadModal(); parsedPkte = null; loadMyListings(); }
+}
+
+async function deleteListing(id) {
+  if (!confirm('Opravdu smazat tuto nabídku?')) return;
+  await supabaseRequest(`rest/v1/listings?id=eq.${id}`, 'DELETE', null, localStorage.getItem('sb_token'));
+  loadMyListings();
+}
+// Přijetí/odmítnutí přes databázové funkce: přijetí zároveň rezervuje kartu pro
+// kupujícího (na 3 dny) a pošle mu upozornění. Přímá změna stavu už nejde.
+async function _vyridNabidku(fn, id) {
+  const r = await supabaseRequest('rest/v1/rpc/' + fn, 'POST', { p_offer: id }, localStorage.getItem('sb_token'));
+  if (r === 'ok') return true;
+  const chyby = { obsazeno: 'Karta je už rezervovaná nebo prodaná.', vyrizeno: 'Nabídka už byla vyřízena.',
+                  neni_tvoje: 'Tuhle nabídku nemůžeš vyřídit.', nenalezeno: 'Nabídka nebo inzerát už neexistuje.' };
+  alert('⚠️ ' + (chyby[r] || ('Chyba: ' + ((r && (r.message || (r.error && r.error.message))) || JSON.stringify(r)))));
+  return false;
+}
+async function acceptOffer(id) {
+  if (!confirm('Přijmout nabídku? Karta se na 3 dny rezervuje pro kupujícího.')) return;
+  const ok = await _vyridNabidku('prijmi_nabidku', id);
+  loadIncomingOffers();
+  if (ok) alert('✅ Nabídka přijata — karta je rezervovaná pro kupujícího.');
+}
+async function rejectOffer(id) {
+  if (!confirm('Odmítnout nabídku?')) return;
+  await _vyridNabidku('odmitni_nabidku', id);
+  loadIncomingOffers();
+}
+
+function openUploadModal() {
+  document.getElementById('uploadModal').style.display = 'flex';
+  document.getElementById('uploadProgress').style.display = '';
+  document.getElementById('uploadPreview').style.display = 'none';
+  setProgress(0, '');
+}
+function closeUploadModal() {
+  document.getElementById('uploadModal').style.display = 'none';
+  const fi = document.getElementById('dashFileInput');
+  if (fi) fi.value = '';
+  const cb = document.getElementById('confirmBtn');
+  if (cb) { cb.disabled = false; cb.textContent = '✅ Zveřejnit nabídku'; }
+}
+function setProgress(pct, label) {
+  const pb = document.getElementById('progressBar');
+  const pl = document.getElementById('progressLabel');
+  if (pb) pb.style.width = pct + '%';
+  if (pl) pl.textContent = label;
+}
+</script>
+
+<!-- ═══ AVATAR MODAL ═══ -->
+<div class="av-overlay" id="avOverlay" style="display:none" onclick="if(event.target===this)closeAvatarModal()">
+  <div class="av-modal">
+    <div class="av-head">
+      <span class="av-title">🖼 Profilový obrázek</span>
+      <button class="av-close" onclick="closeAvatarModal()">×</button>
+    </div>
+    <div class="av-tabs">
+      <button class="av-tab active" id="avTabPhoto" onclick="switchAvTab('photo')">📷 Vlastní fotka</button>
+      <button class="av-tab" id="avTabCard" onclick="switchAvTab('card')">🃏 Z Pokémon kartičky</button>
+    </div>
+    <div class="av-body">
+      <div id="avPanelPhoto">
+        <div class="av-drop" id="avDropPhoto"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="avHandleDrop(event,'photo')"
+          onclick="document.getElementById('avFilePhoto').click()">
+          <div class="av-drop-icon">🖼</div>
+          <div>Přetáhni fotku nebo klikni pro výběr</div>
+          <small>JPG, PNG, WEBP — max 10 MB</small>
+        </div>
+        <input type="file" id="avFilePhoto" accept="image/*" style="display:none" onchange="avLoadFile(this.files[0],'photo')">
+      </div>
+      <div id="avPanelCard" style="display:none">
+        <div class="av-card-hint">
+          💡 Nahraj obrázek Pokémon kartičky a vyřízni si libovolnou část — třeba obličej Pokémona — jako kulaté profilové foto.
+        </div>
+        <div class="av-drop" id="avDropCard"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="avHandleDrop(event,'card')"
+          onclick="document.getElementById('avFileCard').click()">
+          <div class="av-drop-icon">🃏</div>
+          <div>Přetáhni kartičku nebo klikni pro výběr</div>
+          <small>Foto kartičky — JPG, PNG</small>
+        </div>
+        <input type="file" id="avFileCard" accept="image/*" style="display:none" onchange="avLoadFile(this.files[0],'card')">
+      </div>
+      <div class="av-cropper-wrap" id="avCropperWrap">
+        <canvas id="avCanvas"></canvas>
+      </div>
+      <div class="av-crop-hint" id="avCropHint" style="display:none">Táhni pro posun · kolečko / gesta pro přiblížení</div>
+      <div class="av-zoom-row" id="avZoomRow" style="display:none">
+        <span style="font-size:13px">🔍</span>
+        <input type="range" id="avZoomSlider" min="0.5" max="4" step="0.01" value="1" oninput="avSetZoom(+this.value)">
+        <span class="av-zoom-label" id="avZoomLabel">100%</span>
+      </div>
+      <div class="av-actions">
+        <button class="av-btn-cancel" onclick="closeAvatarModal()">Zrušit</button>
+        <button class="av-btn-save" id="avSaveBtn" onclick="avSave()" disabled>💾 Uložit profilovku</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var CANVAS_SIZE=420, OUT_SIZE=400;
+  var img=null, zoom=1, minZoom=0.5;
+  var offX=0, offY=0;
+  var dragging=false, lastX=0, lastY=0, lastPinchDist=null;
+  var canvas, ctx;
+
+  function init(){
+    canvas=document.getElementById('avCanvas');
+    canvas.width=canvas.height=CANVAS_SIZE;
+    ctx=canvas.getContext('2d');
+    canvas.addEventListener('mousedown',function(e){dragging=true;lastX=e.clientX;lastY=e.clientY;});
+    canvas.addEventListener('mousemove',function(e){
+      if(!dragging||!img)return;
+      var scale=CANVAS_SIZE/canvas.offsetWidth;
+      offX+=(e.clientX-lastX)*scale; offY+=(e.clientY-lastY)*scale;
+      lastX=e.clientX;lastY=e.clientY; clamp(); draw();
+    });
+    canvas.addEventListener('mouseup',function(){dragging=false;});
+    canvas.addEventListener('mouseleave',function(){dragging=false;});
+    canvas.addEventListener('wheel',function(e){
+      e.preventDefault();
+      if(!img)return;
+      avSetZoom(Math.max(minZoom,Math.min(4,zoom+(e.deltaY<0?0.07:-0.07))));
+    },{passive:false});
+    canvas.addEventListener('touchstart',function(e){
+      if(e.touches.length===1){dragging=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
+      if(e.touches.length===2){lastPinchDist=pdist(e);}
+      e.preventDefault();
+    },{passive:false});
+    canvas.addEventListener('touchmove',function(e){
+      e.preventDefault();
+      if(e.touches.length===1&&dragging){
+        var scale=CANVAS_SIZE/canvas.offsetWidth;
+        offX+=(e.touches[0].clientX-lastX)*scale; offY+=(e.touches[0].clientY-lastY)*scale;
+        lastX=e.touches[0].clientX;lastY=e.touches[0].clientY; clamp(); draw();
+      }
+      if(e.touches.length===2&&lastPinchDist){
+        var d=pdist(e);
+        avSetZoom(Math.max(minZoom,Math.min(4,zoom*(d/lastPinchDist))));
+        lastPinchDist=d;
+      }
+    },{passive:false});
+    canvas.addEventListener('touchend',function(){dragging=false;lastPinchDist=null;});
+  }
+
+  function pdist(e){
+    var dx=e.touches[0].clientX-e.touches[1].clientX;
+    var dy=e.touches[0].clientY-e.touches[1].clientY;
+    return Math.sqrt(dx*dx+dy*dy);
+  }
+
+  window.avSetZoom=function(z){
+    zoom=z; clamp(); draw();
+    var sl=document.getElementById('avZoomSlider');
+    var lb=document.getElementById('avZoomLabel');
+    if(sl)sl.value=z;
+    if(lb)lb.textContent=Math.round(z*100)+'%';
+  };
+
+  function clamp(){
+    if(!img)return;
+    var iw=img.width*zoom, ih=img.height*zoom;
+    var minX=CANVAS_SIZE-iw, minY=CANVAS_SIZE-ih;
+    if(iw<CANVAS_SIZE){offX=Math.max(minX/2,Math.min(-minX/2,offX));}
+    else{offX=Math.max(minX,Math.min(0,offX));}
+    if(ih<CANVAS_SIZE){offY=Math.max(minY/2,Math.min(-minY/2,offY));}
+    else{offY=Math.max(minY,Math.min(0,offY));}
+  }
+
+  function draw(){
+    if(!ctx||!img)return;
+    ctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+    // Dark bg
+    ctx.fillStyle='#111';
+    ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+    // Image
+    ctx.drawImage(img,offX,offY,img.width*zoom,img.height*zoom);
+    // Dim outside circle
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,0.55)';
+    ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+    ctx.globalCompositeOperation='destination-out';
+    ctx.beginPath();
+    ctx.arc(CANVAS_SIZE/2,CANVAS_SIZE/2,CANVAS_SIZE/2-8,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+    // Circle border
+    ctx.strokeStyle='rgba(245,200,66,0.7)';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.arc(CANVAS_SIZE/2,CANVAS_SIZE/2,CANVAS_SIZE/2-8,0,Math.PI*2);
+    ctx.stroke();
+  }
+
+  function loadImage(file){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var i=new Image();
+      i.onload=function(){
+        img=i;
+        // Fit image so it fills the circle initially
+        var scaleW=CANVAS_SIZE/i.width, scaleH=CANVAS_SIZE/i.height;
+        zoom=Math.max(scaleW,scaleH);
+        minZoom=Math.min(zoom,0.5);
+        offX=(CANVAS_SIZE-i.width*zoom)/2;
+        offY=(CANVAS_SIZE-i.height*zoom)/2;
+        var wrap=document.getElementById('avCropperWrap');
+        var hint=document.getElementById('avCropHint');
+        var zrow=document.getElementById('avZoomRow');
+        var sbtn=document.getElementById('avSaveBtn');
+        if(wrap)wrap.style.display='block';
+        if(hint)hint.style.display='block';
+        if(zrow)zrow.style.display='flex';
+        if(sbtn)sbtn.disabled=false;
+        avSetZoom(zoom);
+        draw();
+      };
+      i.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  window.avHandleDrop=function(e,tab){
+    e.preventDefault();
+    document.getElementById(tab==='photo'?'avDropPhoto':'avDropCard').classList.remove('drag');
+    var f=e.dataTransfer.files[0];
+    if(f&&f.type.startsWith('image/'))loadImage(f);
+  };
+
+  window.avLoadFile=function(f,tab){
+    if(f&&f.type.startsWith('image/'))loadImage(f);
+  };
+
+  window.avSave=function(){
+    if(!img)return;
+    // Render final circle to output canvas
+    var out=document.createElement('canvas');
+    out.width=out.height=OUT_SIZE;
+    var octx=out.getContext('2d');
+    var scale=OUT_SIZE/CANVAS_SIZE;
+    octx.beginPath();
+    octx.arc(OUT_SIZE/2,OUT_SIZE/2,OUT_SIZE/2,0,Math.PI*2);
+    octx.clip();
+    octx.drawImage(img,offX*scale,offY*scale,img.width*zoom*scale,img.height*zoom*scale);
+    var dataUrl=out.toDataURL('image/png');
+    // Apply to all avatar elements immediately
+    applyAvatar(dataUrl);
+    // Save to Supabase if possible, else localStorage
+    saveAvatarToSupabase(dataUrl);
+    closeAvatarModal();
+  };
+
+  function applyAvatar(url){
+    // userAvatar = topbar (vždy vlastní uživatel)
+    var topbar=document.getElementById('userAvatar');
+    if(topbar){
+      topbar.textContent='';
+      topbar.style.backgroundImage='url('+url+')';
+      topbar.style.backgroundSize='cover';
+      topbar.style.backgroundPosition='center';
+    }
+    // heroAvatar = profilový hrdina – jen pokud jde o vlastní profil
+    var isOwnProfile = typeof profileUserId!=='undefined' && typeof currentUser!=='undefined'
+      && currentUser && profileUserId === currentUser.id;
+    if(isOwnProfile){
+      var hero=document.getElementById('heroAvatar');
+      if(hero){
+        hero.textContent='';
+        hero.style.backgroundImage='url('+url+')';
+        hero.style.backgroundSize='cover';
+        hero.style.backgroundPosition='center';
+      }
+    }
+    // Also persist in localStorage as fallback
+    try{localStorage.setItem('pkc_avatar_local',url);}catch(e){}
+  }
+
+  async function saveAvatarToSupabase(dataUrl){
+    try{
+      var u=null;
+      try{var raw=localStorage.getItem('sb_user');if(raw)u=JSON.parse(raw);}catch(e){}
+      if(!u||!u.id)return;
+      var tk=localStorage.getItem('sb_token');
+      var SBU=typeof SUPABASE_URL!=='undefined'?SUPABASE_URL:'';
+      var SBA=typeof SUPABASE_ANON!=='undefined'?SUPABASE_ANON:'';
+      if(!tk||!SBU||!SBA)return;
+      await fetch(SBU+'/rest/v1/profiles?id=eq.'+u.id,{
+        method:'PATCH',
+        headers:{'apikey':SBA,'Authorization':'Bearer '+tk,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({avatar_url:dataUrl})
+      });
+    }catch(e){console.warn('[Avatar] Supabase save failed:',e);}
+  }
+
+  window.openAvatarModal=function(){
+    var ov=document.getElementById('avOverlay');
+    if(!ov)return;
+    if(!canvas)init();
+    ov.style.display='flex';
+    requestAnimationFrame(function(){ov.classList.add('show');});
+  };
+
+  window.closeAvatarModal=function(){
+    var ov=document.getElementById('avOverlay');
+    if(!ov)return;
+    ov.classList.remove('show');
+    setTimeout(function(){ov.style.display='none';},200);
+  };
+
+  window.switchAvTab=function(tab){
+    document.getElementById('avTabPhoto').classList.toggle('active',tab==='photo');
+    document.getElementById('avTabCard').classList.toggle('active',tab==='card');
+    document.getElementById('avPanelPhoto').style.display=tab==='photo'?'':'none';
+    document.getElementById('avPanelCard').style.display=tab==='card'?'':'none';
+  };
+
+  // Load local fallback avatar on page load
+  window.addEventListener('DOMContentLoaded',function(){
+    var local=null;
+    try{local=localStorage.getItem('pkc_avatar_local');}catch(e){}
+    if(local){
+      // userAvatar (topbar) – vždy
+      var topbar=document.getElementById('userAvatar');
+      if(topbar&&!topbar.style.backgroundImage){
+        topbar.textContent='';
+        topbar.style.backgroundImage='url('+local+')';
+        topbar.style.backgroundSize='cover';
+        topbar.style.backgroundPosition='center';
+      }
+      // heroAvatar – jen na vlastním profilu
+      var isOwnProfile = typeof profileUserId!=='undefined' && typeof currentUser!=='undefined'
+        && currentUser && profileUserId === currentUser.id;
+      if(isOwnProfile){
+        var hero=document.getElementById('heroAvatar');
+        if(hero&&!hero.style.backgroundImage){
+          hero.textContent='';
+          hero.style.backgroundImage='url('+local+')';
+          hero.style.backgroundSize='cover';
+          hero.style.backgroundPosition='center';
+        }
+      }
+    }
+  });
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  SETTINGS DROPDOWN — toggle + accordion
+// ═══════════════════════════════════════════════════════════
+(function() {
+  var sdOpen = false;
+
+  window.toggleSettingsDrop = function() {
+    var drop = document.getElementById('settingsDrop');
+    if (!drop) return;
+    sdOpen = !sdOpen;
+    drop.classList.toggle('open', sdOpen);
+    // zavři chat dropdown pokud byl otevřený
+    var cd = document.getElementById('chatDrop');
+    if (cd && cd.classList.contains('open')) {
+      cd.classList.remove('open');
+    }
+  };
+
+  document.addEventListener('click', function(e) {
+    if (!sdOpen) return;
+    var wrap = document.getElementById('settingsDropWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      sdOpen = false;
+      var drop = document.getElementById('settingsDrop');
+      if (drop) drop.classList.remove('open');
+    }
+  });
+
+  window.toggleSdAcc = function(id) {
+    var item = document.getElementById(id);
+    if (!item) return;
+    var wasOpen = item.classList.contains('open');
+    document.querySelectorAll('.sdrop-acc-item.open').forEach(function(el) {
+      el.classList.remove('open');
+    });
+    if (!wasOpen) item.classList.add('open');
+  };
+})();
+</script>
+<!-- ═══ FEEDBACK FLOATING BUTTON + MODAL ═══ -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  (function(){
+    // ⚠️ NASTAV SVOJE EMAILJS ÚDAJE (viz instrukce)
+    var EJ_PUBLIC_KEY   = 'TVŮJ_PUBLIC_KEY';   // z EmailJS → Account → API Keys
+    var EJ_SERVICE_ID   = 'TVŮJ_SERVICE_ID';   // z EmailJS → Email Services
+    var EJ_TEMPLATE_ID  = 'TVŮJ_TEMPLATE_ID';  // z EmailJS → Email Templates
+    emailjs.init({ publicKey: EJ_PUBLIC_KEY });
+    window._ejCfg = { svc: EJ_SERVICE_ID, tpl: EJ_TEMPLATE_ID };
+  })();
+</script>
+
+<style>
+/* Floating button */
+#fbBtn {
+  position: fixed; bottom: 24px; right: 24px; z-index: 8000;
+  background: linear-gradient(135deg,#f5c842,#ff8c00);
+  color: #000; border: none; border-radius: 50px;
+  padding: 10px 18px; font-size: 13px; font-weight: 700;
+  font-family: 'DM Sans',sans-serif; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(245,200,66,0.35);
+  display: flex; align-items: center; gap: 7px;
+  transition: transform .15s, box-shadow .15s;
+}
+#fbBtn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(245,200,66,0.45); }
+#fbBtn svg { width:15px; height:15px; flex-shrink:0; }
+
+/* Modal overlay */
+#fbOverlay {
+  position: fixed; inset: 0; z-index: 9500;
+  background: rgba(0,0,0,0.72); backdrop-filter: blur(8px);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; transition: opacity .2s;
+}
+#fbOverlay.show { opacity: 1; }
+
+/* Modal box */
+#fbModal {
+  background: rgba(14,12,22,0.98); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; width: 100%; max-width: 440px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+  transform: translateY(16px); transition: transform .2s;
+  overflow: hidden;
+  font-family: 'DM Sans', sans-serif;
+}
+#fbOverlay.show #fbModal { transform: translateY(0); }
+
+.fb-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.fb-head h3 {
+  font-family: 'Unbounded',sans-serif; font-size: 13px; font-weight: 700;
+  color: #f0ece4; display: flex; align-items: center; gap: 8px;
+}
+.fb-close {
+  background: none; border: none; color: rgba(240,236,228,0.35);
+  cursor: pointer; font-size: 20px; line-height: 1; padding: 0;
+  transition: color .15s;
+}
+.fb-close:hover { color: #f0ece4; }
+
+.fb-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+.fb-label {
+  font-size: 11px; font-weight: 600; color: rgba(240,236,228,0.45);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
+  display: block;
+}
+
+.fb-type-row { display: flex; gap: 8px; }
+.fb-type-btn {
+  flex: 1; padding: 9px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+  color: rgba(240,236,228,0.6); cursor: pointer; transition: all .15s;
+  font-family: inherit; text-align: center;
+}
+.fb-type-btn:hover { background: rgba(255,255,255,0.08); color: #f0ece4; }
+.fb-type-btn.sel-improve { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.4); color: #4ade80; }
+.fb-type-btn.sel-bug     { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.4); color: #f87171; }
+
+.fb-input, .fb-textarea {
+  width: 100%; padding: 10px 13px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+  color: #f0ece4; font-family: 'DM Sans',sans-serif; font-size: 13px;
+  outline: none; box-sizing: border-box; transition: border-color .15s;
+}
+.fb-input::placeholder, .fb-textarea::placeholder { color: rgba(240,236,228,0.25); }
+.fb-input:focus, .fb-textarea:focus { border-color: rgba(245,200,66,0.4); }
+.fb-textarea { resize: none; height: 100px; line-height: 1.55; }
+
+.fb-send-btn {
+  width: 100%; padding: 12px; border-radius: 11px; border: none;
+  background: linear-gradient(135deg,#f5c842,#ff8c00);
+  color: #000; font-weight: 700; font-size: 13.5px;
+  font-family: inherit; cursor: pointer; transition: opacity .15s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.fb-send-btn:hover { opacity: .88; }
+.fb-send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+#fbStatus {
+  text-align: center; font-size: 12px; min-height: 18px;
+  color: rgba(240,236,228,0.5); margin-top: -6px;
+}
+#fbStatus.ok  { color: #4ade80; }
+#fbStatus.err { color: #f87171; }
+</style>
+
+<!-- Floating button -->
+<button id="fbBtn" onclick="openFeedback()">
+  <svg viewBox="0 0 20 20" fill="currentColor">
+    <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/>
+  </svg>
+  Zpětná vazba
+</button>
+
+<!-- Modal -->
+<div id="fbOverlay" onclick="if(event.target===this)closeFeedback()">
+  <div id="fbModal">
+    <div class="fb-head">
+      <h3>💬 Zpětná vazba</h3>
+      <button class="fb-close" onclick="closeFeedback()">✕</button>
+    </div>
+    <div class="fb-body">
+      <div>
+        <span class="fb-label">Typ zprávy</span>
+        <div class="fb-type-row">
+          <button class="fb-type-btn sel-improve" id="fbTypeImprove" onclick="selectFbType('improve')">✨ Návrh na zlepšení</button>
+          <button class="fb-type-btn" id="fbTypeBug" onclick="selectFbType('bug')">🐛 Nahlásit nefunkčnost</button>
+        </div>
+      </div>
+      <div>
+        <span class="fb-label">Tvoje zpráva</span>
+        <textarea id="fbMessage" class="fb-textarea" placeholder="Popiš co by se dalo zlepšit nebo co nefunguje..."></textarea>
+      </div>
+      <div>
+        <span class="fb-label">Přezdívka (volitelné)</span>
+        <input id="fbNick" class="fb-input" type="text" placeholder="Jak ti máme říkat?">
+      </div>
+      <div id="fbStatus"></div>
+      <button class="fb-send-btn" id="fbSendBtn" onclick="sendFeedback()">
+        📤 Odeslat
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var fbType = 'improve';
+
+  window.openFeedback = function() {
+    var ov = document.getElementById('fbOverlay');
+    ov.style.display = 'flex';
+    requestAnimationFrame(function(){ ov.classList.add('show'); });
+    document.getElementById('fbStatus').textContent = '';
+    document.getElementById('fbStatus').className = '';
+  };
+
+  window.closeFeedback = function() {
+    var ov = document.getElementById('fbOverlay');
+    ov.classList.remove('show');
+    setTimeout(function(){ ov.style.display = 'none'; }, 200);
+  };
+
+  window.selectFbType = function(type) {
+    fbType = type;
+    document.getElementById('fbTypeImprove').className = 'fb-type-btn' + (type==='improve' ? ' sel-improve' : '');
+    document.getElementById('fbTypeBug').className     = 'fb-type-btn' + (type==='bug'     ? ' sel-bug'     : '');
+  };
+
+  window.sendFeedback = async function() {
+    var msg  = (document.getElementById('fbMessage').value || '').trim();
+    var nick = (document.getElementById('fbNick').value || '').trim() || 'Anonymní';
+    var st   = document.getElementById('fbStatus');
+    var btn  = document.getElementById('fbSendBtn');
+
+    if (!msg) {
+      st.textContent = '⚠️ Prosím napiš zprávu.';
+      st.className = 'err';
+      return;
+    }
+
+    var cfg = window._ejCfg || {};
+    if (!cfg.svc || cfg.svc === 'TVŮJ_SERVICE_ID') {
+      st.textContent = '⚙️ EmailJS ještě není nakonfigurováno (viz instrukce).';
+      st.className = 'err';
+      return;
+    }
+
+    btn.disabled = true;
+    st.textContent = 'Odesílám...';
+    st.className = '';
+
+    var typeLabel = fbType === 'bug' ? '🐛 Nahlášená nefunkčnost' : '✨ Návrh na zlepšení';
+    var page = window.location.pathname.split('/').pop() || 'neznámá stránka';
+
+    try {
+      await emailjs.send(cfg.svc, cfg.tpl, {
+        fb_type:    typeLabel,
+        fb_message: msg,
+        fb_nick:    nick,
+        fb_page:    page,
+        fb_time:    new Date().toLocaleString('cs')
+      });
+      st.textContent = '✅ Zpráva odeslána, díky!';
+      st.className = 'ok';
+      document.getElementById('fbMessage').value = '';
+      document.getElementById('fbNick').value = '';
+      setTimeout(closeFeedback, 2000);
+    } catch(e) {
+      st.textContent = '❌ Nepodařilo se odeslat. Zkus to znovu.';
+      st.className = 'err';
+    } finally {
+      btn.disabled = false;
+    }
+  };
+})();
+</script>
+
+<script src="site-tracking.js"></script>
+<script src="blocked-manager.js"></script>
+
+<!-- ═══ TRADE MATCHING JS ═══ -->
+<script>
+var _tradeMatchEnabled = false;
+
+window.tradeMatchInit = function(profileData) {
+  var sec = document.getElementById('tradeMatchSection');
+  if (sec) sec.style.display = '';
+  // Load from profile data (column trade_matching_enabled)
+  _tradeMatchEnabled = !!(profileData && profileData.trade_matching_enabled);
+  _tmUpdateUI();
+  nactiVymeny();
+  if (location.hash === '#vymeny' && sec) setTimeout(function () { sec.scrollIntoView({ behavior: 'smooth' }); }, 300);
+};
+
+// ── Seznam vzájemných výměn ──────────────────────────────────────
+function _vymEsc(t) {
+  return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function _vymKarty(karty) {
+  return (karty || []).map(function (k) {
+    var cislo = k.number ? ' #' + _vymEsc(k.number) : '';
+    var sada = k.set ? ' · ' + _vymEsc(k.set) : '';
+    return '<span style="display:inline-block;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);'
+         + 'border-radius:8px;padding:3px 8px;margin:2px 4px 2px 0;font-size:12px;color:var(--text2);">'
+         + _vymEsc(k.name) + cislo + '<span style="color:var(--text3)">' + sada + '</span></span>';
+  }).join('');
+}
+async function nactiVymeny() {
+  var box = document.getElementById('vymenySeznam');
+  if (!box) return;
+  if (!_tradeMatchEnabled) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div style="font-size:12px;color:var(--text3);">Hledám vzájemné výměny…</div>';
+  try {
+    var SBU = (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL) || 'https://xrduqwrinzvmpixgmqta.supabase.co';
+    var SBA = (typeof SUPABASE_ANON !== 'undefined' && SUPABASE_ANON) || '';
+    var tk = localStorage.getItem('sb_token') || localStorage.getItem('sb_access_token') || '';
+    if (typeof ensureFreshToken === 'function') tk = (await ensureFreshToken()) || tk;
+    var r = await fetch(SBU + '/rest/v1/rpc/moje_vzajemne_vymeny', {
+      method: 'POST',
+      headers: { 'apikey': SBA, 'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var shody = await r.json();
+    if (!shody.length) {
+      box.innerHTML = '<div style="font-size:12px;color:var(--text3);line-height:1.6;">Zatím žádná vzájemná výměna. '
+        + 'Označ v albu karty <b>k výměně</b> a přidej si <b>hlídané karty</b> — jakmile se najde shoda, dostaneš notifikaci.</div>';
+      return;
+    }
+    box.innerHTML = '<div style="font-size:13px;font-weight:600;color:var(--text);margin:8px 0;">🤝 Vzájemné výměny (' + shody.length + ')</div>'
+      + shody.map(function (v) {
+          var jm = _vymEsc(v.partner_username);
+          return '<div style="border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:12px;margin-bottom:10px;background:rgba(255,255,255,0.03);">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
+            +   '<a href="profile.html?user=' + encodeURIComponent(v.partner_username) + '" style="font-weight:600;color:var(--text);text-decoration:none;">👤 ' + jm + '</a>'
+            +   '<a href="chat.html?with=' + encodeURIComponent(v.partner_id) + '&username=' + encodeURIComponent(v.partner_username) + '" '
+            +     'style="font-size:12px;padding:5px 12px;border-radius:8px;background:rgba(74,222,128,0.15);color:#4ade80;text-decoration:none;">💬 Napsat</a>'
+            + '</div>'
+            + '<div style="font-size:11px;color:var(--text3);margin-bottom:2px;">Dostaneš (hledáš):</div><div>' + _vymKarty(v.dostanes) + '</div>'
+            + '<div style="font-size:11px;color:var(--text3);margin:6px 0 2px;">Dáš (hledá ' + jm + '):</div><div>' + _vymKarty(v.das) + '</div>'
+            + '</div>';
+        }).join('');
+  } catch (e) {
+    console.warn('[vymeny] seznam:', e.message);
+    box.innerHTML = '<div style="font-size:12px;color:#f87171;">Seznam výměn se nepodařilo načíst.</div>';
+  }
+}
+
+
+// ── Jednostranné hledání: kdo chce moje karty / kdo má, co hledám ────────
+// „Chce" = někdo má kartu z mé sbírky v hlídaných; „Má" = někdo nabízí
+// (k výměně/prodeji nebo v inzerátu) kartu z mých hlídaných.
+window.hledejZajemce = async function (smer) {
+  var box = document.getElementById('zajemciSeznam');
+  if (!box) return;
+  if (!_tradeMatchEnabled) {
+    box.innerHTML = '<div style="font-size:12px;color:var(--text3);line-height:1.6;">Nejdřív zapni párování výše — cizí hlídané karty a nabídky vidí jen ti, kdo sdílí i svoje.</div>';
+    return;
+  }
+  box.innerHTML = '<div style="font-size:12px;color:var(--text3);">Hledám…</div>';
+  try {
+    var SBU = (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL) || 'https://xrduqwrinzvmpixgmqta.supabase.co';
+    var SBA = (typeof SUPABASE_ANON !== 'undefined' && SUPABASE_ANON) || '';
+    var tk = localStorage.getItem('sb_token') || '';
+    if (typeof ensureFreshToken === 'function') tk = (await ensureFreshToken()) || tk;
+    var fn = smer === 'chce' ? 'kdo_chce_moje_karty' : 'kdo_ma_co_hledam';
+    var r = await fetch(SBU + '/rest/v1/rpc/' + fn, { method: 'POST',
+      headers: { 'apikey': SBA, 'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json' }, body: '{}' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var lide = await r.json();
+    if (!lide.length) {
+      box.innerHTML = '<div style="font-size:12px;color:var(--text3);line-height:1.6;">' + (smer === 'chce'
+        ? 'Zatím nikdo nehlídá kartu, kterou máš ve sbírce.'
+        : 'Zatím nikdo nenabízí kartu z tvých <a href="hlidane-karty.html" style="color:inherit">hlídaných</a>.') + '</div>';
+      return;
+    }
+    var nadpis = smer === 'chce' ? '🔎 Tvoje karty chce ' + lide.length + ' ' + (lide.length === 1 ? 'sběratel' : 'sběratelů')
+                                 : '🎯 Hledané karty má ' + lide.length + ' ' + (lide.length === 1 ? 'sběratel' : 'sběratelů');
+    box.innerHTML = '<div style="font-size:13px;font-weight:600;color:var(--text);margin:4px 0 8px;">' + nadpis + '</div>'
+      + lide.map(function (v) {
+          var jm = _vymEsc(v.partner_username);
+          var seznam = (v.karty || []).map(function (k) { return k.name + (k.number ? ' #' + k.number : ''); });
+          var zprava = smer === 'chce'
+            ? 'Ahoj, vidím, že hledáš: ' + seznam.join(', ') + '. Mám je ve sbírce — máš zájem? Můžeme se domluvit na ceně nebo výměně.'
+            : 'Ahoj, hledám tvoje: ' + seznam.join(', ') + '. Prodáš nebo vyměníš?';
+          var chat = 'chat.html?with=' + encodeURIComponent(v.partner_id) + '&username=' + encodeURIComponent(v.partner_username)
+                   + '&zprava=' + encodeURIComponent(zprava);
+          var inzeraty = smer === 'ma' ? (v.karty || []).filter(function (k) { return k.listing_id; }).map(function (k) {
+              return '<a href="marketplace.html?open=' + encodeURIComponent(k.listing_id) + '" style="font-size:11px;color:#f5c842;margin-right:10px;">🏷 '
+                + _vymEsc(k.name) + (k.price_czk ? ' · ' + _vymEsc(Number(k.price_czk).toLocaleString('cs')) + ' Kč' : '') + '</a>';
+            }).join('') : '';
+          return '<div style="border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:12px;margin-bottom:10px;background:rgba(255,255,255,0.03);">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
+            +   '<a href="profile.html?user=' + encodeURIComponent(v.partner_username) + '" style="font-weight:600;color:var(--text);text-decoration:none;">👤 ' + jm + '</a>'
+            +   '<a href="' + chat + '" style="font-size:12px;padding:5px 12px;border-radius:8px;background:rgba(74,222,128,0.15);color:#4ade80;text-decoration:none;">💬 '
+            +     (smer === 'chce' ? 'Nabídnout' : 'Napsat') + '</a>'
+            + '</div>'
+            + '<div style="font-size:11px;color:var(--text3);margin-bottom:2px;">' + (smer === 'chce' ? 'Hledá tvoje:' : 'Nabízí, co hledáš:') + '</div>'
+            + '<div>' + _vymKarty(v.karty) + '</div>'
+            + (inzeraty ? '<div style="margin-top:6px;">' + inzeraty + '</div>' : '')
+            + '</div>';
+        }).join('');
+  } catch (e) {
+    console.warn('[zajemci]', e.message);
+    box.innerHTML = '<div style="font-size:12px;color:#f87171;">Hledání se nepodařilo.</div>';
+  }
+};
+
+function _tmUpdateUI() {
+  var toggle = document.getElementById('tradeMatchToggle');
+  var status = document.getElementById('tradeMatchStatus');
+  if (toggle) toggle.classList.toggle('on', _tradeMatchEnabled);
+  if (status) status.textContent = _tradeMatchEnabled ? 'Zapnuto ✅' : 'Vypnuto';
+  // color
+  if (status) status.style.color = _tradeMatchEnabled ? '#4ade80' : 'var(--text3)';
+}
+
+window.toggleTradeMatching = async function() {
+  _tradeMatchEnabled = !_tradeMatchEnabled;
+  _tmUpdateUI();
+  var fb = document.getElementById('tradeMatchFeedback');
+  if (fb) { fb.textContent = '⏳ Ukládám...'; fb.style.color = 'var(--text3)'; }
+
+  try {
+    var SBU = typeof SUPABASE_URL  !== 'undefined' ? SUPABASE_URL  : '';
+    var SBA = typeof SUPABASE_ANON !== 'undefined' ? SUPABASE_ANON : '';
+    var tk  = localStorage.getItem('sb_token') || localStorage.getItem('sb_access_token') || '';
+    var uid = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null;
+    if (!uid || !SBU || !tk) throw new Error('not auth');
+
+    var r = await fetch(SBU + '/rest/v1/profiles?id=eq.' + uid, {
+      method: 'PATCH',
+      headers: { 'apikey': SBA, 'Authorization': 'Bearer ' + tk,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ trade_matching_enabled: _tradeMatchEnabled })
+    });
+    // Dřív se úspěch hlásil i při odmítnutí databází → po obnovení zase „Vypnuto"
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    nactiVymeny();
+    if (fb) {
+      fb.textContent = _tradeMatchEnabled
+        ? '✅ Trade matching aktivován — začneš dostávat notifikace o vzájemných výměnách.'
+        : '✅ Trade matching deaktivován.';
+      fb.style.color = '#4ade80';
+      setTimeout(function(){ if (fb) fb.textContent = ''; }, 4000);
+    }
+  } catch(e) {
+    _tradeMatchEnabled = !_tradeMatchEnabled; // rollback
+    _tmUpdateUI();
+    if (fb) { fb.textContent = '❌ Nepodařilo se uložit. Zkus to znovu.'; fb.style.color = '#f87171'; }
+  }
+};
+</script>
+
+<script>
+/* Příchod s #familySection (odkaz ze stránky Sdílet album) — sekce se
+   načítá asynchronně, takže samotná kotva by nefungovala. Počkáme,
+   až se objeví, a teprve pak k ní odscrollujeme a zvýrazníme ji. */
+(function () {
+  if (location.hash !== '#familySection') return;
+  let pokusy = 0;
+  const timer = setInterval(function () {
+    const el = document.getElementById('familySection');
+    if (el && el.style.display !== 'none') {
+      clearInterval(timer);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.style.transition = 'box-shadow .4s';
+      el.style.boxShadow  = '0 0 0 2px rgba(245,200,66,.55)';
+      setTimeout(function () { el.style.boxShadow = ''; }, 2200);
+    } else if (++pokusy > 40) {
+      clearInterval(timer);   // ~8 s a dost
+    }
+  }, 200);
+})();
+</script>
+
+<!-- ═══ RODINA JS ═══ -->
+<script>
+(function () {
+  'use strict';
+
+  var SBU = typeof SUPABASE_URL  !== 'undefined' ? SUPABASE_URL  : '';
+  var SBA = typeof SUPABASE_ANON !== 'undefined' ? SUPABASE_ANON : '';
+
+  function tok() { return localStorage.getItem('sb_token') || localStorage.getItem('sb_access_token') || ''; }
+  function hdr() { return { 'Content-Type':'application/json', 'apikey':SBA, 'Authorization':'Bearer '+tok() }; }
+
+  async function sbGet(path) {
+    try {
+      var r = await fetch(SBU+'/rest/v1/'+path, { headers: hdr() });
+      if (!r.ok) {
+        var body = ''; try { body = await r.text(); } catch {}
+        console.warn('[rodina] sbGet '+r.status+' '+path.split('?')[0]+' '+body.slice(0,200));
+        return [];
+      }
+      return await r.json();
+    } catch (e) { console.warn('[rodina] sbGet selhal:', e.message); return []; }
+  }
+  async function sbPost(path, body) {
+    return fetch(SBU+'/rest/v1/'+path, {
+      method:'POST', headers:{...hdr(),'Prefer':'return=representation'}, body:JSON.stringify(body)
+    });
+  }
+  async function sbPatch(path, body) {
+    return fetch(SBU+'/rest/v1/'+path, {
+      method:'PATCH', headers:{...hdr(),'Prefer':'return=minimal'}, body:JSON.stringify(body)
+    });
+  }
+  async function sbDel(path) {
+    return fetch(SBU+'/rest/v1/'+path, { method:'DELETE', headers: hdr() });
+  }
+
+  function myId() {
+    try { return JSON.parse(localStorage.getItem('sb_user')||'null')?.id||null; } catch { return null; }
+  }
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function setFb(id, msg, cls) {
+    var el = document.getElementById(id); if (!el) return;
+    el.textContent = msg; el.className = 'family-feedback '+(cls||'');
+    if (msg) setTimeout(function(){ if(el.textContent===msg) el.textContent=''; }, 4000);
+  }
+
+  /* ── Tab přepínání ── */
+  window.familySwitchTab = function(tab) {
+    ['Members','Sharing','Pending'].forEach(function(t) {
+      var tl = t.toLowerCase();
+      document.getElementById('famTab'+t).classList.toggle('active', tl===tab);
+      document.getElementById('famPanel'+t).style.display = tl===tab ? '' : 'none';
+    });
+    if (tab==='sharing') loadShareAlbums();
+    if (tab==='pending') loadPending();
+  };
+
+  /* ── Init (volá se z loadProfile) ── */
+  window.familyInit = async function() {
+    var uid = myId(); if (!uid) return;
+    var sec = document.getElementById('familySection');
+    if (sec) sec.style.display = '';
+    await loadMembers();
+    await loadPendingCount();
+  };
+
+  /* ── Členové ── */
+  async function loadMembers() {
+    var uid = myId(); if (!uid) return;
+    // Načti connections + profil obou stran najednou (join obejde RLS na profiles)
+    // FIX: family_connections.user_id/member_id odkazují na auth.users, NE na profiles,
+    // takže PostgREST embed `profiles!user_id(...)` vracel 400 → tiše prázdno → "žádní členové".
+    // Načteme jen spojení; profil druhé strany dotáhneme zvlášť (RLS to povoluje).
+    var rows = await sbGet(
+      'family_connections?or=(user_id.eq.'+uid+',member_id.eq.'+uid+')&status=eq.accepted&select=*'
+    );
+    var wrap = document.getElementById('famMembersList');
+    var empty = document.getElementById('famMembersEmpty');
+    if (!rows.length) { wrap.innerHTML = ''; wrap.appendChild(empty); empty.style.display=''; return; }
+    empty.style.display = 'none';
+    var html = '';
+    for (var i=0; i<rows.length; i++) {
+      var row = rows[i];
+      var otherId = row.user_id===uid ? row.member_id : row.user_id;
+      // Použij inline profil z joinu — nevyžaduje extra SELECT na profiles
+      var rawProf = row.user_id===uid ? row.member_prof : row.user_prof;
+      var p = (Array.isArray(rawProf) ? rawProf[0] : rawProf) || {};
+      // Záložní dotaz pokud join nevracím data (starší schéma)
+      if (!p.username && !p.display_name) {
+        var fallback = await sbGet('public_profiles?id=eq.'+otherId+'&select=id,username,avatar_url');
+        p = fallback[0] || {};
+      }
+      var nick = esc(p.username || (p.email ? p.email.split('@')[0] : null) || otherId.slice(0,8));
+      var uname = esc(p.username || '');
+      var init = nick.charAt(0).toUpperCase();
+      var avStyle = p.avatar_url ? 'background-image:url(\''+p.avatar_url+'\');background:transparent' : '';
+      var shared = await sbGet('family_shared_albums?owner_id=eq.'+otherId+'&is_shared=eq.true&select=album_id,album_name');
+      var cnt = shared.length;
+      var albumLabel = cnt===0 ? 'Nesdílí žádná alba' : cnt+' sdílen'+(cnt===1?'é':'á')+' album'+(cnt>1?'ů':'');
+      var albumRows = '';
+      shared.forEach(function(a) {
+        var aname = esc(a.album_name||'Album');
+        albumRows += '<div class="family-album-item">' +
+          '<span style="font-size:15px">🃏</span>' +
+          '<span class="family-album-item-name">'+aname+'</span>' +
+          '<a class="family-album-btn blue" href="moje-album.html?familyUser='+otherId+'&familyAlbum='+encodeURIComponent(a.album_id)+'">👁 Zobrazit</a>' +
+          '<a class="family-album-btn" style="margin-left:4px" href="compare.html?b='+otherId+'&ba='+encodeURIComponent(a.album_id)+'">⚔️ Porovnat</a>' +
+        '</div>';
+      });
+      if (!albumRows) albumRows = '<div style="font-size:12px;color:rgba(240,236,228,0.35);padding:6px 0">Člen nesdílí žádná alba.</div>';
+      html += '<div>' +
+        '<div class="family-member-card" onclick="famToggle(\'fal-'+otherId+'\')">' +
+          '<div class="family-member-avatar" style="'+avStyle+'">'+(p.avatar_url?'':init)+'</div>' +
+          '<div class="family-member-info">' +
+            '<div class="family-member-name">'+nick+'</div>' +
+            '<div class="family-member-nick">@'+uname+'</div>' +
+            '<div class="family-member-albums">'+albumLabel+'</div>' +
+          '</div>' +
+          '<div class="family-member-actions">' +
+            '<span id="fa-arrow-'+otherId+'" style="font-size:16px;color:rgba(240,236,228,0.35)">▶</span>' +
+            '<button class="family-btn-remove" onclick="event.stopPropagation();famRemove(\''+row.id+'\',\''+nick+'\')">✕</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="family-album-list" id="fal-'+otherId+'">'+albumRows+'</div>' +
+      '</div>';
+    }
+    wrap.innerHTML = html;
+  }
+
+  window.famToggle = function(id) {
+    var el = document.getElementById(id); if (!el) return;
+    var open = el.classList.toggle('open');
+    var mid = id.replace('fal-','');
+    var arr = document.getElementById('fa-arrow-'+mid);
+    if (arr) arr.textContent = open ? '▼' : '▶';
+  };
+
+  window.famRemove = async function(connId, nick) {
+    if (!confirm('Odebrat '+nick+' z rodiny?')) return;
+    var r = await sbDel('family_connections?id=eq.'+connId);
+    if (r.ok||r.status===204) { showToast('✅ '+nick+' odebrán','success'); loadMembers(); }
+    else showToast('❌ Chyba při odebírání','error');
+  };
+
+  /* ── Sdílení alb ── */
+  async function loadShareAlbums() {
+    var uid = myId(); if (!uid) return;
+    var wrap = document.getElementById('famShareAlbumsList');
+    wrap.innerHTML = '<div class="family-empty">Načítám…</div>';
+    var albums = await sbGet('user_albums?user_id=eq.'+uid+'&select=id,name');
+    if (!albums.length) { wrap.innerHTML = '<div class="family-empty">Nemáš žádná alba.</div>'; return; }
+    var shared = await sbGet('family_shared_albums?owner_id=eq.'+uid+'&select=album_id,is_shared');
+    var map = {};
+    shared.forEach(function(s){ map[s.album_id]=s.is_shared; });
+    var html = '';
+    albums.forEach(function(a) {
+      var on = !!map[a.id];
+      html += '<div class="family-share-album-row">' +
+        '<span class="family-share-album-name">🃏 '+esc(a.name||'Album')+'</span>' +
+        '<button class="family-toggle'+(on?' on':'')+'" id="ftog-'+a.id+'" onclick="famToggleShare(\''+a.id+'\',\''+esc(a.name||'Album')+'\')"></button>' +
+      '</div>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  window.famToggleShare = async function(albumId, albumName) {
+    var uid = myId();
+    var btn = document.getElementById('ftog-'+albumId);
+    var wasOn = btn && btn.classList.contains('on');
+    var newVal = !wasOn;
+    if (btn) btn.classList.toggle('on', newVal);
+    var ex = await sbGet('family_shared_albums?owner_id=eq.'+uid+'&album_id=eq.'+albumId+'&select=id');
+    var r;
+    if (ex.length) {
+      r = await sbPatch('family_shared_albums?owner_id=eq.'+uid+'&album_id=eq.'+albumId, {is_shared:newVal, updated_at:new Date().toISOString()});
+    } else {
+      r = await sbPost('family_shared_albums', {owner_id:uid, album_id:albumId, album_name:albumName, is_shared:newVal});
+    }
+    if (r.ok||r.status===201||r.status===204) {
+      setFb('famShareFeedback', newVal?'✅ "'+albumName+'" sdíleno s rodinou':'🔒 "'+albumName+'" skryto', newVal?'ok':'');
+    } else {
+      setFb('famShareFeedback','❌ Chyba při ukládání','err');
+      if (btn) btn.classList.toggle('on', wasOn);
+    }
+  };
+
+  /* ── Pozvání ── */
+  window.familySendInvite = async function() {
+    var uid = myId();
+    var email = (document.getElementById('famInviteEmail').value||'').trim().toLowerCase();
+    var btn = document.getElementById('famInviteBtn');
+    if (!email||!email.includes('@')) { setFb('famInviteFeedback','⚠️ Zadej platný email','err'); return; }
+    btn.disabled = true;
+    setFb('famInviteFeedback','Hledám uživatele…','');
+    var users = await sbGet('rpc/najdi_uzivatele_podle_emailu?p_email='+encodeURIComponent(email));
+    if (!users.length) {
+      setFb('famInviteFeedback','❌ Uživatel s tímto emailem nenalezen','err');
+      btn.disabled = false; return;
+    }
+    var target = users[0];
+    if (target.id===uid) { setFb('famInviteFeedback','⚠️ To jsi ty!','err'); btn.disabled=false; return; }
+    var ex = await sbGet(
+      'family_connections?or=(and(user_id.eq.'+uid+',member_id.eq.'+target.id+'),and(user_id.eq.'+target.id+',member_id.eq.'+uid+'))&select=id,status'
+    );
+    if (ex.length) {
+      setFb('famInviteFeedback', ex[0].status==='accepted'?'✅ Již ve tvé rodině':'⏳ Pozvánka již odeslána', ex[0].status==='accepted'?'ok':'');
+      btn.disabled=false; return;
+    }
+    var r = await sbPost('family_connections', {user_id:uid, member_id:target.id, status:'pending'});
+    if (r.ok||r.status===201) {
+      setFb('famInviteFeedback','✅ Pozvánka odeslána @'+(target.username||email)+'!','ok');
+      document.getElementById('famInviteEmail').value='';
+    } else {
+      setFb('famInviteFeedback','❌ Chyba při odesílání','err');
+    }
+    btn.disabled = false;
+  };
+
+  /* ── Čekající žádosti ── */
+  async function loadPending() {
+    var uid = myId(); if (!uid) return;
+    var rows = await sbGet('family_connections?member_id=eq.'+uid+'&status=eq.pending&select=*');
+    var wrap = document.getElementById('famPendingList');
+    var empty = document.getElementById('famPendingEmpty');
+    if (!rows.length) { wrap.innerHTML=''; wrap.appendChild(empty); empty.style.display=''; return; }
+    empty.style.display='none';
+    var html='';
+    for (var i=0; i<rows.length; i++) {
+      var row=rows[i];
+      var prof = await sbGet('public_profiles?id=eq.'+row.user_id+'&select=username');
+      var p = prof[0]||{};
+      var nick = esc(p.display_name||p.username||'Neznámý');
+      html += '<div class="family-pending-card" id="fpend-'+row.id+'">' +
+        '<div style="font-size:28px">👋</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="family-pending-from">'+nick+' tě zve do rodiny</div>' +
+          '<div class="family-pending-sub">@'+esc(p.username||'')+' · Uvidíte vzájemně sdílená alba</div>' +
+        '</div>' +
+        '<div class="family-pending-actions">' +
+          '<button class="family-btn-accept" onclick="famAccept(\''+row.id+'\',\''+nick+'\')">✅ Přijmout</button>' +
+          '<button class="family-btn-decline" onclick="famDecline(\''+row.id+'\')">✕</button>' +
+        '</div>' +
+      '</div>';
+    }
+    wrap.innerHTML = html;
+  }
+
+  async function loadPendingCount() {
+    var uid = myId(); if (!uid) return;
+    var rows = await sbGet('family_connections?member_id=eq.'+uid+'&status=eq.pending&select=id');
+    var badge = document.getElementById('famPendingBadge');
+    if (!badge) return;
+    var cnt = rows.length;
+    badge.textContent = cnt;
+    badge.style.display = cnt>0 ? 'inline' : 'none';
+  }
+
+  window.famAccept = async function(id, nick) {
+    var r = await sbPatch('family_connections?id=eq.'+id, {status:'accepted'});
+    if (r.ok||r.status===204) {
+      showToast('✅ '+nick+' přijat do rodiny!','success');
+      var el=document.getElementById('fpend-'+id); if(el) el.remove();
+      loadMembers(); loadPendingCount();
+    } else showToast('❌ Chyba','error');
+  };
+
+  window.famDecline = async function(id) {
+    var r = await sbDel('family_connections?id=eq.'+id);
+    if (r.ok||r.status===204) {
+      var el=document.getElementById('fpend-'+id); if(el) el.remove();
+      loadPendingCount();
+    }
+  };
+
+})();
+</script>
+
+<!--
+═══════════════════════════════════════════════
+  SQL MIGRACE — spusť v Supabase SQL editoru
+═══════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS family_connections (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  member_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted')),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, member_id)
+);
+
+CREATE TABLE IF NOT EXISTS family_shared_albums (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  album_id text NOT NULL,
+  album_name text NOT NULL DEFAULT 'Album',
+  is_shared boolean NOT NULL DEFAULT false,
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(owner_id, album_id)
+);
+
+ALTER TABLE family_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE family_shared_albums ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "family_conn_select" ON family_connections FOR SELECT
+  USING (auth.uid() = user_id OR auth.uid() = member_id);
+CREATE POLICY "family_conn_insert" ON family_connections FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "family_conn_update" ON family_connections FOR UPDATE
+  USING (auth.uid() = member_id OR auth.uid() = user_id);
+CREATE POLICY "family_conn_delete" ON family_connections FOR DELETE
+  USING (auth.uid() = user_id OR auth.uid() = member_id);
+
+CREATE POLICY "family_shared_select" ON family_shared_albums FOR SELECT
+  USING (
+    auth.uid() = owner_id OR
+    EXISTS (
+      SELECT 1 FROM family_connections
+      WHERE status = 'accepted'
+      AND ((user_id = owner_id AND member_id = auth.uid())
+        OR (member_id = owner_id AND user_id = auth.uid()))
+    )
+  );
+CREATE POLICY "family_shared_all" ON family_shared_albums FOR ALL
+  USING (auth.uid() = owner_id) WITH CHECK (auth.uid() = owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_famconn_user   ON family_connections(user_id);
+CREATE INDEX IF NOT EXISTS idx_famconn_member ON family_connections(member_id);
+CREATE INDEX IF NOT EXISTS idx_famshared_owner ON family_shared_albums(owner_id);
+
+═══════════════════════════════════════════════
+-->

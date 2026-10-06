@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="Jak funguje obchodování na PokéTrade: platba a doprava, rezervace, aukce, hodnocení, co je zakázané a co dělat při podvodu.">
+  <link rel="canonical" href="https://www.poke-trade.eu/pravidla-obchodu.html">
+  <meta name="theme-color" content="#0a0608">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pravidla obchodu na PokéTrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+  body { background:var(--bg,#06040c); color:var(--text,#e8e4ef); font-family:'DM Sans',sans-serif; margin:0; }
+  body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background-image:url('wallpaper.png'); background-size:cover; background-position:center 30%; filter:brightness(0.14) saturate(0.6); }
+  .w { position:relative; z-index:1; max-width:860px; margin:0 auto; padding:26px 16px 60px; }
+  h1 { font-family:'Unbounded',sans-serif; font-size:26px; color:var(--yellow,#f5c842); margin:0 0 8px; }
+  h2 { font-family:'Unbounded',sans-serif; font-size:16px; margin:26px 0 8px; color:var(--text,#f0ece4); }
+  p, li { color:var(--text2,rgba(232,228,239,.85)); font-size:15px; line-height:1.65; }
+  .box { background:var(--card,rgba(255,255,255,.03)); border:1px solid var(--border,rgba(255,255,255,.08)); border-radius:14px; padding:14px 18px; margin-top:12px; }
+  a { color:var(--yellow,#f5c842); }
+  .app-topbar { position:sticky; top:0; z-index:200; background:rgba(8,8,12,0.92); border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; height:56px; padding:0 20px; }
+  .app-logo { font-size:14px; font-weight:800; color:#fff; display:flex; align-items:center; gap:6px; text-decoration:none; margin-right:28px; }
+  .app-logo strong { color:#f5c842; } .topbar-right { display:flex; align-items:center; gap:10px; margin-left:auto; }
+  .nav-lnks img.nav-icon { width:18px!important; height:18px!important; object-fit:contain!important; }
+</style>
+</head>
+<body>
+<script>window.TOPBAR_ACTIVE = 'pravidla';</script>
+<script src="logger.js"></script><script src="i18n.js"></script><script src="topbar.js"></script>
+<header class="app-topbar"><a href="/" class="app-logo"><img src="pokemon.png" alt="" style="width:28px;height:28px;object-fit:contain;border-radius:6px"> Poké<strong>Trade</strong></a>
+  <nav class="nav-lnks" id="mainNav"></nav><div class="topbar-right"></div></header>
+<main class="w">
+  <h1>📜 Pravidla obchodu</h1>
+  <p>PokéTrade je místo, kde se sběratelé potkávají. Aby to fungovalo, platí pár jednoduchých pravidel. Shrnutí: <b>buď férový, komunikuj a hlas problémy.</b></p>
+
+  <h2>💳 PokéTrade není prostředník platby</h2>
+  <ul>
+    <li>Platba i doprava se domlouvá <b>přímo mezi kupujícím a prodejcem</b> (v chatu). PokéTrade peníze nepřijímá, nedrží ani nevrací.</li>
+    <li>U nabídky vidíš, jaké platby prodejce nabízí (dobírka, předem na účet, hotově při předání). <b>Cena je vždy bez dopravy.</b></li>
+    <li>Tip: u neznámého protějšku je nejbezpečnější <b>dobírka</b> nebo <b>osobní předání</b>.</li>
+  </ul>
+
+  <h2>🔒 Rezervace, prodej a aukce</h2>
+  <ul>
+    <li>Když prodejce přijme nabídku, karta se <b>zarezervuje</b> a ostatní ji nemůžou koupit. Po předání prodejce označí „Prodáno".</li>
+    <li>Nabídka platí <b>30 dní</b>; před koncem přijde upozornění s možností prodloužit.</li>
+    <li><b>Aukce:</b> kdo vyhraje, má <b>48 hodin</b> na ozvání. Kdo vyhranou aukci nedokončí, dostane 1★ hodnocení a <b>dočasný zákaz obchodu</b> (5 / 14 / 30 dní); karta se nabídne dalšímu v pořadí. Při omluvitelném důvodu napiš do 7 dní přes Zpětnou vazbu.</li>
+  </ul>
+
+  <h2>⭐ Hodnocení</h2>
+  <ul>
+    <li>Po dokončeném obchodu se můžete navzájem ohodnotit. Hodnotit jde jen skutečný obchod.</li>
+    <li>Před obchodem se podívej na profil protějšku: hodnocení, počet obchodů, jak dlouho má účet.</li>
+  </ul>
+
+  <h2>🚫 Co je zakázané</h2>
+  <ul>
+    <li>Prodávat <b>padělky</b> jako pravé karty (padělek smíš nabídnout jen jasně označený jako padělek / proxy).</li>
+    <li>Podvody, nedodání zaplaceného zboží, falešné nabídky, obtěžování a urážky.</li>
+    <li>Obcházení zákazu obchodu novým účtem.</li>
+  </ul>
+
+  <h2>🆘 Co dělat při problému nebo podvodu</h2>
+  <ol>
+    <li>Nejdřív zkus problém vyřešit s protějškem v chatu.</li>
+    <li>Uživatele můžeš <b>zablokovat</b> a nabídku <b>nahlásit</b>.</li>
+    <li>Napiš nám přes <b>Zpětnou vazbu</b> (typ „Něco nefunguje") nebo na <a href="mailto:pokecards.app.info@gmail.com">pokecards.app.info@gmail.com</a> — přilož odkaz na nabídku a screenshoty chatu.</li>
+    <li>Při podvodu s penězi se obrať i na <b>policii</b> a svou banku — PokéTrade jim na jejich žádost poskytne potřebné údaje.</li>
+  </ol>
+
+  <h2>⚖️ Co PokéTrade může a nemůže</h2>
+  <ul>
+    <li><b>Může:</b> zablokovat podvodníka, smazat nabídku, dát zákaz obchodu, upravit hodnocení po prošetření.</li>
+    <li><b>Nemůže:</b> vrátit peníze ani zaručit doručení — obchod uzavírají uživatelé mezi sebou.</li>
+  </ul>
+  <p style="font-size:13px;opacity:.7">Více o projektu: <a href="o-projektu.html">O projektu a bezpečnost</a>.</p>
+</main>
+<script src="app.js"></script>
+<script src="site-tracking.js"></script>
+</body></html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="Kdo provozuje PokéTrade, co ukládáme, jak chráníme data a jak nás kontaktovat. Nezávislý komunitní projekt bez reklam.">
+  <link rel="canonical" href="https://www.poke-trade.eu/o-projektu.html">
+  <meta name="theme-color" content="#0a0608">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>O projektu, bezpečnost a kontakt | PokéTrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+  body { background:var(--bg,#06040c); color:var(--text,#e8e4ef); font-family:'DM Sans',sans-serif; margin:0; }
+  body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background-image:url('wallpaper.png'); background-size:cover; background-position:center 30%; filter:brightness(0.14) saturate(0.6); }
+  .w { position:relative; z-index:1; max-width:860px; margin:0 auto; padding:26px 16px 60px; }
+  h1 { font-family:'Unbounded',sans-serif; font-size:26px; color:var(--yellow,#f5c842); margin:0 0 8px; }
+  h2 { font-family:'Unbounded',sans-serif; font-size:16px; margin:26px 0 8px; color:var(--text,#f0ece4); }
+  p, li { color:var(--text2,rgba(232,228,239,.85)); font-size:15px; line-height:1.65; }
+  .box { background:var(--card,rgba(255,255,255,.03)); border:1px solid var(--border,rgba(255,255,255,.08)); border-radius:14px; padding:14px 18px; margin-top:12px; }
+  a { color:var(--yellow,#f5c842); }
+  .app-topbar { position:sticky; top:0; z-index:200; background:rgba(8,8,12,0.92); border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; height:56px; padding:0 20px; }
+  .app-logo { font-size:14px; font-weight:800; color:#fff; display:flex; align-items:center; gap:6px; text-decoration:none; margin-right:28px; }
+  .app-logo strong { color:#f5c842; } .topbar-right { display:flex; align-items:center; gap:10px; margin-left:auto; }
+  .nav-lnks img.nav-icon { width:18px!important; height:18px!important; object-fit:contain!important; }
+</style>
+</head>
+<body>
+<script>window.TOPBAR_ACTIVE = 'oprojektu';</script>
+<script src="logger.js"></script><script src="i18n.js"></script><script src="topbar.js"></script>
+<header class="app-topbar"><a href="/" class="app-logo"><img src="pokemon.png" alt="" style="width:28px;height:28px;object-fit:contain;border-radius:6px"> Poké<strong>Trade</strong></a>
+  <nav class="nav-lnks" id="mainNav"></nav><div class="topbar-right"></div></header>
+<main class="w">
+  <h1>ℹ️ O projektu PokéTrade</h1>
+  <p><b>PokéTrade je nezávislý komunitní projekt</b>, který vyvíjí a provozuje <b>jeden člověk</b> ve svém volném čase — a stejně tak ho i sám financuje.
+     Žádná velká firma, žádní investoři, <b>žádné reklamy</b> a žádný prodej dat. Cílem je, aby si sběratelé mohli vést sbírku a obchodovat zdarma a bezpečně.</p>
+
+  <h2>👋 Kdo za tím stojí</h2>
+  <div class="box"><p style="margin:0">Jmenuji se <b>Loyd</b> a sbírám Pokémon karty. Do Pokémonů jsem se zamiloval ve chvíli, kdy jsem jako malé dítě poprvé uviděl seriál —
+     a vydrželo mi to dodnes: hraju Pokémon GO, hry na Nintendu a hlavně sbírám kartičky. PokéTrade jsem začal stavět, protože jsem chtěl jedno místo,
+     kde si sbírku přehledně vedu, vím, kolik má hodnotu, a můžu si karty vyměnit nebo prodat s lidmi, kteří to mají stejně.</p></div>
+
+  <h2>🔐 Co o tobě ukládáme</h2>
+  <ul>
+    <li><b>Při registraci jen e-mail, uživatelské jméno a heslo.</b> Heslo se neukládá v čitelné podobě (je zašifrované jednosměrným hashem — neznáme ho ani my).</li>
+    <li>Data, která do aplikace sám vložíš: sbírku, nabídky, zprávy v chatu, hodnocení, nastavení.</li>
+    <li><b>Nechceme telefon, adresu ani platební údaje.</b> Platby mezi uživateli neprocházejí přes PokéTrade.</li>
+    <li>Anonymní statistiku návštěvnosti (bez reklamních sledovačů; IP adresy jen v zahashované podobě). Podrobně v <a href="privacy.html">zásadách ochrany soukromí</a>.</li>
+  </ul>
+
+  <h2>🛡️ Jak chráníme data</h2>
+  <ul>
+    <li>Celý web běží jen přes <b>šifrované spojení HTTPS</b>.</li>
+    <li>Přihlašování zajišťuje <b>Supabase Auth</b> (ověřená služba pro účty); k účtu si můžeš zapnout <b>dvoufázové ověření (2FA)</b> v Profilu.</li>
+    <li>Databáze má <b>oprávnění na úrovni řádků</b> — každý vidí a mění jen svá data (sbírku, zprávy, nastavení); citlivé operace hlídá samotná databáze, ne jen web.</li>
+    <li>Ochrana proti robotům a zneužití: limity požadavků, blokace uživatelů, nahlášení nabídek.</li>
+    <li><b>Zrušení účtu:</b> napiš nám (níže) — účet i data smažeme. Nabídky a zprávy zmizí, anonymní statistiky zůstanou.</li>
+  </ul>
+
+  <h2>📅 Stav projektu</h2>
+  <div class="box"><p style="margin:0">Projekt se aktivně vyvíjí — poslední aktualizace <b>6. 10. 2026</b>. Novinky a plánované funkce najdeš v
+     <a href="prirucka.html">Příručce</a> (sekce Novinky a Připravujeme). Některé nástroje jsou ve zkušebním provozu (označené <b>BETA</b>), např. <a href="overeni-pravosti.html">Ověření pravosti</a>.</p></div>
+
+  <h2>✉️ Kontakt</h2>
+  <ul>
+    <li>Dotazy, problémy, nápady: <b>Zpětná vazba</b> v aplikaci (menu Pomoc ▾) nebo e-mail <a href="mailto:pokecards.app.info@gmail.com">pokecards.app.info@gmail.com</a>.</li>
+    <li><b>Nahlásit bezpečnostní problém:</b> e-mail <a href="mailto:pokecards.app.info@gmail.com?subject=Bezpe%C4%8Dnostn%C3%AD%20probl%C3%A9m">pokecards.app.info@gmail.com</a> s předmětem „Bezpečnostní problém". Prosíme, chybu nejdřív nahlas nám a nezveřejňuj ji, dokud ji neopravíme. Děkujeme!</li>
+    <li>Pravidla obchodování: <a href="pravidla-obchodu.html">Pravidla obchodu</a>.</li>
+  </ul>
+</main>
+<script src="app.js"></script>
+<script src="site-tracking.js"></script>
+</body></html>
