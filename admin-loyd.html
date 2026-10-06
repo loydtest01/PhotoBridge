@@ -1390,8 +1390,14 @@ async function pravZdroje() {
   try {
     await ensureFreshToken();
     const r = await fetch(`${SBU}/rest/v1/padelky_zdroje?select=*&order=created_at`, { headers: { apikey: SBA, Authorization: 'Bearer ' + _token } });
-    if (!r.ok) return;
-    const d = await r.json();
+    // Když tabulka zdrojů chybí (nespuštěný pravost_doplnky.sql), ukázat aspoň hromadný import a upozornění
+    const d = r.ok ? await r.json() : [];
+    if (!r.ok) {
+      const upoz = document.createElement('div');
+      upoz.style.cssText = 'margin-top:16px;padding:10px 12px;border-radius:8px;border:1px solid rgba(248,113,113,.4);color:#f87171;font-size:12px';
+      upoz.textContent = '⚠️ Chybí tabulky pro zdroje padělků a přehled rozpoznávání — spusť v Supabase pravost_doplnky.sql (a padelky_api.sql, pravost_fronta.sql). Hromadný import níže funguje i tak.';
+      box.appendChild(upoz);
+    }
     const div = document.createElement('div'); div.style.marginTop = '16px';
     const inp = 'padding:6px;margin:3px 0;width:100%;box-sizing:border-box';
     div.innerHTML = `<b>🌐 Zdroje padělků z jiných webů</b> <span style="font-size:11px;opacity:.6">(jednou měsíčně přijde připomínka; obrázky přebírej jen s licencí CC0 / se svolením, jinak jen odkaz)</span>
